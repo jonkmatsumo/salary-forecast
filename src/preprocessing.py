@@ -20,14 +20,14 @@ class LevelEncoder:
             X = X.iloc[:, 0]
         return X.map(self.mapping).fillna(-1).astype(int)
 
+from .geo_utils import GeoMapper
+
 class LocationEncoder:
     """
-    Maps locations to Cost Zones based on config.
+    Maps locations to Cost Zones based on proximity to target cities.
     """
     def __init__(self):
-        config = get_config()
-        self.zone_mapping = config["mappings"]["locations"]
-        # Zone 4 is default
+        self.mapper = GeoMapper()
 
     def fit(self, X, y=None):
         return self
@@ -40,10 +40,7 @@ class LocationEncoder:
         def map_loc(loc):
             if not isinstance(loc, str):
                 return 4
-            for key, zone in self.zone_mapping.items():
-                if key.lower() in loc.lower():
-                    return zone
-            return 4 # Default
+            return self.mapper.get_zone(loc)
             
         return X.apply(map_loc)
 

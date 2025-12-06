@@ -24,6 +24,21 @@ A machine learning system to predict compensation distributions (Base Salary, St
     pip install -r requirements.txt
     ```
 
+## Configuration
+
+The system is now fully configurable via `config.json`. You can modify:
+- **Mappings**: Define level mappings (e.g., E3 -> 0).
+- **Location Targets**: Define major cities and their associated Cost Zones.
+- **Model Parameters**: Set targets (e.g., BaseSalary), quantiles, and sample weights.
+- **Features**: Define input features and monotonic constraints.
+
+## Proximity Matching
+
+The system uses `geopy` to automatically map input locations to the nearest target city defined in `config.json`.
+- **Dynamic Matching**: "Newark" maps to "New York" (Zone 1) because it is within the configured `max_distance_km` (default 50km).
+- **Caching**: Geocoding results are cached in `city_cache.json` to speed up subsequent runs and reduce API usage.
+- **O(1) Lookup**: Once a city is processed, its zone is cached in memory for instant lookup.
+
 ## Usage
 
 ### Training

@@ -7,24 +7,38 @@
             "E6": 3,
             "E7": 4
         },
-        "locations": {
-            "New York": 1, "New York City": 1, "NYC": 1, "Newark": 1, "Jersey City": 1,
-            "San Francisco": 1, "SF": 1, "Oakland": 1, "San Jose": 1, "Palo Alto": 1, "Bay Area": 1, "Mountain View": 1, "Sunnyvale": 1,
-            "Los Angeles": 2, "LA": 2,
-            "Seattle": 2, "Bellevue": 2, "Redmond": 2,
-            "Washington DC": 2, "DC": 2, "Washington": 2, "Arlington": 2,
-            "Austin": 3,
-            "Boston": 3, "Cambridge": 3,
-            "Denver": 3, "Boulder": 3,
-            "Houston": 3,
-            "Portland": 3,
-            "Sacramento": 3,
-            "San Diego": 3
+        "location_targets": {
+            "New York, NY": 1,
+            "San Francisco, CA": 1,
+            "Los Angeles, CA": 2,
+            "Seattle, WA": 2,
+            "Washington, DC": 2,
+            "Austin, TX": 3,
+            "Boston, MA": 3,
+            "Denver, CO": 3,
+            "Houston, TX": 3,
+            "Portland, OR": 3,
+            "Sacramento, CA": 3,
+            "San Diego, CA": 3,
+            "Raleigh, NC": 4,
+            "Durham, NC": 4
         }
     },
+    "location_settings": {
+        "max_distance_km": 50
+    },
     "model": {
-        "targets": ["BaseSalary", "Stock", "Bonus", "TotalComp"],
-        "quantiles": [0.25, 0.50, 0.75],
+        "targets": [
+            "BaseSalary",
+            "Stock",
+            "Bonus",
+            "TotalComp"
+        ],
+        "quantiles": [
+            0.25,
+            0.50,
+            0.75
+        ],
         "sample_weight_k": 1.0,
         "features": [
             {
