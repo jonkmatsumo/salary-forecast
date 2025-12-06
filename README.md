@@ -2,16 +2,6 @@
 
 A machine learning system to predict compensation distributions (Base Salary, Stock, Bonus, Total Comp) based on candidate attributes. It uses **XGBoost** with Quantile Regression to forecast the 25th, 50th, and 75th percentiles, enforcing monotonic constraints on Level and Years of Experience.
 
-## Project Structure
-
-- `src/`: Source code for the package.
-    - `model.py`: Core `SalaryForecaster` class.
-    - `preprocessing.py`: Encoders and data transformation logic.
-    - `utils.py`: Data loading and cleaning utilities.
-- `tests/`: Unit tests.
-- `train.py`: Script to train the model and save it to `salary_model.pkl`.
-- `requirements.txt`: Project dependencies.
-
 ## Installation
 
 1.  Create a virtual environment (optional but recommended):
@@ -23,6 +13,47 @@ A machine learning system to predict compensation distributions (Base Salary, St
     ```bash
     pip install -r requirements.txt
     ```
+
+## Usage
+
+### Training
+To train the model using the data in `src/salaries-list.csv`:
+
+```bash
+python3 train.py
+```
+
+This will output training progress and save the trained model to `salary_model.pkl`.
+
+### Inference (CLI)
+To run the interactive CLI for making predictions:
+
+```bash
+python3 cli.py
+```
+
+Follow the prompts to enter candidate details (Level, Location, Experience, etc.).
+
+### Testing
+To run the unit tests:
+
+```bash
+python3 -m pytest tests/
+```
+
+## Project Structure
+
+- `src/`: Source code for the package.
+    - `model.py`: Core `SalaryForecaster` class.
+    - `preprocessing.py`: Encoders and data transformation logic.
+    - `geo_utils.py`: Geocoding and proximity matching logic.
+    - `utils.py`: Data loading and cleaning utilities.
+    - `config_loader.py`: Configuration loading utility.
+- `tests/`: Unit tests.
+- `train.py`: Script to train the model and save it to `salary_model.pkl`.
+- `cli.py`: Interactive CLI application.
+- `config.json`: Configuration file for mappings and model parameters.
+- `requirements.txt`: Project dependencies.
 
 ## Configuration
 
@@ -38,21 +69,3 @@ The system uses `geopy` to automatically map input locations to the nearest targ
 - **Dynamic Matching**: "Newark" maps to "New York" (Zone 1) because it is within the configured `max_distance_km` (default 50km).
 - **Caching**: Geocoding results are cached in `city_cache.json` to speed up subsequent runs and reduce API usage.
 - **O(1) Lookup**: Once a city is processed, its zone is cached in memory for instant lookup.
-
-## Usage
-
-### Training
-To train the model using the data in `src/salaries-list.csv`:
-
-```bash
-python3 train.py
-```
-
-This will output training progress and save the trained model to `salary_model.pkl`.
-
-### Testing
-To run the unit tests:
-
-```bash
-python3 -m pytest tests/test_model.py
-```
