@@ -28,14 +28,14 @@ def main():
     # Simple inference check
     print("\nRunning sample inference...")
     sample_input = pd.DataFrame([{
-        "Level": "E5",
+        "Level": "E4",
         "Location": "New York",
-        "YearsOfExperience": 8,
-        "YearsAtCompany": 2
+        "YearsOfExperience": 3,
+        "YearsAtCompany": 0
     }])
     
     prediction = forecaster.predict(sample_input)
-    print("Prediction for E5 in NY (8 YOE):")
+    print("Prediction for E4 New Hire in NY (3 YOE):")
     for target, preds in prediction.items():
         print(f"  {target}: P25={preds['p25'][0]:.0f}, P50={preds['p50'][0]:.0f}, P75={preds['p75'][0]:.0f}")
 
