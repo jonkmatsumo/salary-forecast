@@ -11,3 +11,4 @@ __pycache__/
 # Artifacts
 salary_model.pkl
 city_cache.json
+salaries-list.csv

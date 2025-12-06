@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
-from .config_loader import get_config
+from src.utils.config_loader import get_config
 
 class LevelEncoder:
     """
@@ -20,7 +20,7 @@ class LevelEncoder:
             X = X.iloc[:, 0]
         return X.map(self.mapping).fillna(-1).astype(int)
 
-from .geo_utils import GeoMapper
+from src.utils.geo_utils import GeoMapper
 
 class LocationEncoder:
     """

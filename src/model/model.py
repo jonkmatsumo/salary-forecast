@@ -1,8 +1,8 @@
 import xgboost as xgb
 import pandas as pd
 import numpy as np
-from .preprocessing import LevelEncoder, LocationEncoder, SampleWeighter
-from .config_loader import get_config
+from src.model.preprocessing import LevelEncoder, LocationEncoder, SampleWeighter
+from src.utils.config_loader import get_config
 
 class SalaryForecaster:
     def __init__(self):

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-from cli import collect_user_data, main
+from src.cli import collect_user_data, main
 
 def test_collect_user_data():
     # Mock input to return: E5, New York, 5, 2
@@ -35,9 +35,9 @@ def test_main_flow():
     # 5. n (Stop)
     inputs = ["E5", "New York", "5", "2", "n"]
     
-    with patch('cli.load_model', return_value=mock_model), \
+    with patch('src.cli.load_model', return_value=mock_model), \
          patch('builtins.input', side_effect=inputs), \
-         patch('cli.Console') as MockConsole:
+         patch('src.cli.Console') as MockConsole:
         
         mock_console_instance = MockConsole.return_value
         

@@ -17,10 +17,10 @@ A machine learning system to predict compensation distributions (Base Salary, St
 ## Usage
 
 ### Training
-To train the model using the data in `src/salaries-list.csv`:
+To train the model using the data in `salaries-list.csv`:
 
 ```bash
-python3 train.py
+python3 -m src.train
 ```
 
 This will output training progress and save the trained model to `salary_model.pkl`.
@@ -29,7 +29,7 @@ This will output training progress and save the trained model to `salary_model.p
 To run the interactive CLI for making predictions:
 
 ```bash
-python3 cli.py
+python3 -m src.cli
 ```
 
 Follow the prompts to enter candidate details (Level, Location, Experience, etc.).
@@ -44,15 +44,18 @@ python3 -m pytest tests/
 ## Project Structure
 
 - `src/`: Source code for the package.
-    - `model.py`: Core `SalaryForecaster` class.
-    - `preprocessing.py`: Encoders and data transformation logic.
-    - `geo_utils.py`: Geocoding and proximity matching logic.
-    - `utils.py`: Data loading and cleaning utilities.
-    - `config_loader.py`: Configuration loading utility.
+    - `model/`: Model definition and preprocessing.
+        - `model.py`: Core `SalaryForecaster` class.
+        - `preprocessing.py`: Encoders and data transformation logic.
+    - `utils/`: Utility modules.
+        - `geo_utils.py`: Geocoding and proximity matching logic.
+        - `data_utils.py`: Data loading and cleaning utilities.
+        - `config_loader.py`: Configuration loading utility.
+    - `train.py`: Script to train the model.
+    - `cli.py`: Interactive CLI application.
 - `tests/`: Unit tests.
-- `train.py`: Script to train the model and save it to `salary_model.pkl`.
-- `cli.py`: Interactive CLI application.
-- `config.json`: Configuration file for mappings and model parameters.
+- `salaries-list.csv`: Training data.
+- `config.json`: Configuration file.
 - `requirements.txt`: Project dependencies.
 
 ## Configuration

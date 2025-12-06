@@ -5,7 +5,7 @@ from src.model import SalaryForecaster
 from src.utils import load_data
 
 def main():
-    csv_path = "src/salaries-list.csv"
+    csv_path = "salaries-list.csv"
     if not os.path.exists(csv_path):
         print(f"Error: {csv_path} not found.")
         return
