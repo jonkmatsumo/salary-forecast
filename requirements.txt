@@ -10,3 +10,4 @@ plotext
 streamlit
 watchdog
 matplotlib
+urllib3<2.0.0
