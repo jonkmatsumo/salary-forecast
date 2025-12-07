@@ -20,18 +20,16 @@ def train_workflow(csv_path, config_path, output_path, console):
     if config_path and os.path.exists(config_path):
         load_config(config_path)
 
-    console.print(f"Loading data from {csv_path}...")
-    df = load_data(csv_path)
-    console.print(f"Loaded {len(df)} samples.")
-    
     # Create layout elements
     from rich.live import Live
     from rich.table import Table
     from rich.text import Text
     from rich.console import Group
     from rich import box
+    import contextlib
+    import io
 
-    status_text = Text("Status: Initializing...", style="bold blue")
+    status_text = Text("Status: Preparing...", style="bold blue")
     
     results_table = Table(box=box.SIMPLE, show_header=True, header_style="bold magenta")
     results_table.add_column("Component", style="cyan")
@@ -47,20 +45,17 @@ def train_workflow(csv_path, config_path, output_path, console):
         results_table
     )
 
-    console.print("Starting training workflow...")
-
     with Live(output_group, console=console, refresh_per_second=4, transient=False):
+        status_text.plain = f"Status: Loading data from {csv_path}..."
+        df = load_data(csv_path)
         
-        status_text.plain = "Status: Initializing model..."
-        forecaster = SalaryForecaster() # config is loaded internally if not passed, but we should pass loaded config?
-        # Wait, the original code didn't pass config to constructor in line 28?
-        # Line 28: forecaster = SalaryForecaster()
-        # Line 21: load_config(config_path) -> sets global config?
-        # get_config() reads from the global variable or file. 
-        # So passing it explicitly is better if we loaded it.
-        # But `load_config` updates the singleton cache. 
-        # Let's keep existing behavior: `forecaster = SalaryForecaster()` works because it calls `get_config()`.
-
+        status_text.plain = "Status: Starting training workflow..."
+        
+        status_text.plain = "Status: Initializing target cities..."
+        # Suppress the internal print from geo_utils
+        with contextlib.redirect_stdout(io.StringIO()):
+             forecaster = SalaryForecaster()
+        
         status_text.plain = "Status: Starting training..."
         
         # Callback to handle rich output
@@ -92,12 +87,12 @@ def train_workflow(csv_path, config_path, output_path, console):
                 pass
                 
         forecaster.train(df, callback=console_callback)
+        
+        status_text.plain = f"Status: Saving model to {output_path}..."
+        with open(output_path, "wb") as f:
+            pickle.dump(forecaster, f)
+            
         status_text.plain = "Status: Completed"
-    
-    console.print(f"Saving model to {output_path}...")
-    with open(output_path, "wb") as f:
-        pickle.dump(forecaster, f)
-    console.print("Model saved.")
     
     # Simple inference check
     console.print("\n[bold]Running sample inference...[/bold]")
