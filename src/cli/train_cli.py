@@ -24,28 +24,75 @@ def train_workflow(csv_path, config_path, output_path, console):
     df = load_data(csv_path)
     console.print(f"Loaded {len(df)} samples.")
     
-    console.print("Initializing model...")
-    forecaster = SalaryForecaster()
-    
-    console.print("Training model...")
-    
-    # Callback to handle rich output
-    def console_callback(msg, data=None):
-        if data and data.get("stage") == "start":
-            console.print(f"Training [bold]{data['model_name']}[/bold]...")
-        elif data and data.get("stage") == "cv_end":
-            metric = data.get('metric_name', 'metric')
-            best_round = data.get('best_round')
-            best_score = data.get('best_score')
-            console.print(f"  [cyan]Optimal rounds: {best_round}, Best {metric}: {best_score:.4f}[/cyan]")
-            console.print(f"  [dim]Training final model with {best_round} rounds...[/dim]")
-        elif data and data.get("stage") == "cv_start":
-            console.print(f"  {msg}")
-        else:
-             # Default fallback
-            pass
+    # Create layout elements
+    from rich.live import Live
+    from rich.table import Table
+    from rich.text import Text
+    from rich.console import Group
+    from rich import box
 
-    forecaster.train(df, callback=console_callback)
+    status_text = Text("Status: Initializing...", style="bold blue")
+    
+    results_table = Table(box=box.SIMPLE, show_header=True, header_style="bold magenta")
+    results_table.add_column("Component", style="cyan")
+    results_table.add_column("Percentile", justify="right")
+    results_table.add_column("Best Round", justify="right")
+    results_table.add_column("Metric")
+    results_table.add_column("Score", justify="right")
+
+    # Group them
+    output_group = Group(
+        status_text,
+        Text(""), # spacer
+        results_table
+    )
+
+    console.print("Starting training workflow...")
+
+    with Live(output_group, console=console, refresh_per_second=4, transient=False):
+        
+        status_text.plain = "Status: Initializing model..."
+        forecaster = SalaryForecaster() # config is loaded internally if not passed, but we should pass loaded config?
+        # Wait, the original code didn't pass config to constructor in line 28?
+        # Line 28: forecaster = SalaryForecaster()
+        # Line 21: load_config(config_path) -> sets global config?
+        # get_config() reads from the global variable or file. 
+        # So passing it explicitly is better if we loaded it.
+        # But `load_config` updates the singleton cache. 
+        # Let's keep existing behavior: `forecaster = SalaryForecaster()` works because it calls `get_config()`.
+
+        status_text.plain = "Status: Starting training..."
+        
+        # Callback to handle rich output
+        def console_callback(msg, data=None):
+            if data and data.get("stage") == "start":
+                model_name = data['model_name']
+                status_text.plain = f"Status: Training {model_name}..."
+            
+            elif data and data.get("stage") == "cv_end":
+                metric = data.get('metric_name', 'metric')
+                best_round = str(data.get('best_round'))
+                best_score = f"{data.get('best_score'):.4f}"
+                model_name = data.get('model_name', 'Unknown')
+                
+                # Parse component/percentile
+                if '_p' in model_name:
+                    parts = model_name.rsplit('_', 1)
+                    component = parts[0]
+                    percentile = parts[1]
+                else:
+                    component = model_name
+                    percentile = "-"
+                
+                results_table.add_row(component, percentile, best_round, metric, best_score)
+                
+            elif data and data.get("stage") == "cv_start":
+                # Maybe too fast to show "Running CV" for each?
+                # We can update status if we want
+                pass
+                
+        forecaster.train(df, callback=console_callback)
+        status_text.plain = "Status: Completed"
     
     console.print(f"Saving model to {output_path}...")
     with open(output_path, "wb") as f:
@@ -69,6 +116,7 @@ def train_workflow(csv_path, config_path, output_path, console):
         for q in sorted(forecaster.quantiles):
             key = f"p{int(q*100)}"
             val = preds[key][0]
+            # Simple text output for inference check is fine
             parts.append(f"P{int(q*100)}={val:,.0f}")
         console.print(res_str + ", ".join(parts))
 
