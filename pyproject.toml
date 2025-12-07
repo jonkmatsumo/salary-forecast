@@ -17,7 +17,6 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "lightgbm",
     "pandas",
     "numpy",
     "scikit-learn",
@@ -26,9 +25,7 @@ dependencies = [
     "rich",
     "plotext",
     "streamlit",
-    "watchdog",
     "matplotlib",
-    "altair!=5.4.0,!=5.4.1,<6,>=4.0",
     "seaborn",
     "optuna"
 ]
