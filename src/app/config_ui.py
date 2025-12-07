@@ -113,7 +113,8 @@ def render_location_settings_editor(config):
         min_value=0,
         max_value=200,
         value=current_dist,
-        step=5
+        step=5,
+        help="Maximum distance in km to consider a candidate 'local' to a target city."
     )
     
     return {"max_distance_km": new_dist}
@@ -163,7 +164,13 @@ def render_model_config_editor(config):
     # 3. Sample Weight
     default_k = 1.0
     current_k = model_config.get("sample_weight_k", default_k)
-    new_k = st.number_input("Sample Weight K", value=float(current_k), min_value=0.0, step=0.1)
+    new_k = st.number_input(
+        "Sample Weight K", 
+        value=float(current_k), 
+        min_value=0.0, 
+        step=0.1,
+        help="Controls how much recent data is prioritized (higher = more weight to recent data)."
+    )
     
     # 4. Hyperparameters
     st.markdown("**Hyperparameters**")
@@ -177,16 +184,16 @@ def render_model_config_editor(config):
     with t_col:
         st.write("Training")
         hp_train = current_hyperparams.get("training", {})
-        obj = st.text_input("Objective", value=hp_train.get("objective", "reg:quantileerror"))
-        tm = st.selectbox("Tree Method", ["hist", "auto", "exact", "approx"], index=0 if hp_train.get("tree_method") == "hist" else 0) # simplified
-        verb = st.number_input("Verbosity", value=hp_train.get("verbosity", 0))
+        obj = st.text_input("Objective", value=hp_train.get("objective", "reg:quantileerror"), help="XGBoost objective function.")
+        tm = st.selectbox("Tree Method", ["hist", "auto", "exact", "approx"], index=0 if hp_train.get("tree_method") == "hist" else 0, help="Tree construction algorithm.") 
+        verb = st.number_input("Verbosity", value=hp_train.get("verbosity", 0), help="0 (silent), 1 (warning), 2 (info), 3 (debug)")
         
     with cv_col:
         st.write("Cross-Validation")
         hp_cv = current_hyperparams.get("cv", {})
-        nbr = st.number_input("Num Boost Rounds", value=hp_cv.get("num_boost_round", 100))
-        nfold = st.number_input("N Folds", value=hp_cv.get("nfold", 5))
-        esr = st.number_input("Early Stopping Rounds", value=hp_cv.get("early_stopping_rounds", 10))
+        nbr = st.number_input("Num Boost Rounds", value=hp_cv.get("num_boost_round", 100), help="Number of boosting iterations.")
+        nfold = st.number_input("N Folds", value=hp_cv.get("nfold", 5), help="Number of cross-validation folds.")
+        esr = st.number_input("Early Stopping Rounds", value=hp_cv.get("early_stopping_rounds", 10), help="Stop if validation score doesn't improve for N rounds.")
     
     new_hyperparams = {
         "training": {"objective": obj, "tree_method": tm, "verbosity": int(verb)},

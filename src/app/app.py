@@ -64,88 +64,99 @@ elif page == "Train Model":
         uploaded_file = st.file_uploader("Upload Training CSV", type=["csv"])
         
         if uploaded_file is not None:
-            # load_data handles cleaning (years parsing, etc.)
-            # It accepts the uploaded_file buffer just like pd.read_csv
-            df = load_data(uploaded_file)
-            st.info(f"Loaded {len(df)} samples.")
-            st.dataframe(df.head())
-            
-            if st.button("Start Training", type="primary"):
-                try:
-                    # Use the config from session/defaults
-                    # config variable is already set above
-                        
-                    success_placeholder = st.empty()
-                    status_container = st.status("Training in progress...", expanded=True)
+            try:
+                # load_data handles cleaning (years parsing, etc.)
+                # It accepts the uploaded_file buffer just like pd.read_csv
+                df = load_data(uploaded_file)
+                
+                # Validation
+                required_cols = ["Level", "Location", "YearsOfExperience", "YearsAtCompany", "Date", "BaseSalary", "Stock", "Bonus", "TotalComp"]
+                missing_cols = [c for c in required_cols if c not in df.columns]
+                
+                if missing_cols:
+                    st.error(f"uploaded CSV is missing required columns: {', '.join(missing_cols)}")
+                else:
+                    st.info(f"Loaded {len(df)} samples.")
+                    st.dataframe(df.head())
                     
-                    # Capture stdout? Streamlit doesn't easily show real-time stdout.
-                    # We'll just show status updates.
-                    
-                    try:
-                        status_text = status_container.empty()
-                        status_text.markdown("Status: **Initializing model...**")
-                        
-                        forecaster = SalaryForecaster(config=config)
-                        
-                        status_text.markdown("Status: **Starting training...**")
-                        
-                        results_data = []
-                        table_placeholder = status_container.empty()
-                        
-                        def streamlit_callback(msg, data=None):
-                            if data and data.get("stage") == "start":
-                                # Update current action label
-                                status_text.markdown(f"Status: **Training {data['model_name']}...**")
-                            elif data and data.get("stage") == "cv_end":
-                                 # Append to results
-                                 model_name = data.get('model_name', 'Unknown')
-                                 # Parse model name (Target_pXX)
-                                 if '_p' in model_name:
-                                     parts = model_name.rsplit('_', 1)
-                                     component = parts[0]
-                                     percentile = parts[1] # e.g. p10
-                                 else:
-                                     component = model_name
-                                     percentile = "-"
-
-                                 results_data.append({
-                                     "Component": component,
-                                     "Percentile": percentile,
-                                     "Best Round": data.get('best_round'),
-                                     "Metric": data.get('metric_name'),
-                                     "Score": f"{data.get('best_score'):.4f}"
-                                 })
-
-                                 if results_data:
-                                     df_res = pd.DataFrame(results_data)
-                                     # Deprecation fix: use_container_width=True -> width="stretch"
-                                     table_placeholder.dataframe(df_res, width="stretch")
-                            elif data and data.get("stage") == "cv_start":
-                                 pass
-                        
-                        forecaster.train(df, callback=streamlit_callback)
-                        
-                        status_text.markdown("Status: **Saving model...**")
-                        with open(model_name, "wb") as f:
-                            pickle.dump(forecaster, f)
+                    if st.button("Start Training", type="primary"):
+                        try:
+                            # Use the config from session/defaults
+                            # config variable is already set above
+                                
+                            success_placeholder = st.empty()
+                            status_container = st.status("Training in progress...", expanded=True)
                             
-                        status_text.markdown("Status: **Completed**")
-                        
-                        # Show success message at the top
-                        success_placeholder.success(f"Model saved as `{model_name}`")
-                        
-                        # Collapse status to show it as "Details" below
-                        status_container.update(label="Training Logic Completed", state="complete", expanded=False)
-                        
-                    except Exception as e:
-                        status_container.update(label="Training Failed", state="error", expanded=True)
-                        raise e
-                    
-                except Exception as e:
-                    st.error(f"Training failed: {e}")
-                    # Enable traceback for easier debugging
-
-                    st.code(traceback.format_exc())
+                            # Capture stdout? Streamlit doesn't easily show real-time stdout.
+                            # We'll just show status updates.
+                            
+                            try:
+                                status_text = status_container.empty()
+                                status_text.markdown("Status: **Initializing model...**")
+                                
+                                forecaster = SalaryForecaster(config=config)
+                                
+                                status_text.markdown("Status: **Starting training...**")
+                                
+                                results_data = []
+                                table_placeholder = status_container.empty()
+                                
+                                def streamlit_callback(msg, data=None):
+                                    if data and data.get("stage") == "start":
+                                        # Update current action label
+                                        status_text.markdown(f"Status: **Training {data['model_name']}...**")
+                                    elif data and data.get("stage") == "cv_end":
+                                         # Append to results
+                                         model_name = data.get('model_name', 'Unknown')
+                                         # Parse model name (Target_pXX)
+                                         if '_p' in model_name:
+                                             parts = model_name.rsplit('_', 1)
+                                             component = parts[0]
+                                             percentile = parts[1] # e.g. p10
+                                         else:
+                                             component = model_name
+                                             percentile = "-"
+        
+                                         results_data.append({
+                                             "Component": component,
+                                             "Percentile": percentile,
+                                             "Best Round": data.get('best_round'),
+                                             "Metric": data.get('metric_name'),
+                                             "Score": f"{data.get('best_score'):.4f}"
+                                         })
+        
+                                         if results_data:
+                                             df_res = pd.DataFrame(results_data)
+                                             # Deprecation fix: use_container_width=True -> width="stretch"
+                                             table_placeholder.dataframe(df_res, width="stretch")
+                                    elif data and data.get("stage") == "cv_start":
+                                         pass
+                                
+                                forecaster.train(df, callback=streamlit_callback)
+                                
+                                status_text.markdown("Status: **Saving model...**")
+                                with open(model_name, "wb") as f:
+                                    pickle.dump(forecaster, f)
+                                    
+                                status_text.markdown("Status: **Completed**")
+                                
+                                # Show success message at the top
+                                success_placeholder.success(f"Model saved as `{model_name}`")
+                                
+                                # Collapse status to show it as "Details" below
+                                status_container.update(label="Training Logic Completed", state="complete", expanded=False)
+                                
+                            except Exception as e:
+                                status_container.update(label="Training Failed", state="error", expanded=True)
+                                raise e
+                            
+                        except Exception as e:
+                            st.error(f"Training failed: {e}")
+                            # Enable traceback for easier debugging
+        
+                            st.code(traceback.format_exc())
+            except Exception as e:
+                st.error(f"Error loading CSV: {e}")
 
 elif page == "Inference":
     st.header("Salary Inference")
