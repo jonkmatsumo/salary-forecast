@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import traceback
 
-def render_model_analysis_ui():
+def render_model_analysis_ui() -> None:
     st.header("Model Analysis")
     
     # 1. Model Selection

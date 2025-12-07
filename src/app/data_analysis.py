@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from src.app.caching import load_data_cached as load_data
 
-def render_data_analysis_ui():
+def render_data_analysis_ui() -> None:
     st.header("Data Analysis")
     
     # 1. Data Loading / Retrieval

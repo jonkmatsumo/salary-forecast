@@ -9,9 +9,11 @@ import argparse
 from rich.console import Console
 from rich.table import Table
 
+from typing import Any, Callable, List, Optional, Union
+
 logger = logging.getLogger(__name__)
 
-def load_model(path):
+def load_model(path: str) -> Any:
     if not os.path.exists(path):
         logger.error(f"Model file '{path}' not found.")
         sys.exit(1)
@@ -19,7 +21,7 @@ def load_model(path):
     with open(path, "rb") as f:
         return pickle.load(f)
 
-def get_input(prompt, type_func=str, valid_options=None):
+def get_input(prompt: str, type_func: Callable[[str], Any] = str, valid_options: Optional[List[Any]] = None) -> Any:
     while True:
         try:
             user_input = input(prompt).strip()
@@ -36,10 +38,10 @@ def get_input(prompt, type_func=str, valid_options=None):
         except ValueError:
             print(f"Invalid input. Please enter a valid {type_func.__name__}.")
 
-def format_currency(val):
+def format_currency(val: float) -> str:
     return f"${val:,.0f}"
 
-def collect_user_data():
+def collect_user_data() -> pd.DataFrame:
     print("\n--- Enter Candidate Details ---")
     level = get_input("Level (e.g. E3, E4, E5, E6, E7): ", str, ["E3", "E4", "E5", "E6", "E7"])
     location = get_input("Location (e.g. New York, San Francisco): ", str)
@@ -53,7 +55,7 @@ def collect_user_data():
         "YearsAtCompany": yac
     }])
 
-def select_model(console):
+def select_model(console: Console) -> str:
     models = glob.glob("*.pkl")
     if not models:
         console.print("[bold red]No model files (*.pkl) found in current directory.[/bold red]")
@@ -77,7 +79,7 @@ def select_model(console):
         except ValueError:
             console.print("[red]Please enter a number.[/red]")
 
-def get_ordinal_suffix(n):
+def get_ordinal_suffix(n: int) -> str:
     if 11 <= (n % 100) <= 13:
         suffix = 'th'
     else:

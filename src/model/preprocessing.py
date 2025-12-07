@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from typing import Union, Optional, Any
 from src.utils.config_loader import get_config
 
 class LevelEncoder:
@@ -10,12 +11,12 @@ class LevelEncoder:
     Attributes:
         mapping (dict): Dictionary mapping level names (e.g., 'E3') to integer ranks (e.g., 0).
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the encoder by loading level mappings from configuration."""
         config = get_config()
         self.mapping = config["mappings"]["levels"]
 
-    def fit(self, X, y=None):
+    def fit(self, X: Any, y: Optional[Any] = None) -> "LevelEncoder":
         """
         Fits the encoder (no-op as mapping is static from config).
 
@@ -28,7 +29,7 @@ class LevelEncoder:
         """
         return self
 
-    def transform(self, X):
+    def transform(self, X: Union[pd.DataFrame, pd.Series, list]) -> pd.Series:
         """
         Transforms levels to their integer representation.
 
@@ -41,7 +42,7 @@ class LevelEncoder:
         # X is expected to be a Series or list of level strings
         if isinstance(X, pd.DataFrame):
             X = X.iloc[:, 0]
-        return X.map(self.mapping).fillna(-1).astype(int)
+        return pd.Series(X).map(self.mapping).fillna(-1).astype(int)
 
 from src.utils.geo_utils import GeoMapper
 
@@ -52,11 +53,11 @@ class LocationEncoder:
     Attributes:
         mapper (GeoMapper): Utility to calculate proximity zones.
     """
-    def __init__(self):
+    def __init__(self) -> None:
         """Initializes the encoder with a GeoMapper instance."""
         self.mapper = GeoMapper()
 
-    def fit(self, X, y=None):
+    def fit(self, X: Any, y: Optional[Any] = None) -> "LocationEncoder":
         """
         Fits the encoder (no-op).
 
@@ -69,7 +70,7 @@ class LocationEncoder:
         """
         return self
 
-    def transform(self, X):
+    def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """
         Transforms location names to their cost zone integers.
 
@@ -83,7 +84,7 @@ class LocationEncoder:
             X = X.iloc[:, 0]
         
         # Helper to map a single value
-        def map_loc(loc):
+        def map_loc(loc: Any) -> int:
             if not isinstance(loc, str):
                 return 4
             return self.mapper.get_zone(loc)
@@ -99,7 +100,7 @@ class SampleWeighter:
         k (float): Decay rate parameter.
         ref_date (datetime): Reference date to calculate age from.
     """
-    def __init__(self, k=None, ref_date=None):
+    def __init__(self, k: Optional[float] = None, ref_date: Optional[Union[str, datetime]] = None) -> None:
         """
         Initializes the weighter.
 
@@ -115,7 +116,7 @@ class SampleWeighter:
             
         self.ref_date = pd.to_datetime(ref_date) if ref_date else datetime.now()
 
-    def fit(self, X, y=None):
+    def fit(self, X: Any, y: Optional[Any] = None) -> "SampleWeighter":
         """
         Fits the weighter (no-op).
 
@@ -128,7 +129,7 @@ class SampleWeighter:
         """
         return self
 
-    def transform(self, X):
+    def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """
         Calculates weights for the input dates.
 

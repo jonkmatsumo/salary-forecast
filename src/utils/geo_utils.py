@@ -1,15 +1,16 @@
 import json
 import os
 import time
+from typing import Optional, Dict, Tuple, Any
 from geopy.geocoders import Nominatim
 from geopy.distance import geodesic
 from .config_loader import get_config
 
 class GeoMapper:
-    def __init__(self):
-        self.config = get_config()
-        self.targets = self.config["mappings"]["location_targets"]
-        self.settings = self.config.get("location_settings", {"max_distance_km": 50})
+    def __init__(self) -> None:
+        self.config: Dict[str, Any] = get_config()
+        self.targets: Dict[str, int] = self.config["mappings"]["location_targets"]
+        self.settings: Dict[str, Any] = self.config.get("location_settings", {"max_distance_km": 50})
         
         # Determine cache path
         env_path = os.environ.get("SALARY_CACHE_FILE")
@@ -34,45 +35,48 @@ class GeoMapper:
             except Exception as e:
                 print(f"Failed to migrate cache: {e}")
 
-        self.cache = self._load_cache()
+        self.cache: Dict[str, Tuple[float, float]] = self._load_cache()
         self._init_geolocator()
         
         # O(1) cache for zone lookups
-        self.zone_cache = {}
+        self.zone_cache: Dict[str, int] = {}
         
         # Pre-fetch target coordinates if not in cache
-        self.target_coords = {}
+        self.target_coords: Dict[str, Tuple[float, float]] = {}
         self._init_targets()
 
-    def _init_geolocator(self):
+    def _init_geolocator(self) -> None:
         self.geolocator = Nominatim(user_agent="salary_forecast_app_v1")
 
-    def __getstate__(self):
+    def __getstate__(self) -> Dict[str, Any]:
         state = self.__dict__.copy()
         # Remove unpicklable entries.
         if 'geolocator' in state:
             del state['geolocator']
         return state
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: Dict[str, Any]) -> None:
         self.__dict__.update(state)
         # Restore unpicklable entries.
         self._init_geolocator()
 
-    def _load_cache(self):
+    def _load_cache(self) -> Dict[str, Tuple[float, float]]:
         if os.path.exists(self.cache_file):
             try:
                 with open(self.cache_file, "r") as f:
-                    return json.load(f)
+                    # JSON loads tuples as lists, convert back if needed, 
+                    # but simple json load is fine for now as we cast to tuple later
+                    data = json.load(f)
+                    return {k: tuple(v) for k, v in data.items()}
             except json.JSONDecodeError:
                 return {}
         return {}
 
-    def _save_cache(self):
+    def _save_cache(self) -> None:
         with open(self.cache_file, "w") as f:
             json.dump(self.cache, f, indent=4)
 
-    def _get_coords(self, city):
+    def _get_coords(self, city: str) -> Optional[Tuple[float, float]]:
         # Check cache first
         if city in self.cache:
             return tuple(self.cache[city])
@@ -98,7 +102,7 @@ class GeoMapper:
             
         return None
 
-    def _init_targets(self):
+    def _init_targets(self) -> None:
         print("Initializing target cities...")
         for city, zone in self.targets.items():
             coords = self._get_coords(city)
@@ -107,7 +111,7 @@ class GeoMapper:
             else:
                 print(f"Warning: Could not geocode target city {city}")
 
-    def get_zone(self, input_city):
+    def get_zone(self, input_city: Any) -> int:
         if not isinstance(input_city, str):
             return 4 # Default zone
             

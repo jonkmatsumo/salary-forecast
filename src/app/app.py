@@ -16,6 +16,8 @@ root_dir = os.path.abspath(os.path.join(current_dir, "../.."))
 if root_dir not in sys.path:
     sys.path.append(root_dir)
 
+from typing import Optional, Dict, Any, List
+
 from src.model.model import SalaryForecaster
 from src.app.config_ui import render_config_ui
 from src.app.data_analysis import render_data_analysis_ui

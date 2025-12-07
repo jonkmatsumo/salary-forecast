@@ -1,9 +1,10 @@
 import json
 import os
+from typing import Optional, Dict, Any
 
-_CONFIG = None
+_CONFIG: Optional[Dict[str, Any]] = None
 
-def load_config(config_path="config.json"):
+def load_config(config_path: str = "config.json") -> Dict[str, Any]:
     """
     Loads the configuration from a JSON file.
     """
@@ -31,7 +32,7 @@ def load_config(config_path="config.json"):
         
     return _CONFIG
 
-def _validate_config(config):
+def _validate_config(config: Dict[str, Any]) -> None:
     """
     Validates the configuration dictionary structure.
     
@@ -53,7 +54,7 @@ def _validate_config(config):
         if key not in model_config:
             raise ValueError(f"Config['model'] missing required key: '{key}'")
 
-def get_config():
+def get_config() -> Dict[str, Any]:
     """
     Returns the loaded configuration. Loads it if not already loaded.
     """

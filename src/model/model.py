@@ -2,22 +2,23 @@ import xgboost as xgb
 import optuna
 import pandas as pd
 import numpy as np
+from typing import Dict, List, Optional, Union, Tuple, Any, Callable
 from src.model.preprocessing import LevelEncoder, LocationEncoder, SampleWeighter
 from src.utils.config_loader import get_config
 
 
 class SalaryForecaster:
-    def __init__(self, config=None):
-        self.models = {}
+    def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        self.models: Dict[str, Any] = {}
         # Use provided config or load from disk
         if config is None:
             config = get_config()
         
         model_config = config["model"]
-        self.model_config = model_config
+        self.model_config: Dict[str, Any] = model_config
         
-        self.targets = model_config["targets"]
-        self.quantiles = model_config["quantiles"]
+        self.targets: List[str] = model_config["targets"]
+        self.quantiles: List[float] = model_config["quantiles"]
         
         self.level_encoder = LevelEncoder()
         self.loc_encoder = LocationEncoder()
@@ -26,10 +27,10 @@ class SalaryForecaster:
         k = model_config.get("sample_weight_k", 1.0)
         self.weighter = SampleWeighter(k=k)
         
-        self.features_config = model_config["features"]
-        self.feature_names = [f["name"] for f in self.features_config]
+        self.features_config: List[Dict[str, Any]] = model_config["features"]
+        self.feature_names: List[str] = [f["name"] for f in self.features_config]
         
-    def _preprocess(self, X):
+    def _preprocess(self, X: pd.DataFrame) -> pd.DataFrame:
         X_proc = X.copy()
         X_proc["Level_Enc"] = self.level_encoder.transform(X["Level"])
         X_proc["Location_Enc"] = self.loc_encoder.transform(X["Location"])
@@ -59,7 +60,7 @@ class SalaryForecaster:
         monotone_constraints = str(tuple(constraints))
         return constraints, monotone_constraints
 
-    def remove_outliers(self, df, method="iqr", threshold=1.5):
+    def remove_outliers(self, df: pd.DataFrame, method: str = "iqr", threshold: float = 1.5) -> Tuple[pd.DataFrame, int]:
         """
         Removes outliers from the dataframe based on target columns.
         
@@ -101,7 +102,7 @@ class SalaryForecaster:
         
         return df_clean, removed_count
 
-    def train(self, df, callback=None, remove_outliers=False):
+    def train(self, df: pd.DataFrame, callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None, remove_outliers: bool = False) -> None:
         """
         Trains the XGBoost models.
         
@@ -200,7 +201,7 @@ class SalaryForecaster:
                 model = xgb.train(params, dtrain, num_boost_round=best_round)
                 self.models[model_name] = model
 
-    def tune(self, df, n_trials=20, timeout=None):
+    def tune(self, df: pd.DataFrame, n_trials: int = 20, timeout: Optional[int] = None) -> Dict[str, Any]:
         """
         Runs Optuna optimization to find best hyperparameters.
         Updates self.model_config with the best parameters found.
@@ -228,7 +229,7 @@ class SalaryForecaster:
         
         dtrain = xgb.DMatrix(X, label=y, weight=weights)
         
-        def objective(trial):
+        def objective(trial: optuna.trial.Trial) -> float:
             params = {
                 "objective": "reg:quantileerror",
                 "tree_method": "hist",
@@ -270,14 +271,14 @@ class SalaryForecaster:
         
         return best_params
                 
-    def predict(self, X_input):
+    def predict(self, X_input: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         """
         Returns a dictionary of DataFrames or a structured result.
         """
         X_proc = self._preprocess(X_input)
         dtest = xgb.DMatrix(X_proc)
         
-        results = {}
+        results: Dict[str, Dict[str, Any]] = {}
         for target in self.targets:
             target_res = {}
             for q in self.quantiles:
@@ -290,7 +291,7 @@ class SalaryForecaster:
         return results
     
     @staticmethod
-    def _analyze_cv_results(cv_results: pd.DataFrame, metric_name: str = 'test-quantile-mean'):
+    def _analyze_cv_results(cv_results: pd.DataFrame, metric_name: str = 'test-quantile-mean') -> Tuple[int, float]:
         """
         Analyzes cross-validation results to find the optimal number of rounds and the best score.
         """
@@ -298,6 +299,6 @@ class SalaryForecaster:
             raise ValueError(f"Metric {metric_name} not found in CV results columns: {cv_results.columns}")
             
         best_round = cv_results[metric_name].argmin() + 1
-        best_score = cv_results[metric_name].min()
+        best_score = float(cv_results[metric_name].min())
         
         return best_round, best_score

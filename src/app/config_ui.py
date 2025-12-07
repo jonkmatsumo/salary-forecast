@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import json
 import copy
+from typing import Dict, Any, List
 
-def render_save_load_controls(current_config_state):
+def render_save_load_controls(current_config_state: Dict[str, Any]) -> None:
     """
     Renders Save/Load controls.
     current_config_state: The configuration dictionary currently being edited/displayed (to be saved).
@@ -35,7 +36,7 @@ def render_save_load_controls(current_config_state):
             st.error("Invalid JSON file.")
 
 
-def render_levels_editor(config):
+def render_levels_editor(config: Dict[str, Any]) -> Dict[str, int]:
     """
     Renders an editor for the 'mappings.levels' section.
     Returns the updated levels dictionary.
@@ -68,7 +69,7 @@ def render_levels_editor(config):
             
     return new_levels
 
-def render_location_targets_editor(config):
+def render_location_targets_editor(config: Dict[str, Any]) -> Dict[str, int]:
     """
     Renders an editor for 'mappings.location_targets'.
     Returns updated location_targets dictionary.
@@ -99,7 +100,7 @@ def render_location_targets_editor(config):
             
     return new_locs
 
-def render_location_settings_editor(config):
+def render_location_settings_editor(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Renders slider for location settings.
     """
@@ -119,7 +120,7 @@ def render_location_settings_editor(config):
     
     return {"max_distance_km": new_dist}
 
-def render_model_config_editor(config):
+def render_model_config_editor(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Renders editor for 'model' configuration.
     """
@@ -231,7 +232,7 @@ def render_model_config_editor(config):
         "features": new_features
     }
 
-def render_config_ui(config):
+def render_config_ui(config: Dict[str, Any]) -> Dict[str, Any]:
     """
     Main entry point to render the full config UI.
     Returns: A NEW config dictionary with updates applied.

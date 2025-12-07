@@ -17,8 +17,9 @@ from src.utils.config_loader import load_config
 
 import argparse
 import sys
+from typing import Optional, Any
 
-def train_workflow(csv_path, config_path, output_path, console, do_tune=False, num_trials=20, remove_outliers=False):
+def train_workflow(csv_path: str, config_path: str, output_path: str, console: Any, do_tune: bool = False, num_trials: int = 20, remove_outliers: bool = False) -> None:
     if not os.path.exists(csv_path):
         console.print(f"[bold red]Error: {csv_path} not found.[/bold red]")
         return
@@ -64,7 +65,7 @@ def train_workflow(csv_path, config_path, output_path, console, do_tune=False, n
         status_text.plain = "Status: Starting training..."
         
         # Callback to handle rich output
-        def console_callback(msg, data=None):
+        def console_callback(msg: str, data: Optional[dict] = None) -> None:
             if data and data.get("stage") == "start":
                 model_name = data['model_name']
                 status_text.plain = f"Status: Training {model_name}..."
