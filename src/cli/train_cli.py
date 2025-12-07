@@ -1,7 +1,15 @@
 import os
 import pickle
 import pandas as pd
-from rich.console import Console
+import numpy as np
+import contextlib
+import io
+import traceback
+from rich import box
+from rich.console import Console, Group
+from rich.live import Live
+from rich.table import Table
+from rich.text import Text
 from src.model.model import SalaryForecaster
 from src.utils.data_utils import load_data
 from src.utils.config_loader import load_config
@@ -21,13 +29,7 @@ def train_workflow(csv_path, config_path, output_path, console):
         load_config(config_path)
 
     # Create layout elements
-    from rich.live import Live
-    from rich.table import Table
-    from rich.text import Text
-    from rich.console import Group
-    from rich import box
-    import contextlib
-    import io
+
 
     status_text = Text("Status: Preparing...", style="bold blue")
     
@@ -128,7 +130,7 @@ def main():
         console.print(f"\n[bold green]Training workflow completed![/bold green]")
     except Exception as e:
         console.print(f"[bold red]Training failed: {e}[/bold red]")
-        import traceback
+
         traceback.print_exc()
 
 if __name__ == "__main__":

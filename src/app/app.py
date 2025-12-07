@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import traceback
 import os
 import pickle
 import glob
@@ -127,7 +128,7 @@ if page == "Train Model":
                 except Exception as e:
                     st.error(f"Training failed: {e}")
                     # Enable traceback for easier debugging
-                    import traceback
+
                     st.code(traceback.format_exc())
 
 elif page == "Inference":
@@ -214,5 +215,5 @@ elif page == "Inference":
                         
             except Exception as e:
                 st.error(f"Error loading or running model: {e}")
-                import traceback
+
                 st.code(traceback.format_exc())
