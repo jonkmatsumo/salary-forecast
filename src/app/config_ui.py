@@ -10,13 +10,6 @@ def render_levels_editor(config):
     
     levels_dict = config.get("mappings", {}).get("levels", {})
     
-    # Convert to list of dicts for data editor if possible, or just use columns
-    # Using columns for MVP as requested "E3, E4... should already be added. Option to add new fields"
-    
-    # We'll use a session state approach to track edits if we want to be fancy, 
-    # but let's try to use standard widgets first. 
-    # Actually, `st.data_editor` is perfect for this.
-    
     data = [{"Level": k, "Rank": v} for k, v in levels_dict.items()]
     df = pd.DataFrame(data)
     
@@ -91,6 +84,114 @@ def render_location_settings_editor(config):
     
     return {"max_distance_km": new_dist}
 
+def render_model_config_editor(config):
+    """
+    Renders editor for 'model' configuration.
+    """
+    st.subheader("Model Configuration")
+    
+    # Defaults provided by user request
+    model_config = config.get("model", {})
+    
+    # 1. Targets
+    defaults_targets = ["BaseSalary", "Stock", "Bonus", "TotalComp"]
+    current_targets = model_config.get("targets", defaults_targets)
+    
+    st.markdown("**Targets**")
+    targets_df = pd.DataFrame([{"Target": t} for t in current_targets])
+    edited_targets_df = st.data_editor(
+        targets_df,
+        num_rows="dynamic",
+        width="stretch",
+        key="targets_editor",
+        column_config={
+            "Target": st.column_config.TextColumn("Target Variable", required=True)
+        }
+    )
+    new_targets = [row["Target"] for _, row in edited_targets_df.iterrows() if row["Target"]]
+    
+    # 2. Quantiles
+    defaults_quantiles = [0.1, 0.25, 0.50, 0.75, 0.9]
+    current_quantiles = model_config.get("quantiles", defaults_quantiles)
+    
+    st.markdown("**Quantiles**")
+    quantiles_df = pd.DataFrame([{"Quantile": q} for q in current_quantiles])
+    edited_quantiles_df = st.data_editor(
+        quantiles_df,
+        num_rows="dynamic",
+        width="stretch",
+        key="quantiles_editor",
+        column_config={
+            "Quantile": st.column_config.NumberColumn("Quantile (0.0-1.0)", min_value=0.0, max_value=1.0, required=True)
+        }
+    )
+    new_quantiles = [float(row["Quantile"]) for _, row in edited_quantiles_df.iterrows()]
+    
+    # 3. Sample Weight
+    default_k = 1.0
+    current_k = model_config.get("sample_weight_k", default_k)
+    new_k = st.number_input("Sample Weight K", value=float(current_k), min_value=0.0, step=0.1)
+    
+    # 4. Hyperparameters
+    st.markdown("**Hyperparameters**")
+    default_hyperparams = {
+        "training": {"objective": "reg:quantileerror", "tree_method": "hist", "verbosity": 0}, 
+        "cv": {"num_boost_round": 100, "nfold": 5, "early_stopping_rounds": 10, "verbose_eval": False}
+    }
+    current_hyperparams = model_config.get("hyperparameters", default_hyperparams)
+    
+    # Flatten for editing or just individual inputs? Individual seems safer/cleaner.
+    t_col, cv_col = st.columns(2)
+    with t_col:
+        st.write("Training")
+        hp_train = current_hyperparams.get("training", {})
+        obj = st.text_input("Objective", value=hp_train.get("objective", "reg:quantileerror"))
+        tm = st.selectbox("Tree Method", ["hist", "auto", "exact", "approx"], index=0 if hp_train.get("tree_method") == "hist" else 0) # simplified
+        verb = st.number_input("Verbosity", value=hp_train.get("verbosity", 0))
+        
+    with cv_col:
+        st.write("Cross-Validation")
+        hp_cv = current_hyperparams.get("cv", {})
+        nbr = st.number_input("Num Boost Rounds", value=hp_cv.get("num_boost_round", 100))
+        nfold = st.number_input("N Folds", value=hp_cv.get("nfold", 5))
+        esr = st.number_input("Early Stopping Rounds", value=hp_cv.get("early_stopping_rounds", 10))
+    
+    new_hyperparams = {
+        "training": {"objective": obj, "tree_method": tm, "verbosity": int(verb)},
+        "cv": {"num_boost_round": int(nbr), "nfold": int(nfold), "early_stopping_rounds": int(esr), "verbose_eval": False}
+    }
+
+    # 5. Features (Monotone Constraints)
+    st.markdown("**Features & Constraints**")
+    default_features = [
+        {"name": "Level_Enc", "monotone_constraint": 1},
+        {"name": "Location_Enc", "monotone_constraint": 0},
+        {"name": "YearsOfExperience", "monotone_constraint": 1},
+        {"name": "YearsAtCompany", "monotone_constraint": 0}
+    ]
+    current_features = model_config.get("features", default_features)
+    
+    features_df = pd.DataFrame(current_features)
+    edited_features_df = st.data_editor(
+        features_df,
+        num_rows="dynamic",
+        width="stretch",
+        key="features_editor",
+        column_config={
+            "name": st.column_config.TextColumn("Feature Name", required=True),
+            "monotone_constraint": st.column_config.NumberColumn("Monotone Constraint (-1, 0, 1)", min_value=-1, max_value=1, step=1)
+        }
+    )
+    new_features = edited_features_df.to_dict(orient="records")
+    
+    return {
+        "targets": new_targets,
+        "quantiles": new_quantiles,
+        "sample_weight_k": new_k,
+        "hyperparameters": new_hyperparams,
+        "features": new_features
+    }
+
 def render_config_ui(config):
     """
     Main entry point to render the full config UI.
@@ -114,5 +215,8 @@ def render_config_ui(config):
     
     # Settings
     new_config["location_settings"] = render_location_settings_editor(new_config)
+
+    # Model
+    new_config["model"] = render_model_config_editor(new_config)
     
     return new_config
