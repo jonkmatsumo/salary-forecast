@@ -1,11 +1,60 @@
 import os
+import pickle
+import pandas as pd
 from rich.console import Console
-from src.model.train import train_model
+from src.model.model import SalaryForecaster
+from src.utils.data_utils import load_data
+from src.utils.config_loader import load_config
 
 def get_input(console, prompt, default=None):
     prompt_str = f"{prompt} [default: {default}]: " if default else f"{prompt}: "
     user_input = console.input(prompt_str).strip()
     return user_input if user_input else default
+
+def train_workflow(csv_path, config_path, output_path, console):
+    if not os.path.exists(csv_path):
+        console.print(f"[bold red]Error: {csv_path} not found.[/bold red]")
+        return
+
+    # Load config if provided
+    if config_path and os.path.exists(config_path):
+        load_config(config_path)
+
+    console.print(f"Loading data from {csv_path}...")
+    df = load_data(csv_path)
+    console.print(f"Loaded {len(df)} samples.")
+    
+    console.print("Initializing model...")
+    forecaster = SalaryForecaster()
+    
+    console.print("Training model...")
+    # Pass console to train method if we want rich output inside
+    forecaster.train(df, console=console)
+    
+    console.print(f"Saving model to {output_path}...")
+    with open(output_path, "wb") as f:
+        pickle.dump(forecaster, f)
+    console.print("Model saved.")
+    
+    # Simple inference check
+    console.print("\n[bold]Running sample inference...[/bold]")
+    sample_input = pd.DataFrame([{
+        "Level": "E4",
+        "Location": "New York",
+        "YearsOfExperience": 3,
+        "YearsAtCompany": 0
+    }])
+    
+    prediction = forecaster.predict(sample_input)
+    console.print("Prediction for E4 New Hire in NY (3 YOE):")
+    for target, preds in prediction.items():
+        res_str = f"  {target}: "
+        parts = []
+        for q in sorted(forecaster.quantiles):
+            key = f"p{int(q*100)}"
+            val = preds[key][0]
+            parts.append(f"P{int(q*100)}={val:,.0f}")
+        console.print(res_str + ", ".join(parts))
 
 def main():
     console = Console()
@@ -15,20 +64,13 @@ def main():
     config_path = get_input(console, "Config JSON path", "config.json")
     output_path = get_input(console, "Output model path", "salary_model.pkl")
     
-    if not os.path.exists(csv_path):
-        console.print(f"[bold red]Error: Input file '{csv_path}' not found.[/bold red]")
-        return
-        
-    if not os.path.exists(config_path):
-        console.print(f"[bold red]Error: Config file '{config_path}' not found.[/bold red]")
-        return
-        
-    console.print(f"\n[bold blue]Starting training...[/bold blue]")
     try:
-        train_model(csv_path, config_path, output_path)
-        console.print(f"\n[bold green]Training completed successfully! Model saved to {output_path}[/bold green]")
+        train_workflow(csv_path, config_path, output_path, console)
+        console.print(f"\n[bold green]Training workflow completed![/bold green]")
     except Exception as e:
         console.print(f"[bold red]Training failed: {e}[/bold red]")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()

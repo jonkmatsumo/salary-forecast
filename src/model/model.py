@@ -36,7 +36,7 @@ class SalaryForecaster:
         
         return X_proc[self.feature_names]
 
-    def train(self, df):
+    def train(self, df, console=None):
         X = self._preprocess(df)
         weights = self.weighter.transform(df["Date"])
         
@@ -50,7 +50,10 @@ class SalaryForecaster:
             
             for q in self.quantiles:
                 model_name = f"{target}_p{int(q*100)}"
-                print(f"Training {model_name}...")
+                if console:
+                    console.print(f"Training [bold]{model_name}[/bold]...")
+                else:
+                    print(f"Training {model_name}...")
                 
                 # XGBoost Quantile Regression parameters
                 params = {
@@ -58,11 +61,39 @@ class SalaryForecaster:
                     "quantile_alpha": q,
                     "monotone_constraints": monotone_constraints,
                     "verbosity": 0,
-                    "tree_method": "hist" # Often faster
+                    "tree_method": "hist"
                 }
                 
                 dtrain = xgb.DMatrix(X, label=y, weight=weights)
-                model = xgb.train(params, dtrain, num_boost_round=100)
+                
+                # Cross-validation
+                if console:
+                    console.print(f"  Running Cross-Validation for {model_name}...")
+                
+                cv_results = xgb.cv(
+                    params,
+                    dtrain,
+                    num_boost_round=100,
+                    nfold=5,
+                    early_stopping_rounds=10,
+                    metrics={'quantile'}, # Use quantile error metric
+                    seed=42,
+                    verbose_eval=False
+                )
+                
+                # Analyze results
+                # Metric name in cv_results will be test-quantile-mean
+                metric_name = 'test-quantile-mean'
+                best_round = cv_results[metric_name].argmin() + 1
+                best_score = cv_results[metric_name].min()
+                
+                if console:
+                    console.print(f"  [cyan]Optimal rounds: {best_round}, Best {metric_name}: {best_score:.4f}[/cyan]")
+                    console.print(f"  [dim]Training final model with {best_round} rounds...[/dim]")
+                else:
+                    print(f"  Optimal rounds: {best_round}, Best {metric_name}: {best_score:.4f}")
+
+                model = xgb.train(params, dtrain, num_boost_round=best_round)
                 self.models[model_name] = model
                 
     def predict(self, X_input):
