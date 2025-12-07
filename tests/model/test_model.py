@@ -277,3 +277,64 @@ def test_tune(mock_optuna, mock_xgb):
         
         # Verify return value
         assert best_params == {"eta": 0.15, "max_depth": 7}
+
+class TestOutlierDetection:
+    @pytest.fixture
+    def forecaster(self):
+        # Create forecaster with mock config
+        mock_config = {
+            "model": {
+                "targets": ["Salary"],
+                "quantiles": [0.5],
+                "features": [{"name": "X", "monotone_constraint": 0}],
+                "hyperparameters": {"training": {}}
+            },
+            "mappings": {"levels": {}, "location_targets": {}},
+            "location_settings": {"max_distance_km": 50}
+        }
+        with patch("src.model.model.get_config", return_value=mock_config):
+            return SalaryForecaster()
+
+    def test_remove_outliers_iqr(self, forecaster):
+        # Create data with obvious outliers
+        # Normal data: 100, 102, 98, 101, 99
+        # Outlier: 1000
+        data = pd.DataFrame({
+            "Salary": [100, 102, 98, 101, 99, 1000, 100, 100],
+            "Date": ["2023-01-01"] * 8
+        })
+        
+        # Q1 approx 99.75, Q3 approx 101.25. IQR approx 1.5.
+        # Upper bound: 101.25 + 1.5*1.5 = 103.5.
+        # 1000 should be removed.
+        
+        df_clean, removed = forecaster.remove_outliers(data, method="iqr", threshold=1.5)
+        
+        assert removed == 1
+        assert len(df_clean) == 7
+        assert 1000 not in df_clean["Salary"].values
+        
+    def test_train_calls_remove_outliers(self, forecaster):
+        # Mock remove_outliers and _preprocess/weighter to avoid full training logic errors
+        forecaster.remove_outliers = MagicMock(return_value=(pd.DataFrame({"Salary": [100], "Date": ["2023-01-01"]}), 1))
+        forecaster._preprocess = MagicMock(return_value=pd.DataFrame([1]))
+        forecaster.weighter = MagicMock()
+        forecaster.weighter.transform.return_value = [1]
+        
+        # Mock xgboost training parts to just return
+        with patch("src.model.model.xgb") as mock_xgb:
+             # Set up mock CV results to satisfy _analyze_cv_results
+             mock_cv_df = pd.DataFrame({'test-quantile-mean': [0.5, 0.4]})
+             mock_xgb.cv.return_value = mock_cv_df
+             
+             # Call train with remove_outliers=True
+             df = pd.DataFrame({"Salary": [100, 1000], "Date": ["2023-01-01", "2023-01-01"]})
+             forecaster.train(df, remove_outliers=True)
+             
+             forecaster.remove_outliers.assert_called_once()
+             
+             # Call train with remove_outliers=False
+             forecaster.remove_outliers.reset_mock()
+             forecaster.train(df, remove_outliers=False)
+             
+             forecaster.remove_outliers.assert_not_called()

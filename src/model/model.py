@@ -55,6 +55,77 @@ class SalaryForecaster:
         X = self._preprocess(df)
         weights = self.weighter.transform(df["Date"])
         
+        constraints = [f["monotone_constraint"] for f in self.features_config]
+        monotone_constraints = str(tuple(constraints))
+        return constraints, monotone_constraints
+
+    def remove_outliers(self, df, method="iqr", threshold=1.5):
+        """
+        Removes outliers from the dataframe based on target columns.
+        
+        Args:
+            df (pd.DataFrame): Input data.
+            method (str): "iqr" or "zscore" (only iqr implemented for now).
+            threshold (float): Multiplier for IQR (typically 1.5).
+            
+        Returns:
+            pd.DataFrame: Filtered dataframe.
+            int: Number of rows removed.
+        """
+        if method != "iqr":
+            raise NotImplementedError("Only IQR method is currently supported.")
+            
+        df_clean = df.copy()
+        initial_len = len(df_clean)
+        
+        # Calculate mask for all targets
+        mask = pd.Series(True, index=df_clean.index)
+        
+        for target in self.targets:
+            if target in df_clean.columns:
+                q1 = df_clean[target].quantile(0.25)
+                q3 = df_clean[target].quantile(0.75)
+                iqr = q3 - q1
+                
+                lower_bound = q1 - threshold * iqr
+                upper_bound = q3 + threshold * iqr
+                
+                # Update mask: Keep row if it's within bounds for THIS target
+                # We want to remove row if ANY target is outlier? Or all?
+                # Usually if ANY target is bad, the row is suspicious.
+                col_mask = (df_clean[target] >= lower_bound) & (df_clean[target] <= upper_bound)
+                mask = mask & col_mask
+                
+        df_clean = df_clean[mask]
+        removed_count = initial_len - len(df_clean)
+        
+        return df_clean, removed_count
+
+    def train(self, df, callback=None, remove_outliers=False):
+        """
+        Trains the XGBoost models.
+        
+        Args:
+            df (pd.DataFrame): Training data.
+            callback (callable, optional): function(status_msg, result_data=None).
+            remove_outliers (bool): If True, applies IQR outlier removal before training.
+        """
+        if remove_outliers:
+            if callback:
+                callback("Preprocessing: Removing outliers...", {"stage": "preprocess"})
+            else:
+                print("Preprocessing: Removing outliers...")
+                
+            df, removed = self.remove_outliers(df)
+            msg = f"Removed {removed} outlier rows."
+            if callback:
+                callback(msg, {"stage": "preprocess_result", "removed": removed})
+            else:
+                print(msg)
+                
+        X = self._preprocess(df)
+        weights = self.weighter.transform(df["Date"])
+        
         # Monotonic constraints
         # Construct tuple string like "(1, 0, 1, 0)" based on config order
         constraints = [f["monotone_constraint"] for f in self.features_config]

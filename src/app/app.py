@@ -65,6 +65,8 @@ elif page == "Train Model":
         else:
             num_trials = 20
         
+        remove_outliers = st.checkbox("Remove Outliers (IQR)", value=False, help="Filter data using Interquartile Range to remove extreme salary values.")
+        
     with col2:
         st.subheader("Data & Training")
         uploaded_file = st.file_uploader("Upload Training CSV", type=["csv"])
@@ -145,7 +147,7 @@ elif page == "Train Model":
                                     elif data and data.get("stage") == "cv_start":
                                          pass
                                 
-                                forecaster.train(df, callback=streamlit_callback)
+                                forecaster.train(df, callback=streamlit_callback, remove_outliers=remove_outliers)
                                 
                                 status_text.markdown("Status: **Saving model...**")
                                 with open(model_name, "wb") as f:

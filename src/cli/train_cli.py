@@ -18,7 +18,7 @@ from src.utils.config_loader import load_config
 import argparse
 import sys
 
-def train_workflow(csv_path, config_path, output_path, console, do_tune=False, num_trials=20):
+def train_workflow(csv_path, config_path, output_path, console, do_tune=False, num_trials=20, remove_outliers=False):
     if not os.path.exists(csv_path):
         console.print(f"[bold red]Error: {csv_path} not found.[/bold red]")
         return
@@ -89,7 +89,8 @@ def train_workflow(csv_path, config_path, output_path, console, do_tune=False, n
             elif data and data.get("stage") == "cv_start":
                 pass
                 
-        forecaster.train(df, callback=console_callback)
+                
+        forecaster.train(df, callback=console_callback, remove_outliers=remove_outliers)
         
         status_text.plain = f"Status: Saving model to {output_path}..."
         with open(output_path, "wb") as f:
@@ -128,11 +129,7 @@ def main():
     parser.add_argument("--output", default="salary_model.pkl", help="Path to save model")
     parser.add_argument("--tune", action="store_true", help="Enable Optuna hyperparameter tuning")
     parser.add_argument("--num-trials", type=int, default=20, help="Number of tuning trials")
-    
-    # We check if args are provided. If not, we might want interactive?
-    # But usually argparse handles --help or default usage.
-    # To preserve backward compability or "interactive feel", we could check sys.argv.
-    # But let's standardize on flags for now as requested.
+    parser.add_argument("--remove-outliers", action="store_true", help="Remove outliers using IQR before training")
     
     args = parser.parse_args()
     
@@ -143,7 +140,8 @@ def main():
             args.output, 
             console, 
             do_tune=args.tune, 
-            num_trials=args.num_trials
+            num_trials=args.num_trials,
+            remove_outliers=args.remove_outliers
         )
         console.print(f"\n[bold green]Training workflow completed![/bold green]")
     except Exception as e:
