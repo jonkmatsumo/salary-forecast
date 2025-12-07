@@ -5,9 +5,12 @@ from src.model.preprocessing import LevelEncoder, LocationEncoder, SampleWeighte
 from src.utils.config_loader import get_config
 
 class SalaryForecaster:
-    def __init__(self):
+    def __init__(self, config=None):
         self.models = {}
-        config = get_config()
+        # Use provided config or load from disk
+        if config is None:
+            config = get_config()
+        
         model_config = config["model"]
         
         self.targets = model_config["targets"]

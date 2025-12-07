@@ -7,3 +7,6 @@ xgboost
 geopy
 rich
 plotext
+streamlit
+watchdog
+matplotlib

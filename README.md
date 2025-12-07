@@ -1,6 +1,6 @@
 # Salary Forecasting Engine
 
-A machine learning system to predict compensation distributions (Base Salary, Stock, Bonus, Total Comp) based on candidate attributes. It uses **XGBoost** with Quantile Regression to forecast the 25th, 50th, and 75th percentiles, enforcing monotonic constraints on Level and Years of Experience.
+A machine learning system to predict compensation distributions (Base Salary, Stock, Bonus, Total Comp) based on candidate attributes. It uses **XGBoost** with Quantile Regression. The model is highly configurable, allowing users to define exact percentiles to forecast, enforce monotonic constraints, and customize target definitions.
 
 ## Installation
 
@@ -16,8 +16,19 @@ A machine learning system to predict compensation distributions (Base Salary, St
 
 ## Usage
 
-### Training
-To train the model interactively:
+### Web Application (Streamlit)
+The easiest way to use the system is via the web interface:
+
+```bash
+streamlit run src/app/app.py
+```
+
+This launches a dashboard where you can:
+- **Train Models**: Upload a CSV, adjust configurations (like quantiles), and train new models interactively.
+- **Run Inference**: Select a trained model, enter candidate details, and visualize the predicted salary distribution.
+
+### Training (CLI)
+To train the model via terminal:
 
 ```bash
 python3 -m src.cli.train_cli
@@ -44,9 +55,11 @@ python3 -m pytest tests/
 
 ## Configuration
 
-The model and data processing are highly configurable via `config.json`. You can create your own configuration file to adapt the model to different datasets or requirements.
+The model and data processing are configurable through a structured dictionary. This configuration can be edited **inline** directly in the web app, or provided as a `config.json` file when using the CLI.
 
-### Structure
+### Configuration Structure
+
+The configuration dictionary should follow this structure:
 
 #### 1. Mappings (`mappings`)
 Defines how categorical data is mapped to numerical values.
@@ -87,7 +100,9 @@ Configures the XGBoost model and feature engineering.
     - `0`: No constraint.
     - `-1`: Decreasing constraint.
 
-### Example `config.json`
+### Configuration Template
+
+Below is a complete example of the configuration structure. valid JSON format:
 
 ```json
 {
@@ -109,7 +124,7 @@ Configures the XGBoost model and feature engineering.
 
 ## Proximity Matching
 
-The system uses `geopy` to automatically map input locations to the nearest target city defined in `config.json`.
-- **Dynamic Matching**: "Newark" maps to "New York" (Zone 1) because it is within the configured `max_distance_km` (default 50km).
-- **Caching**: Geocoding results are cached in `city_cache.json` to speed up subsequent runs and reduce API usage.
+The system uses `geopy` to automatically map input locations to the nearest target city defined in the config.
+- **Dynamic Matching**: "Newark" maps to "New York" if it is within the configured `max_distance_km` (default 50km).
+- **Caching**: Geocoding results are cached locally to speed up subsequent runs and reduce API usage.
 - **O(1) Lookup**: Once a city is processed, its zone is cached in memory for instant lookup.
