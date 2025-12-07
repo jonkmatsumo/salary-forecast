@@ -19,6 +19,7 @@ if root_dir not in sys.path:
 from src.model.model import SalaryForecaster
 from src.app.config_ui import render_config_ui
 from src.app.data_analysis import render_data_analysis_ui
+from src.app.model_analysis import render_model_analysis_ui
 from src.utils.config_loader import get_config
 from src.utils.data_utils import load_data
 
@@ -28,16 +29,83 @@ st.title("Salary Forecasting Engine")
 
 # Sidebar
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Train Model", "Data Analysis", "Inference", "Configuration"])
+page = st.sidebar.radio("Go to", ["Inference", "Train Model", "Data Analysis", "Model Analysis", "Configuration"])
 
-if page == "Configuration":
-    st.header("Configuration")
-    current_config = get_config()
-    updated_config = render_config_ui(current_config)
-    st.session_state["config_override"] = updated_config
+if page == "Inference":
+    st.header("Salary Inference")
+    
+    # Model Selection
+    model_files = glob.glob("*.pkl")
+    if not model_files:
+        st.warning("No model files (*.pkl) found in the root directory. Please train a model first.")
+    else:
+        selected_model = st.selectbox("Select Model", model_files)
+        
+        if selected_model:
+            try:
+                with open(selected_model, "rb") as f:
+                    model = pickle.load(f)
+                
+                st.subheader("Candidate Attributes")
+                
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    level = st.selectbox("Level", ["E3", "E4", "E5", "E6", "E7"])
+                    location = st.text_input("Location", value="New York")
+                with col_b:
+                    yoe = st.number_input("Years of Experience", min_value=0, value=3, step=1)
+                    yac = st.number_input("Years at Company", min_value=0, value=0, step=1)
+                
+                if st.button("Generate Forecast", type="primary"):
+                    input_df = pd.DataFrame([{
+                        "Level": level,
+                        "Location": location,
+                        "YearsOfExperience": yoe,
+                        "YearsAtCompany": yac
+                    }])
+                    
+                    prediction = model.predict(input_df)
+                    
+                    st.markdown("### Results")
+                    
+                    quantiles = sorted(model.quantiles)
+                    quantile_labels = [f"P{int(q*100)}" for q in quantiles]
+                    
+                    fig, ax = plt.subplots(figsize=(10, 6))
+                    
+                    for target, preds in prediction.items():
+                        y_vals = [preds[f"p{int(q*100)}"][0] for q in quantiles]
+                        ax.plot(quantiles, y_vals, marker='o', label=target)
+                        
+                    ax.set_title("Predicted Compensation Distribution")
+                    ax.set_xlabel("Quantile")
+                    ax.set_ylabel("Amount ($)")
+                    ax.set_xticks(quantiles)
+                    ax.set_xticklabels(quantile_labels)
+                    ax.legend()
+                    ax.grid(True, linestyle='--', alpha=0.7)
+                    
+                    ax.get_yaxis().set_major_formatter(
+                        plt.FuncFormatter(lambda x, p: f"${x:,.0f}")
+                    )
+                    
+                    st.pyplot(fig)
+                    
+                    st.subheader("Detailed Data")
+                    table_data = []
+                    for target, preds in prediction.items():
+                        row = {"Component": target}
+                        for q in quantiles:
+                            val = preds[f"p{int(q*100)}"][0]
+                            row[f"P{int(q*100)}"] = f"${val:,.0f}"
+                        table_data.append(row)
+                    
+                    st.table(pd.DataFrame(table_data))
+                        
+            except Exception as e:
+                st.error(f"Error loading or running model: {e}")
+                st.code(traceback.format_exc())
 
-elif page == "Data Analysis":
-    render_data_analysis_ui()
 
 elif page == "Train Model":
     st.header("Train New Model")
@@ -163,77 +231,14 @@ elif page == "Train Model":
                          st.error(f"Training failed: {e}")
                          st.code(traceback.format_exc())
 
-elif page == "Inference":
-    st.header("Salary Inference")
-    
-    # Model Selection
-    model_files = glob.glob("*.pkl")
-    if not model_files:
-        st.warning("No model files (*.pkl) found in the root directory. Please train a model first.")
-    else:
-        selected_model = st.selectbox("Select Model", model_files)
-        
-        if selected_model:
-            try:
-                with open(selected_model, "rb") as f:
-                    model = pickle.load(f)
-                
-                st.subheader("Candidate Attributes")
-                
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    level = st.selectbox("Level", ["E3", "E4", "E5", "E6", "E7"])
-                    location = st.text_input("Location", value="New York")
-                with col_b:
-                    yoe = st.number_input("Years of Experience", min_value=0, value=3, step=1)
-                    yac = st.number_input("Years at Company", min_value=0, value=0, step=1)
-                
-                if st.button("Generate Forecast", type="primary"):
-                    input_df = pd.DataFrame([{
-                        "Level": level,
-                        "Location": location,
-                        "YearsOfExperience": yoe,
-                        "YearsAtCompany": yac
-                    }])
-                    
-                    prediction = model.predict(input_df)
-                    
-                    st.markdown("### Results")
-                    
-                    quantiles = sorted(model.quantiles)
-                    quantile_labels = [f"P{int(q*100)}" for q in quantiles]
-                    
-                    fig, ax = plt.subplots(figsize=(10, 6))
-                    
-                    for target, preds in prediction.items():
-                        y_vals = [preds[f"p{int(q*100)}"][0] for q in quantiles]
-                        ax.plot(quantiles, y_vals, marker='o', label=target)
-                        
-                    ax.set_title("Predicted Compensation Distribution")
-                    ax.set_xlabel("Quantile")
-                    ax.set_ylabel("Amount ($)")
-                    ax.set_xticks(quantiles)
-                    ax.set_xticklabels(quantile_labels)
-                    ax.legend()
-                    ax.grid(True, linestyle='--', alpha=0.7)
-                    
-                    ax.get_yaxis().set_major_formatter(
-                        plt.FuncFormatter(lambda x, p: f"${x:,.0f}")
-                    )
-                    
-                    st.pyplot(fig)
-                    
-                    st.subheader("Detailed Data")
-                    table_data = []
-                    for target, preds in prediction.items():
-                        row = {"Component": target}
-                        for q in quantiles:
-                            val = preds[f"p{int(q*100)}"][0]
-                            row[f"P{int(q*100)}"] = f"${val:,.0f}"
-                        table_data.append(row)
-                    
-                    st.table(pd.DataFrame(table_data))
-                        
-            except Exception as e:
-                st.error(f"Error loading or running model: {e}")
-                st.code(traceback.format_exc())
+elif page == "Data Analysis":
+    render_data_analysis_ui()
+
+elif page == "Model Analysis":
+    render_model_analysis_ui()
+
+elif page == "Configuration":
+    st.header("Configuration")
+    current_config = get_config()
+    updated_config = render_config_ui(current_config)
+    st.session_state["config_override"] = updated_config

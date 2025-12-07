@@ -117,3 +117,19 @@ class TestStreamlitApp(unittest.TestCase):
         # We check if any info box contains "No data loaded"
         has_info = any("No data loaded" in i.value for i in at.info)
         self.assertTrue(has_info, "Should show 'No data loaded' info message")
+        
+    def test_navigation_model_analysis(self):
+        """Verify navigation to Model Analysis page."""
+        at = AppTest.from_file(self.app_path)
+        at.run()
+        
+        # Select "Model Analysis"
+        at.sidebar.radio[0].set_value("Model Analysis").run()
+        
+        # Check header
+        self.assertEqual(at.header[0].value, "Model Analysis")
+        
+        # Should show warning initially (since no model selected/found or just default state)
+        # Note: glob will run. If no pkls, shows warning. If pkls, shows selectbox.
+        # Just check we didn't crash and header is right.
+
