@@ -102,3 +102,18 @@ class TestStreamlitApp(unittest.TestCase):
             # If we have models, inputs should be visible
             # e.g. Level selectbox, Location text_input
             pass
+    def test_navigation_data_analysis(self):
+        """Verify navigation to Data Analysis page."""
+        at = AppTest.from_file(self.app_path)
+        at.run()
+        
+        # Select "Data Analysis"
+        at.sidebar.radio[0].set_value("Data Analysis").run()
+        
+        # Check header
+        self.assertEqual(at.header[0].value, "Data Analysis")
+        
+        # Should show info message initially (since no session state)
+        # We check if any info box contains "No data loaded"
+        has_info = any("No data loaded" in i.value for i in at.info)
+        self.assertTrue(has_info, "Should show 'No data loaded' info message")

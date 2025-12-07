@@ -44,14 +44,27 @@ salary-forecast-train
 You can specify the input CSV, config file, and output model path.
 
 ### Inference (CLI)
-To run the interactive CLI for making predictions:
+You can run the CLI in two modes:
 
+**1. Interactive Mode**:
 ```bash
 salary-forecast-infer
-# Or: python3 -m src.cli.inference_cli
+```
+Follow the prompts to select a model and enter candidate details.
+
+**2. Non-Interactive (Automation) Mode**:
+Pass all required arguments via flags to skip prompts. Useful for scripts.
+
+```bash
+salary-forecast-infer --model salary_model.pkl --level E5 --location "New York" --yoe 5 --yac 2
 ```
 
-Follow the prompts to select a model and enter candidate details.
+**JSON Output**:
+Add the `--json` flag to output results as a machine-readable JSON object (suppresses charts and tables).
+
+```bash
+salary-forecast-infer ... --json
+```
 
 ## Testing
 
