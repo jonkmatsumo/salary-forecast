@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from src.utils.data_utils import load_data
+from src.app.caching import load_data_cached as load_data
 
 def render_data_analysis_ui():
     st.header("Data Analysis")

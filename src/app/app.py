@@ -21,9 +21,10 @@ from src.app.config_ui import render_config_ui
 from src.app.data_analysis import render_data_analysis_ui
 from src.app.model_analysis import render_model_analysis_ui
 from src.utils.config_loader import get_config
-from src.utils.data_utils import load_data
+from src.app.caching import load_data_cached as load_data
 
 st.set_page_config(page_title="Salary Forecast", layout="wide")
+
 
 st.title("Salary Forecasting Engine")
 
