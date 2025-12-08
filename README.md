@@ -4,8 +4,9 @@ A machine learning system to predict compensation distributions (Base Salary, St
 
 Key features include:
 - **Auto-Tuning**: Integrated Hyperparameter Optimization using **Optuna** to automatically find the best model parameters.
-- **Robustness**: **Outlier Detection** (IQR) to filter extreme data points and improve model generalization.
+- **LLM-Assisted Configuration**: Uses Generative AI to intelligently infer column roles and level hierarchies from data.
 - **Proximity Matching**: Geo-spatial grouping of cities into cost zones.
+- **Robustness**: **Outlier Detection** (IQR) to filter extreme data points and improve model generalization.
 
 ## Installation
 
@@ -76,7 +77,7 @@ python3 -m pytest tests/
 
 ## Configuration
 
-The model and data processing are configurable through a structured dictionary. This configuration can be edited **inline** directly in the web app, or provided as a `config.json` file when using the CLI.
+The model and data processing are configurable through a structured dictionary. This configuration can be edited **inline** directly in the web app, inferred automatically using **LLM (OpenAI/Gemini)** suggestions, or provided as a `config.json` file when using the CLI.
 
 ### Configuration Structure
 
