@@ -58,7 +58,7 @@ def render_model_analysis_ui() -> None:
             if df_imp.empty:
                 st.warning(f"No feature importance scores found for {selected_target} at P{int(selected_q_val*100)}.")
             else:
-                st.dataframe(df_imp, use_container_width=True)
+                st.dataframe(df_imp, width="stretch")
                 
                 # Plot
                 fig, ax = plt.subplots(figsize=(10, 6))
