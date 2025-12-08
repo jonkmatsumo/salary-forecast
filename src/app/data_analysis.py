@@ -37,28 +37,78 @@ def render_data_analysis_ui() -> None:
     summary = analytics_service.get_data_summary(df)
 
     # --- Config Generation Section ---
+
     with st.expander("Generate Configuration from Data", expanded=False):
-        st.info("Automatically generate a configuration based on this dataset. You can map columns to specific roles.")
+        st.info("Automatically generate a configuration based on this dataset.")
         
         generator = ConfigGenerator()
         
-        # 1. Column Mapping using Data Editor
+        col_gen1, col_gen2 = st.columns([1, 2])
+        with col_gen1:
+            use_ai = st.checkbox("Use AI (LLM)", value=False, help="Use LLM to infer semantic rankings and column roles.")
+            
+        provider = "openai"
+        if use_ai:
+            with col_gen2:
+                provider = st.selectbox("Provider", ["openai", "gemini"], index=0)
+        
+        if st.button("Generate Proposal"):
+            with st.spinner(f"Generating configuration using {'LLM (' + provider + ')' if use_ai else 'Heuristics'}..."):
+                try:
+                    if use_ai:
+                        # Check API Key
+                        from src.utils.env_loader import get_env_var
+                        key_name = "OPENAI_API_KEY" if provider == "openai" else "GEMINI_API_KEY"
+                        if not get_env_var(key_name):
+                             st.error(f"Missing {key_name} in environment variables.")
+                             proposed_config = None
+                        else:
+                             proposed_config = generator.generate_config_with_llm(df, provider=provider)
+                    else:
+                        proposed_config = generator.generate_config_template(df)
+                    
+                    if proposed_config:
+                        st.session_state["gen_config_proposal"] = proposed_config
+                        st.session_state["gen_config_version"] = st.session_state.get("gen_config_version", 0) + 1
+                        st.success("Proposal generated! Review below.")
+                except Exception as e:
+                    st.error(f"Generation failed: {e}")
+
+        # Load proposal from state or heuristic default
+        current_config = st.session_state.get("gen_config_proposal")
+        
+        # If no proposal exists yet, use heuristic as transient default without saving to state yet
+        if not current_config:
+            current_config = generator.generate_config_template(df)
+
+        # 1. Column Mapping
         st.subheader("1. Map Columns")
         
-        # Default guess
+        # Transform config to editor format
+        # We need to list all dataframe columns and map them based on the config
         all_cols = df.columns.tolist()
         mapping_data = []
+        
+        model_config = current_config.get("model", {})
+        targets = model_config.get("targets", [])
+        features = model_config.get("features", [])
+        feature_names = [f["name"] for f in features]
+        
         for col in all_cols:
             role = "Ignore"
             monotone = 0
-            if col in ["Level_Enc", "Location_Enc"]: role = "Ignore" # engineered
-            elif col in ["Level", "Location", "Date"]: role = "Ignore" # base
-            elif col in ["BaseSalary", "TotalComp", "Stock", "Bonus"]: role = "Target"
-            elif col in ["YearsOfExperience"]: 
+            
+            if col in targets:
+                role = "Target"
+            elif col in feature_names:
                 role = "Feature"
-                monotone = 1
-            elif col in ["YearsAtCompany"]:
-                role = "Feature"
+                # Find monotone
+                for f in features:
+                    if f["name"] == col:
+                        monotone = f.get("monotone_constraint", 0)
+                        break
+            # Fallback for transient defaults if not in config (e.g. engineered cols)
+            elif col in ["Level_Enc", "Location_Enc"]: role = "Ignore"
             
             mapping_data.append({
                 "Column": col,
@@ -67,6 +117,9 @@ def render_data_analysis_ui() -> None:
             })
             
         mapping_df = pd.DataFrame(mapping_data)
+        
+        # Use version in key to force reset when generate is clicked
+        version = st.session_state.get("gen_config_version", 0)
         
         edited_mapping = st.data_editor(
             mapping_df,
@@ -77,13 +130,23 @@ def render_data_analysis_ui() -> None:
             },
             hide_index=True,
             width="stretch",
-            key="config_gen_mapping"
+            key=f"config_gen_mapping_{version}"
         )
         
-        # 2. Level Inference Review
+        # 2. Levels
         st.subheader("2. Review Levels")
-        base_levels = generator.infer_levels(df)
-        level_data = [{"Level": k, "Rank": v} for k, v in base_levels.items()]
+        
+        # Get levels from config
+        mappings = current_config.get("mappings", {})
+        levels_map = mappings.get("levels", {})
+        
+        # If config is missing levels present in DF (shouldn't happen with heuristic merge), add them?
+        # generator logic ensures defaults.
+        
+        level_data = [{"Level": k, "Rank": v} for k, v in levels_map.items()]
+        # Sort by rank
+        level_data.sort(key=lambda x: x["Rank"])
+        
         levels_df = pd.DataFrame(level_data)
         
         edited_levels = st.data_editor(
@@ -94,7 +157,7 @@ def render_data_analysis_ui() -> None:
             },
             hide_index=True,
             width="stretch",
-            key="config_gen_levels"
+            key=f"config_gen_levels_{version}"
         )
 
         if st.button("Apply Configuration"):

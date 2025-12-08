@@ -35,6 +35,7 @@ dev = [
 [project.scripts]
 salary-forecast-train = "src.cli.train_cli:main"
 salary-forecast-infer = "src.cli.inference_cli:main"
+salary-forecast-config = "src.cli.generate_config_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
