@@ -195,11 +195,16 @@ def test_render_model_config_editor(sample_config):
         mock_st.columns.return_value = [MagicMock(), MagicMock()]
         
         # Mock returns for data editors
-        # 1. Targets
+        # 1. Variables Editor (Unified)
+        # 2. Quantiles
         mock_st.data_editor.side_effect = [
-            pd.DataFrame([{"Target": "T1"}, {"Target": "T2"}]), # Targets
-            pd.DataFrame([{"Quantile": 0.1}, {"Quantile": 0.9}]), # Quantiles
-            pd.DataFrame([{"name": "F1", "monotone_constraint": 1}]) # Features
+            pd.DataFrame([
+                {"Name": "T1", "Role": "Target", "Monotone Constraint": 0},
+                {"Name": "T2", "Role": "Target", "Monotone Constraint": 0},
+                {"Name": "F1", "Role": "Feature", "Monotone Constraint": 1},
+                {"Name": "Bad", "Role": "Ignore", "Monotone Constraint": 0}
+            ]), 
+            pd.DataFrame([{"Quantile": 0.1}, {"Quantile": 0.9}])
         ]
         
         # Mock return for inputs
@@ -234,10 +239,11 @@ def test_render_model_config_editor(sample_config):
         feat = updated_model["features"]
         assert len(feat) == 1
         assert feat[0]["name"] == "F1"
-        feat = updated_model["features"]
-        assert len(feat) == 1
-        assert feat[0]["name"] == "F1"
         assert feat[0]["monotone_constraint"] == 1
+        
+        # Verify Ignore worked
+        assert "Bad" not in updated_model["targets"]
+        assert not any(f["name"] == "Bad" for f in feat)
 
 def test_render_save_load_controls_save():
     config = {"a": 1}

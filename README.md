@@ -1,8 +1,9 @@
-# Salary Forecasting Engine
+# AutoQuantile
 
-A machine learning system to predict compensation distributions (Base Salary, Stock, Bonus, Total Comp) based on candidate attributes. It uses **XGBoost** with Quantile Regression. The model is highly configurable, allowing users to define exact percentiles to forecast, enforce monotonic constraints, and customize target definitions.
+A comprehensive framework for **Multi-Target Quantile Regression** using **XGBoost**. It automates the complex lifecycle of probabilistic modeling—from feature engineering and monotonic constraint enforcement to hyperparameter tuning and model versioning.
 
 Key features include:
+- **Automated Version Control**: Automatically tracks and versions trained models using **MLFlow**.
 - **Auto-Tuning**: Integrated Hyperparameter Optimization using **Optuna** to automatically find the best model parameters.
 - **LLM-Assisted Configuration**: Uses Generative AI to intelligently infer column roles and level hierarchies from data.
 - **Proximity Matching**: Geo-spatial grouping of cities into cost zones.

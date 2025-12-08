@@ -145,23 +145,81 @@ def render_model_config_editor(config: Dict[str, Any]) -> Dict[str, Any]:
     model_config = config.get("model", {})
     
 
+    # Combined Variables Table
+    st.markdown("**Model Variables (Features & Targets)**")
+    
+    # 1. Flatten current config into a unified list
     defaults_targets = ["BaseSalary", "Stock", "Bonus", "TotalComp"]
     current_targets = model_config.get("targets", defaults_targets)
     
-    st.markdown("**Targets**")
-    targets_df = pd.DataFrame([{"Target": t} for t in current_targets])
-    edited_targets_df = st.data_editor(
-        targets_df,
+    default_features = [
+        {"name": "Level_Enc", "monotone_constraint": 1},
+        {"name": "Location_Enc", "monotone_constraint": 0},
+        {"name": "YearsOfExperience", "monotone_constraint": 1},
+        {"name": "YearsAtCompany", "monotone_constraint": 0}
+    ]
+    current_features = model_config.get("features", default_features)
+    
+    # Create unified dataframe
+    # Schema: Name, Role, Monotone Constraint
+    unified_data = []
+    
+    for t in current_targets:
+        unified_data.append({
+            "Name": t,
+            "Role": "Target",
+            "Monotone Constraint": 0 # Default/Irrelevant for targets but good to have schema consistency or hide it
+        })
+        
+    for f in current_features:
+        unified_data.append({
+            "Name": f.get("name"),
+            "Role": "Feature",
+            "Monotone Constraint": f.get("monotone_constraint", 0)
+        })
+        
+    unified_df = pd.DataFrame(unified_data)
+    
+    # Render Editor
+    edited_vars_df = st.data_editor(
+        unified_df,
         num_rows="dynamic",
         width="stretch",
-        key="targets_editor",
+        key="variables_editor",
         column_config={
-            "Target": st.column_config.TextColumn("Target Variable", required=True)
+            "Name": st.column_config.TextColumn("Variable Name", required=True),
+            "Role": st.column_config.SelectboxColumn("Role", options=["Feature", "Target", "Ignore"], required=True),
+            "Monotone Constraint": st.column_config.NumberColumn(
+                "Monotone Constraint (-1, 0, 1)", 
+                min_value=-1, 
+                max_value=1, 
+                step=1,
+                help="Constraint for Features: 1 (increasing), -1 (decreasing), 0 (none). Ignored for Targets."
+            )
         }
     )
-    new_targets = [row["Target"] for _, row in edited_targets_df.iterrows() if row["Target"]]
     
-
+    # 2. Parse back into separate lists
+    new_targets = []
+    new_features = []
+    
+    for _, row in edited_vars_df.iterrows():
+        name = row["Name"]
+        role = row["Role"]
+        constraint = int(row["Monotone Constraint"])
+        
+        if not name or role == "Ignore":
+            continue
+            
+        if role == "Target":
+            new_targets.append(name)
+        elif role == "Feature":
+            new_features.append({
+                "name": name,
+                "monotone_constraint": constraint
+            })
+    
+    # Quantiles configuration (kept separate as it's global model setting)
     defaults_quantiles = [0.1, 0.25, 0.50, 0.75, 0.9]
     current_quantiles = model_config.get("quantiles", defaults_quantiles)
     
@@ -178,7 +236,7 @@ def render_model_config_editor(config: Dict[str, Any]) -> Dict[str, Any]:
     )
     new_quantiles = [float(row["Quantile"]) for _, row in edited_quantiles_df.iterrows()]
     
-
+    # Sample Weight configuration
     default_k = 1.0
     current_k = model_config.get("sample_weight_k", default_k)
     new_k = st.number_input(
@@ -216,27 +274,6 @@ def render_model_config_editor(config: Dict[str, Any]) -> Dict[str, Any]:
         "cv": {"num_boost_round": int(nbr), "nfold": int(nfold), "early_stopping_rounds": int(esr), "verbose_eval": False}
     }
 
-    st.markdown("**Features & Constraints**")
-    default_features = [
-        {"name": "Level_Enc", "monotone_constraint": 1},
-        {"name": "Location_Enc", "monotone_constraint": 0},
-        {"name": "YearsOfExperience", "monotone_constraint": 1},
-        {"name": "YearsAtCompany", "monotone_constraint": 0}
-    ]
-    current_features = model_config.get("features", default_features)
-    
-    features_df = pd.DataFrame(current_features)
-    edited_features_df = st.data_editor(
-        features_df,
-        num_rows="dynamic",
-        width="stretch",
-        key="features_editor",
-        column_config={
-            "name": st.column_config.TextColumn("Feature Name", required=True),
-            "monotone_constraint": st.column_config.NumberColumn("Monotone Constraint (-1, 0, 1)", min_value=-1, max_value=1, step=1)
-        }
-    )
-    new_features = edited_features_df.to_dict(orient="records")
     
     return {
         "targets": new_targets,
