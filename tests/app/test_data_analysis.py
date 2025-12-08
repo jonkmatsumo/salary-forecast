@@ -67,6 +67,15 @@ def test_render_upload_loads_data(mock_streamlit, mock_load_data, sample_df):
     
     # Assert rerun called
     mock_streamlit.rerun.assert_called()
+    
+    # Assert Redirect Info Shown
+    # Need to check if st.info called with proper text
+    found_redirect = False
+    for call in mock_streamlit.info.call_args_list:
+        if "Next Step" in call[0][0]:
+            found_redirect = True
+            break
+    assert found_redirect, "Redirect info message not found"
 
 def test_render_existing_data_shows_analysis(mock_streamlit, sample_df):
     mock_streamlit.session_state = {"training_data": sample_df}

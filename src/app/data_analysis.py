@@ -27,6 +27,8 @@ def render_data_analysis_ui() -> None:
             try:
                 df = load_data(uploaded_file)
                 st.session_state["training_data"] = df
+                st.success("File uploaded successfully!")
+                st.info("💡 **Next Step**: Go to the **Configuration** page (sidebar) to generate a config from this data.")
                 st.rerun()
             except Exception as e:
                 st.error(f"Error loading data: {e}")
@@ -37,13 +39,7 @@ def render_data_analysis_ui() -> None:
     analytics_service = AnalyticsService()
     summary = analytics_service.get_data_summary(df)
 
-    # --- Config Generation Section ---
 
-    with st.expander("Generate Configuration from Data", expanded=False):
-        st.info("The Configuration Generator has moved!")
-        st.markdown("Please navigate to the **Configuration** page (via the sidebar) to generate a new configuration using AI or heuristics from your loaded dataset.")
-
-    st.markdown("---")
 
     st.subheader("Overview")
     col1, col2, col3 = st.columns(3)

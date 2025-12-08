@@ -156,6 +156,7 @@ def render_training_ui() -> None:
                 df = load_data(uploaded_file)
                 st.session_state["training_data"] = df # Cache it
                 st.success(f"Loaded {len(df)} rows.")
+                st.info("💡 **Tip**: If this is a new dataset, go to the **Configuration** page to generate an optimal config.")
             except Exception as e:
                 st.error(f"Error loading file: {e}")
                 
