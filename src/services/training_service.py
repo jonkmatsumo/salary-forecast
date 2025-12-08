@@ -5,14 +5,17 @@ import uuid
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from src.model.model import SalaryForecaster
+from src.utils.logger import get_logger
 
 class TrainingService:
     """Service for orchestrating model training and hyperparameter tuning."""
     
     def __init__(self):
+        self.logger = get_logger(__name__)
         self.executor = ThreadPoolExecutor(max_workers=1)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
+        self.logger.debug("Initialized TrainingService")
 
     def train_model(self, 
                    data: pd.DataFrame, 
@@ -101,6 +104,8 @@ class TrainingService:
             with self._lock:
                 self._jobs[job_id]["status"] = "RUNNING"
             
+            self.logger.info(f"Starting async training job: {job_id}")
+
             # Start MLflow Run
             mlflow.set_experiment("Salary_Forecast")
             with mlflow.start_run(run_name=f"Training_{job_id}") as run:
@@ -116,6 +121,7 @@ class TrainingService:
                 forecaster = SalaryForecaster()
                 
                 if do_tune:
+                    self.logger.info(f"Starting tuning for job {job_id}")
                     _async_callback(f"Starting tuning with {n_trials} trials...")
                     best_params = forecaster.tune(data, n_trials=n_trials)
                     mlflow.log_params(best_params)
@@ -137,6 +143,7 @@ class TrainingService:
                     import numpy as np
                     mean_score = np.mean(scores)
                     mlflow.log_metric("cv_mean_score", mean_score)
+                    self.logger.info(f"Job {job_id} finished. CV Mean Score: {mean_score:.4f}")
                 
                 # mlflow.log_metric("final_mae", ...) # Forecaster doesn't expose test metrics yet
                 
@@ -147,6 +154,7 @@ class TrainingService:
                     self._jobs[job_id]["completed_at"] = datetime.now()
                 
         except Exception as e:
+            self.logger.error(f"Training job {job_id} failed: {e}", exc_info=True)
             with self._lock:
                 self._jobs[job_id]["status"] = "FAILED"
                 self._jobs[job_id]["error"] = str(e)

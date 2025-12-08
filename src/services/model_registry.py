@@ -3,6 +3,7 @@ from mlflow.tracking import MlflowClient
 from typing import List, Any
 from src.model.model import SalaryForecaster
 from mlflow.pyfunc import PythonModel
+from src.utils.logger import get_logger
 
 class SalaryForecasterWrapper(PythonModel):
     """Wrapper for MLflow persistence of SalaryForecaster."""
@@ -17,10 +18,12 @@ class ModelRegistry:
     """Service for managing model persistence and retrieval via MLflow."""
 
     def __init__(self, experiment_name: str = "Salary_Forecast"):
+        self.logger = get_logger(__name__)
         # Ensure experiment exists
         self.client = MlflowClient()
         self.experiment = mlflow.set_experiment(experiment_name)
         self.experiment_id = self.experiment.experiment_id
+        self.logger.debug(f"Initialized ModelRegistry with experiment: {experiment_name}")
 
     def list_models(self) -> List[Any]:
         """Lists successful runs that have a model artifact."""
@@ -57,6 +60,7 @@ class ModelRegistry:
         # it might fail because SalaryForecaster isn't an sklearn estimator.
         # But we can assume the trainer logs it correctly.
         
+        self.logger.info(f"Loading model from run: {run_id}")
         return mlflow.pyfunc.load_model(model_uri).unwrap_python_model().unwrap_python_model()
 
     def save_model(self, model: SalaryForecaster, run_name: str = None) -> None:

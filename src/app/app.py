@@ -17,6 +17,7 @@ from src.app.data_analysis import render_data_analysis_ui
 from src.app.model_analysis import render_model_analysis_ui
 from src.utils.config_loader import get_config
 from src.app.caching import load_data_cached as load_data
+from src.utils.logger import setup_logging
 
 # Services
 from src.services.model_registry import ModelRegistry
@@ -296,4 +297,5 @@ def main() -> None:
         st.session_state["config_override"] = new_config
 
 if __name__ == "__main__":
+    setup_logging()
     main()

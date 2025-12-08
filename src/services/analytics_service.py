@@ -2,9 +2,12 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 import matplotlib.pyplot as plt
 from src.model.model import SalaryForecaster
+from src.utils.logger import get_logger
 
 class AnalyticsService:
     """Service for data and model analytics."""
+    def __init__(self):
+        self.logger = get_logger(__name__)
 
     def get_data_summary(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Calculates high-level statistics for the dataset."""

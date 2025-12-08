@@ -5,10 +5,11 @@ import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any, Callable
 from src.model.preprocessing import LevelEncoder, LocationEncoder, SampleWeighter
 from src.utils.config_loader import get_config
-
+from src.utils.logger import get_logger
 
 class SalaryForecaster:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
+        self.logger = get_logger(__name__)
         self.models: Dict[str, Any] = {}
         # Use provided config or load from disk
         if config is None:
@@ -114,14 +115,14 @@ class SalaryForecaster:
             if callback:
                 callback("Preprocessing: Removing outliers...", {"stage": "preprocess"})
             else:
-                print("Preprocessing: Removing outliers...")
+                self.logger.info("Preprocessing: Removing outliers...")
                 
             df, removed = self.remove_outliers(df)
             msg = f"Removed {removed} outlier rows."
             if callback:
                 callback(msg, {"stage": "preprocess_result", "removed": removed})
             else:
-                print(msg)
+                self.logger.info(msg)
                 
         X = self._preprocess(df)
         weights = self.weighter.transform(df["Date"])
@@ -151,7 +152,7 @@ class SalaryForecaster:
                 if callback:
                     callback(f"Training {model_name}...", {"stage": "start", "model_name": model_name})
                 else:
-                    print(f"Training {model_name}...")
+                    self.logger.info(f"Training {model_name}...")
                 
                 params = train_params_config.copy()
                 params.update({
@@ -163,6 +164,8 @@ class SalaryForecaster:
                 
                 if callback:
                     callback(f"Running Cross-Validation...", {"stage": "cv_start"})
+                else:
+                    self.logger.debug(f"Running Cross-Validation for {model_name}...")
                 
                 cv_results = xgb.cv(
                     params,
@@ -188,7 +191,7 @@ class SalaryForecaster:
                     }
                     callback(f"Best Round: {best_round}, Score: {best_score:.4f}", data)
                 else:
-                    print(f"  Optimal rounds: {best_round}, Best {metric_name}: {best_score:.4f}")
+                    self.logger.info(f"  Optimal rounds: {best_round}, Best {metric_name}: {best_score:.4f}")
 
                 model = xgb.train(params, dtrain, num_boost_round=best_round)
                 self.models[model_name] = model

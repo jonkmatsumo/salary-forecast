@@ -10,8 +10,9 @@ from rich.console import Console
 from rich.table import Table
 
 from typing import Any, Callable, List, Optional, Union
+from src.utils.logger import setup_logging, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 def load_model(path: str) -> Any:
     """Loads a pickled model object."""
@@ -119,13 +120,10 @@ def main():
     
     log_level = logging.INFO if args.verbose else logging.WARNING
     if args.json:
-        logging.basicConfig(level=log_level, stream=sys.stderr, format='%(message)s')
+        # For JSON output, we write logs to stderr to keep stdout clean for JSON
+        logging.basicConfig(level=log_level, stream=sys.stderr, format='%(message)s', force=True)
     else:
-        logging.basicConfig(
-            level=log_level,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%H:%M:%S'
-        )
+        setup_logging(level=log_level)
 
     console = Console(stderr=args.json)
     if not args.json:

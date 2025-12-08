@@ -20,6 +20,7 @@ import sys
 from typing import Optional, Any
 import mlflow
 from src.services.model_registry import SalaryForecasterWrapper
+from src.utils.logger import setup_logging
 
 def train_workflow(csv_path: str, config_path: str, output_path: str, console: Any, do_tune: bool = False, num_trials: int = 20, remove_outliers: bool = False) -> None:
     """Executes the model training workflow.
@@ -127,6 +128,7 @@ def train_workflow(csv_path: str, config_path: str, output_path: str, console: A
         status_text.plain = "Status: Completed"
     
 def main():
+    setup_logging()
     console = Console()
     console.print("[bold green]Salary Forecasting Training CLI[/bold green]")
     
