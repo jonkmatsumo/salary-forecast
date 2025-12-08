@@ -11,11 +11,17 @@ Key features include:
 
 ## Installation
 
-1.  Create a virtual environment (optional but recommended):
     ```bash
     python3 -m venv .venv
     source .venv/bin/activate
     ```
+    
+2.  Upgrade pip (Required for pyproject.toml based installs):
+    ```bash
+    pip install --upgrade pip
+    ```
+
+3.  Install the package:
     ```bash
     pip install -e .
     # Or for development (includes test dependencies):

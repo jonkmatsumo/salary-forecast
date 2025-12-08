@@ -68,36 +68,51 @@ def render_inference_ui() -> None:
                 st.error(f"Failed to load model: {e}")
                 return
     
-    forecaster: SalaryForecaster = st.session_state["forecaster"]
+    forecaster = st.session_state["forecaster"]
     
     with st.form("inference_form"):
         st.subheader("Candidate Details")
         c1, c2 = st.columns(2)
         
+        input_data = {}
+        
         with c1:
-            level_map = forecaster.level_encoder.mapping
-            levels = list(level_map.keys()) if level_map else ["E3", "E4", "E5"]
-            level = st.selectbox("Level", levels)
+            # Ranked Features (e.g. Level)
+            for col_name, encoder in forecaster.ranked_encoders.items():
+                levels = list(encoder.mapping.keys())
+                val = st.selectbox(col_name, levels, key=f"input_{col_name}")
+                input_data[col_name] = val
             
-            location = st.text_input("Location", "New York")
+            # Proximity Features (e.g. Location)
+            for col_name, encoder in forecaster.proximity_encoders.items():
+                val = st.text_input(col_name, "New York", key=f"input_{col_name}") # Default?
+                input_data[col_name] = val
             
         with c2:
-            yoe = st.number_input("Years of Experience", 0, 30, 5)
-            yac = st.number_input("Years at Company", 0, 30, 0)
+            # Other features (Numerical)
+            # Filter out ones we already handled
+            handled = list(forecaster.ranked_encoders.keys()) + list(forecaster.proximity_encoders.keys())
+            remaining = [f for f in forecaster.feature_names if f not in handled and f not in [f"{h}_Enc" for h in handled]]
+            
+            for feat in remaining:
+                # heuristic defaults
+                val = st.number_input(feat, 0, 100, 5, key=f"input_{feat}")
+                input_data[feat] = val
             
         if st.form_submit_button("Predict Compensation"):
-            input_df = pd.DataFrame([{
-                "Level": level,
-                "Location": location,
-                "YearsOfExperience": yoe,
-                "YearsAtCompany": yac
-            }])
+            input_df = pd.DataFrame([input_data])
             
             with st.spinner("Predicting..."):
                 results = forecaster.predict(input_df)
                 
             st.subheader("Prediction Results")
-            st.markdown(f"**Target Location Zone:** {forecaster.loc_encoder.mapper.get_zone(location)}")
+            
+            # Show zone info if Location available
+            if "Location" in forecaster.proximity_encoders:
+                 encoder = forecaster.proximity_encoders["Location"]
+                 loc_val = input_data.get("Location")
+                 if loc_val:
+                     st.markdown(f"**Target Location Zone:** {encoder.mapper.get_zone(loc_val)}")
             
             # Prepare data for display
             res_data = []
