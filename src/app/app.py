@@ -140,7 +140,7 @@ def render_training_ui() -> None:
         
     remove_outliers = st.checkbox("Remove Outliers (IQR)", value=True)
     
-    display_charts = st.checkbox("Show Live Charts (Experimental)", value=False)
+    display_charts = st.checkbox("Show Live Charts", value=False)
     
     custom_name = st.text_input("Model Output Filename (Optional)", placeholder="e.g. my_custom_model.pkl")
     
@@ -152,10 +152,12 @@ def render_training_ui() -> None:
         # 2. Dynamic Results Table Setup
         status_container = st.empty()
         results_placeholder = st.empty()
+        chart_placeholder = st.empty() if display_charts else None
         log_container = st.empty()
         
         logs = []
         results_log = []
+        chart_data = []
         
         def streamlit_callback(msg: str, data: Optional[Dict[str, Any]] = None) -> None:
             status_container.markdown(f"**Status:** {msg}")
@@ -166,6 +168,7 @@ def render_training_ui() -> None:
             
             # Dynamic Results Update
             if data and data.get("stage") == "cv_end":
+                # Table Data
                 results_log.append({
                     "Model": data.get("model_name"),
                     "Best Round": data.get("best_round"),
@@ -173,6 +176,15 @@ def render_training_ui() -> None:
                 })
                 # Update table in real-time
                 results_placeholder.dataframe(pd.DataFrame(results_log))
+                
+                # Chart Data
+                if display_charts and chart_placeholder:
+                    chart_data.append({
+                        "Model": data.get("model_name"),
+                        "Score": data.get("best_score")
+                    })
+                    c_df = pd.DataFrame(chart_data)
+                    chart_placeholder.line_chart(c_df.set_index("Model")["Score"])
             
         try:
             # Use current config
