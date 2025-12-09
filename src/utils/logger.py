@@ -3,13 +3,7 @@ import sys
 from typing import Optional
 
 def setup_logging(level: int = logging.INFO, log_file: Optional[str] = None) -> None:
-    """
-    Configures the root logger with standard formatting and handlers.
-    
-    Args:
-        level: Logging level (default: logging.INFO)
-        log_file: Optional path to a file to log to.
-    """
+    """Configure the root logger with standard formatting and handlers. Args: level (int): Logging level. log_file (Optional[str]): Log file path. Returns: None."""
     handlers = [logging.StreamHandler(sys.stdout)]
     if log_file:
         handlers.append(logging.FileHandler(log_file))
@@ -23,5 +17,5 @@ def setup_logging(level: int = logging.INFO, log_file: Optional[str] = None) -> 
     )
 
 def get_logger(name: str) -> logging.Logger:
-    """Returns a logger with the specified name."""
+    """Return a logger with the specified name. Args: name (str): Logger name. Returns: logging.Logger: Logger instance."""
     return logging.getLogger(name)

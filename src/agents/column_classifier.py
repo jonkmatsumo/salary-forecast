@@ -9,7 +9,7 @@ This agent analyzes a dataset and classifies each column as:
 
 import json
 from typing import Any, Dict, List
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.language_models import BaseChatModel
 
 from src.agents.tools import (
@@ -23,8 +23,8 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def get_column_classifier_tools():
-    """Return tools available to the column classifier agent."""
+def get_column_classifier_tools() -> List[Any]:
+    """Return tools available to the column classifier agent. Returns: List[Any]: List of tool functions."""
     return [
         compute_correlation_matrix,
         get_column_statistics,
@@ -32,32 +32,14 @@ def get_column_classifier_tools():
     ]
 
 
-def create_column_classifier_agent(llm: BaseChatModel):
-    """
-    Create a column classifier agent with tool-calling capabilities.
-    
-    Args:
-        llm: A LangChain chat model that supports tool calling.
-        
-    Returns:
-        An agent that can classify columns using tools.
-    """
+def create_column_classifier_agent(llm: BaseChatModel) -> Any:
+    """Create a column classifier agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model with tool calling. Returns: Any: Agent with bound tools."""
     tools = get_column_classifier_tools()
     return llm.bind_tools(tools)
 
 
 def build_classification_prompt(df_json: str, columns: List[str], dtypes: Dict[str, str]) -> str:
-    """
-    Build the user prompt for column classification.
-    
-    Args:
-        df_json: JSON representation of the DataFrame sample.
-        columns: List of column names.
-        dtypes: Dictionary mapping column names to their dtypes.
-        
-    Returns:
-        Formatted user prompt string.
-    """
+    """Build the user prompt for column classification. Args: df_json (str): JSON representation of DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column name to dtype mapping. Returns: str: Formatted prompt."""
     column_info = "\n".join([f"- {col}: {dtypes.get(col, 'unknown')}" for col in columns])
     
     return f"""Please analyze this dataset and classify each column.
@@ -79,22 +61,12 @@ After your analysis, provide your final classification as JSON with keys: target
 
 
 def parse_classification_response(response_content: str) -> Dict[str, Any]:
-    """
-    Parse the agent's response to extract classification.
-    
-    Args:
-        response_content: Raw response text from the agent.
-        
-    Returns:
-        Parsed classification dictionary.
-    """
+    """Parse the agent's response to extract classification. Args: response_content (str): Raw response text. Returns: Dict[str, Any]: Parsed classification dictionary."""
     logger.debug(f"Parsing classification response (length: {len(response_content) if response_content else 0})")
     
-    # Try to find JSON in the response
     try:
         json_str = None
         
-        # Look for JSON block
         if "```json" in response_content:
             logger.debug("Found ```json block")
             json_str = response_content.split("```json")[1].split("```")[0].strip()
@@ -148,22 +120,7 @@ async def run_column_classifier(
     dtypes: Dict[str, str],
     max_iterations: int = 10
 ) -> Dict[str, Any]:
-    """
-    Run the column classification agent.
-    
-    This function handles the tool-calling loop, allowing the agent to
-    use tools iteratively before providing its final classification.
-    
-    Args:
-        llm: LangChain chat model with tool-calling support.
-        df_json: JSON representation of DataFrame sample.
-        columns: List of column names.
-        dtypes: Dict mapping column names to dtypes.
-        max_iterations: Maximum tool-calling iterations.
-        
-    Returns:
-        Classification result with targets, features, ignore, and reasoning.
-    """
+    """Run the column classification agent with tool-calling loop. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max iterations. Returns: Dict[str, Any]: Classification result."""
     system_prompt = load_prompt("agents/column_classifier_system")
     user_prompt = build_classification_prompt(df_json, columns, dtypes)
     
@@ -179,7 +136,6 @@ async def run_column_classifier(
         response = await agent.ainvoke(messages)
         messages.append(response)
         
-        # Check for tool calls
         if response.tool_calls:
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
@@ -188,11 +144,7 @@ async def run_column_classifier(
                 logger.info(f"Column classifier calling tool: {tool_name}")
                 
                 if tool_name in tools:
-                    # Execute tool
                     tool_result = tools[tool_name].invoke(tool_args)
-                    
-                    # Add tool result to messages
-                    from langchain_core.messages import ToolMessage
                     messages.append(ToolMessage(
                         content=str(tool_result),
                         tool_call_id=tool_call["id"]
@@ -200,7 +152,6 @@ async def run_column_classifier(
                 else:
                     logger.warning(f"Unknown tool requested: {tool_name}")
         else:
-            # No more tool calls, parse the final response
             return parse_classification_response(response.content)
     
     logger.warning("Max iterations reached in column classifier")
@@ -214,19 +165,7 @@ def run_column_classifier_sync(
     dtypes: Dict[str, str],
     max_iterations: int = 10
 ) -> Dict[str, Any]:
-    """
-    Synchronous version of run_column_classifier.
-    
-    Args:
-        llm: LangChain chat model with tool-calling support.
-        df_json: JSON representation of DataFrame sample.
-        columns: List of column names.
-        dtypes: Dict mapping column names to dtypes.
-        max_iterations: Maximum tool-calling iterations.
-        
-    Returns:
-        Classification result with targets, features, ignore, and reasoning.
-    """
+    """Synchronous column classifier. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max tool-calling iterations. Returns: Dict[str, Any]: Classification result."""
     system_prompt = load_prompt("agents/column_classifier_system")
     user_prompt = build_classification_prompt(df_json, columns, dtypes)
     
@@ -242,7 +181,6 @@ def run_column_classifier_sync(
         response = agent.invoke(messages)
         messages.append(response)
         
-        # Check for tool calls
         if response.tool_calls:
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
@@ -257,12 +195,10 @@ def run_column_classifier_sync(
                         logger.debug(f"Tool {tool_name} returned result (type: {type(tool_result)}, length: {len(str(tool_result)) if tool_result else 0})")
                         logger.debug(f"Tool result preview: {str(tool_result)[:200] if tool_result else 'None'}")
                         
-                        # Ensure tool result is a string
                         if not isinstance(tool_result, str):
                             logger.warning(f"Tool {tool_name} returned non-string result: {type(tool_result)}, converting to string")
                             tool_result = str(tool_result)
                         
-                        from langchain_core.messages import ToolMessage
                         messages.append(ToolMessage(
                             content=tool_result,
                             tool_call_id=tool_call["id"]
@@ -271,8 +207,6 @@ def run_column_classifier_sync(
                     except Exception as tool_err:
                         logger.error(f"Error invoking tool {tool_name}: {tool_err}", exc_info=True)
                         logger.error(f"Tool args that caused error: {tool_args}")
-                        # Add error message to conversation
-                        from langchain_core.messages import ToolMessage
                         messages.append(ToolMessage(
                             content=f"Error executing tool {tool_name}: {str(tool_err)}",
                             tool_call_id=tool_call["id"]

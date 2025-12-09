@@ -8,10 +8,8 @@ from src.app.app import render_model_information, render_inference_ui, main
 
 class TestStreamlitApp(unittest.TestCase):
     def setUp(self):
-        # Path to the app file relative to the project root
         self.app_path = "src/app/app.py"
         
-        # Ensure the file exists
         if not os.path.exists(self.app_path):
             self.fail(f"App file not found at {self.app_path}")
 
@@ -20,11 +18,9 @@ class TestStreamlitApp(unittest.TestCase):
         at = AppTest.from_file(self.app_path)
         at.run()
         
-        # Check that we have a header (Training by default now)
         self.assertTrue(len(at.header) > 0)
         self.assertEqual(at.header[0].value, "Model Training")
         
-        # Check sidebar exists
         self.assertTrue(at.sidebar.title[0].value == "Navigation")
 
     def test_navigation_training(self):
@@ -32,52 +28,30 @@ class TestStreamlitApp(unittest.TestCase):
         at = AppTest.from_file(self.app_path)
         at.run()
         
-        # Select "Training"
         at.sidebar.radio[0].set_value("Training").run()
         
-        # Check header
         self.assertEqual(at.header[0].value, "Model Training")
         
-        # Check we have key elements
-        # AppTest may not render all elements immediately, so we focus on header as primary check
-        # Checkboxes (Outliers, Tune) - Live Chart removed for async simplicity
-        # These should be present if rendered
         if len(at.checkbox) > 0:
             self.assertTrue(len(at.checkbox) >= 2, "Should have at least 2 checkboxes (Outliers, Tune)")
-        
-        # Text input and buttons may not be immediately available in AppTest
-        # Header check is the primary assertion for navigation
-        # Additional elements are checked if available but not required for test to pass
 
     def test_navigation_inference(self):
         """Verify navigation to Inference page."""
         at = AppTest.from_file(self.app_path)
         at.run()
         
-        # Select "Inference"
         at.sidebar.radio[0].set_value("Inference").run()
         
-        # Check header
         self.assertEqual(at.header[0].value, "Salary Inference")
         
-        # Check if model warning or selector appears
-        # If no models, it shows warning. If models, it shows selectbox.
-        # We can't strictly assert one or other without knowing env state, 
-        # but we can check that at least one of them exists or generic content loads.
-        # Note: AppTest may not always render all elements immediately, so we check header as primary assertion
         has_warning = len(at.warning) > 0
         has_selectbox = len(at.selectbox) > 0
         
-        # Header is the primary check - if that's correct, navigation worked
-        # Warning/selectbox may not always be available in AppTest depending on MLflow state
         self.assertTrue(has_warning or has_selectbox or len(at.header) > 0, 
                        "Should show header (and optionally warning or model selector)")
         
-        # Check for "Input Features" subheader (renamed from "Candidate Details")
         if has_selectbox:
-            # If model is loaded, check for Input Features form
             subheaders = [sh.value for sh in at.subheader]
-            # Model Information should be present, and Input Features should be in form
             self.assertTrue(len(subheaders) > 0, "Should have subheaders when model is loaded")
 
     def test_navigation_configuration_removed(self):
@@ -85,7 +59,6 @@ class TestStreamlitApp(unittest.TestCase):
         at = AppTest.from_file(self.app_path)
         at.run()
         
-        # Check that only Training and Inference tabs exist
         radio_options = at.sidebar.radio[0].options
         self.assertNotIn("Configuration", radio_options)
         self.assertNotIn("Data Analysis", radio_options)
@@ -94,25 +67,15 @@ class TestStreamlitApp(unittest.TestCase):
         self.assertIn("Inference", radio_options)
 
     def test_inference_inputs(self):
-        """Verify inference inputs exist when a model is selected (mocking if possible or checking structure)."""
-        # This test relies on existing models. 
-        # If we want to be more robust, we might need to mock glob or pickle, 
-        # but AppTest starts a new process/sandbox so mocking is harder.
-        # For now, we stick to checking UI element existence logic.
-        
+        """Verify inference inputs exist when a model is selected."""
         at = AppTest.from_file(self.app_path)
         at.run()
         at.sidebar.radio[0].set_value("Inference").run()
         
         if at.selectbox:
-            # If we have models, inputs should be visible
-            # Check for "Input Features" subheader (renamed from "Candidate Details")
             subheaders = [sh.value for sh in at.subheader]
-            # Should have Model Information and potentially Input Features
             self.assertTrue(len(subheaders) > 0, "Should have subheaders when model is loaded")
             
-            # Check for Model Analysis expander (should be present)
-            # Expanders are harder to test with AppTest, but we can check for Model Information
             self.assertTrue(any("Model Information" in sh.value for sh in at.subheader), 
                           "Should show Model Information section")
 
@@ -122,8 +85,7 @@ class TestRenderModelInformation(unittest.TestCase):
     
     @patch("src.app.app.st")
     def test_render_model_information_with_run(self, mock_st):
-        """Test render_model_information with valid run data."""
-        # Setup mocks
+        """Verify model information displays correctly when run data is available."""
         mock_forecaster = MagicMock()
         mock_forecaster.ranked_encoders = {
             "Level": MagicMock(mapping={"E3": 0, "E4": 1, "E5": 2})
@@ -143,7 +105,6 @@ class TestRenderModelInformation(unittest.TestCase):
             "tags.additional_tag": "test_tag"
         }]
         
-        # Mock columns and expander
         mock_col1 = MagicMock()
         mock_col2 = MagicMock()
         mock_st.columns.return_value = [mock_col1, mock_col2]
@@ -151,19 +112,16 @@ class TestRenderModelInformation(unittest.TestCase):
         mock_st.expander.return_value.__enter__ = MagicMock(return_value=mock_expander)
         mock_st.expander.return_value.__exit__ = MagicMock(return_value=None)
         
-        # Call function
         render_model_information(mock_forecaster, run_id, runs)
         
-        # Verify subheader was called
         mock_st.subheader.assert_called_with("Model Information")
         
-        # Verify markdown was called for run ID
         markdown_calls = [call[0][0] for call in mock_st.markdown.call_args_list]
         self.assertTrue(any("Run ID" in call for call in markdown_calls))
     
     @patch("src.app.app.st")
     def test_render_model_information_no_run(self, mock_st):
-        """Test render_model_information when run is not found."""
+        """Verify graceful handling when run metadata is missing."""
         mock_forecaster = MagicMock()
         mock_forecaster.ranked_encoders = {}
         mock_forecaster.proximity_encoders = {}
@@ -178,12 +136,11 @@ class TestRenderModelInformation(unittest.TestCase):
         
         render_model_information(mock_forecaster, run_id, runs)
         
-        # Should show info message
         mock_st.info.assert_called_with("Metadata not available")
     
     @patch("src.app.app.st")
     def test_render_model_information_feature_info(self, mock_st):
-        """Test render_model_information displays feature information correctly."""
+        """Verify feature information is displayed for model transparency."""
         mock_forecaster = MagicMock()
         mock_forecaster.ranked_encoders = {
             "Level": MagicMock(mapping={"E3": 0, "E4": 1, "E5": 2, "E6": 3, "E7": 4, "E8": 5})
@@ -203,7 +160,6 @@ class TestRenderModelInformation(unittest.TestCase):
         
         render_model_information(mock_forecaster, run_id, runs)
         
-        # Verify feature information was displayed
         markdown_calls = [call[0][0] for call in mock_st.markdown.call_args_list]
         self.assertTrue(any("Ranked Features" in call for call in markdown_calls))
         self.assertTrue(any("Proximity Features" in call for call in markdown_calls))
@@ -216,7 +172,7 @@ class TestRenderInferenceUI(unittest.TestCase):
     @patch("src.app.app.st")
     @patch("src.app.app.ModelRegistry")
     def test_render_inference_ui_no_models(self, mock_registry_class, mock_st):
-        """Test render_inference_ui when no models are available."""
+        """Verify user is informed when no models are available."""
         mock_registry = mock_registry_class.return_value
         mock_registry.list_models.return_value = []
         
@@ -229,7 +185,7 @@ class TestRenderInferenceUI(unittest.TestCase):
     @patch("src.app.app.ModelRegistry")
     @patch("src.app.app.render_model_information")
     def test_render_inference_ui_model_loading_error(self, mock_render_info, mock_registry_class, mock_st):
-        """Test render_inference_ui when model loading fails."""
+        """Verify graceful error handling when model loading fails."""
         mock_registry = mock_registry_class.return_value
         mock_registry.list_models.return_value = [{
             "run_id": "test_run",
@@ -239,13 +195,10 @@ class TestRenderInferenceUI(unittest.TestCase):
             "tags.dataset_name": "Test Dataset"
         }]
         
-        # Mock selectbox to return a label
         mock_st.selectbox.return_value = "2023-01-01 12:00 | XGBoost | Test Dataset | CV:0.9500 | ID:test_run"
         
-        # Mock session state
         mock_st.session_state = {}
         
-        # Mock registry.load_model to raise exception
         mock_registry.load_model.side_effect = Exception("Model loading failed")
         
         render_inference_ui()

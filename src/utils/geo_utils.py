@@ -66,6 +66,7 @@ class GeoMapper:
             json.dump(self.cache, f, indent=4)
 
     def _get_coords(self, city: str) -> Optional[Tuple[float, float]]:
+        """Get coordinates for a city. Args: city (str): City name. Returns: Optional[Tuple[float, float]]: (latitude, longitude) or None."""
         if city in self.cache:
             return tuple(self.cache[city])
         
@@ -89,6 +90,7 @@ class GeoMapper:
         return None
 
     def _init_targets(self) -> None:
+        """Initialize target cities. Returns: None."""
         print("Initializing target cities...")
         for city, zone in self.targets.items():
             coords = self._get_coords(city)
@@ -98,14 +100,7 @@ class GeoMapper:
                 print(f"Warning: Could not geocode target city {city}")
 
     def get_zone(self, input_city: Any) -> int:
-        """Determines the cost zone for a given city based on proximity to targets.
-
-        Args:
-            input_city (Any): The city name to look up.
-
-        Returns:
-            int: The cost zone (defaults to 4 if not found or unknown).
-        """
+        """Determine the cost zone for a given city based on proximity to targets. Args: input_city (Any): City name. Returns: int: Cost zone (defaults to 4)."""
         if not isinstance(input_city, str):
             return 4
             

@@ -2,13 +2,12 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+
 from src.app.caching import load_data_cached as load_data
 from src.services.analytics_service import AnalyticsService
-from src.services.config_generator import ConfigGenerator
-from src.utils.env_loader import get_env_var
 
 def render_data_analysis_ui() -> None:
-    """Renders the data analysis dashboard."""
+    """Render the data analysis dashboard. Returns: None."""
     st.header("Data Analysis")
     
     df = None

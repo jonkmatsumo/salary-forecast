@@ -3,6 +3,8 @@ import pandas as pd
 import time
 import matplotlib.pyplot as plt
 import seaborn as sns
+from typing import Dict, Any
+
 from src.app.caching import load_data_cached as load_data
 from src.services.training_service import TrainingService
 from src.services.model_registry import ModelRegistry
@@ -15,20 +17,20 @@ from src.services.analytics_service import AnalyticsService
 def get_training_service() -> TrainingService:
     return TrainingService()
 
-def render_data_overview(df: pd.DataFrame, summary: dict) -> None:
-    """Render overview metrics."""
+def render_data_overview(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
+    """Render overview metrics. Args: df (pd.DataFrame): Data. summary (Dict[str, Any]): Summary stats. Returns: None."""
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Samples", summary.get("total_samples", 0))
     col2.metric("Unique Locations", summary.get("unique_locations", 0))
     col3.metric("Unique Levels", summary.get("unique_levels", 0))
 
-def render_data_sample(df: pd.DataFrame, summary: dict) -> None:
-    """Render data sample preview."""
+def render_data_sample(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
+    """Render data sample preview. Args: df (pd.DataFrame): Data. summary (Dict[str, Any]): Summary stats. Returns: None."""
     st.dataframe(df.head())
     st.caption(f"Shape: {summary.get('shape')}")
 
 def render_salary_distribution(df: pd.DataFrame, target_col: str) -> None:
-    """Render salary distribution histogram."""
+    """Render salary distribution histogram. Args: df (pd.DataFrame): Data. target_col (str): Target column. Returns: None."""
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.histplot(data=df, x=target_col, kde=True, ax=ax)
     ax.set_title(f"Distribution of {target_col}")
@@ -38,7 +40,7 @@ def render_salary_distribution(df: pd.DataFrame, target_col: str) -> None:
     st.dataframe(df[target_col].describe().T)
 
 def render_categorical_breakdown(df: pd.DataFrame) -> None:
-    """Render categorical breakdown charts."""
+    """Render categorical breakdown charts. Args: df (pd.DataFrame): Data. Returns: None."""
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**Level Counts**")
@@ -56,7 +58,7 @@ def render_categorical_breakdown(df: pd.DataFrame) -> None:
             st.info("Location column not found in data.")
 
 def render_correlations(df: pd.DataFrame, salary_cols: list) -> None:
-    """Render correlation heatmap."""
+    """Render correlation heatmap. Args: df (pd.DataFrame): Data. salary_cols (list): Salary columns. Returns: None."""
     num_cols = ["YearsOfExperience", "YearsAtCompany"] + salary_cols
     avail_num_cols = [c for c in num_cols if c in df.columns]
     
@@ -69,10 +71,9 @@ def render_correlations(df: pd.DataFrame, salary_cols: list) -> None:
         st.warning("Need at least 2 numerical columns for correlation analysis.")
 
 def render_training_ui() -> None:
-    """Renders the model training interface."""
+    """Render the model training interface. Returns: None."""
     st.header("Model Training")
     
-
     df = None
     if "training_data" in st.session_state:
         df = st.session_state["training_data"]
@@ -99,7 +100,6 @@ def render_training_ui() -> None:
         st.info("Please upload a CSV file to begin.")
         return
     
-    # Data Analysis Section
     with st.expander("Data Analysis", expanded=False):
         analytics_service = AnalyticsService()
         summary = analytics_service.get_data_summary(df)
@@ -137,7 +137,6 @@ def render_training_ui() -> None:
             salary_cols = [c for c in ["BaseSalary", "TotalComp", "Stock", "Bonus"] if c in df.columns]
             render_correlations(df, salary_cols)
     
-    # AI-Powered Configuration Wizard (Required before training)
     st.markdown("---")
     wizard_completed = st.session_state.get("workflow_phase") == "complete"
     
@@ -146,7 +145,6 @@ def render_training_ui() -> None:
             st.write("**Required:** Complete the configuration wizard before you can start training.")
             st.info("Generate optimal configuration using an intelligent multi-step workflow.")
             
-            # Provider selection
             available_providers = get_workflow_providers()
             if not available_providers:
                 available_providers = ["openai", "gemini"]
@@ -167,11 +165,9 @@ def render_training_ui() -> None:
     else:
         st.success("✅ Configuration wizard completed. You can now configure training options below.")
         if st.button("Re-run Configuration Wizard"):
-            # Reset workflow state to allow re-running
             _reset_workflow_state()
             st.rerun()
     
-    # Training controls - only show if wizard is completed
     if not wizard_completed:
         st.info("⏳ Please complete the AI-Powered Configuration Wizard above to enable training options.")
         return
@@ -185,23 +181,17 @@ def render_training_ui() -> None:
         num_trials = st.number_input("Number of Trials", 5, 100, 20)
         
     remove_outliers = st.checkbox("Remove Outliers (IQR)", value=True)
-    
-
     display_charts = st.checkbox("Show Training Performance Chart", value=True)
-    
     additional_tag = st.text_input("Additional Tag (Optional)", placeholder="e.g. experimental-v1")
     
-
     training_service = get_training_service()
     registry = ModelRegistry()
-
-
+    
     if "training_job_id" not in st.session_state:
         st.session_state["training_job_id"] = None
         
     job_id = st.session_state["training_job_id"]
-
-
+    
     if job_id is None:
         if st.button("Start Training (Async)", type="primary"):
             if df is None:
@@ -220,8 +210,7 @@ def render_training_ui() -> None:
             )
             st.session_state["training_job_id"] = job_id
             st.rerun()
-
-
+    
     else:
         status = training_service.get_job_status(job_id)
         
@@ -234,23 +223,17 @@ def render_training_ui() -> None:
         state = status["status"]
         st.info(f"Training Status: **{state}**")
         
-
         if state in ["QUEUED", "RUNNING"]:
             with st.spinner("Training in progress... (You can switch tabs, but stay in app to see completion)"):
-                # Poll every 2 seconds
                 time.sleep(2) 
                 st.rerun()
-                
-
+        
         with st.expander("Training Logs", expanded=(state != "COMPLETED")):
             st.code("\n".join(status["logs"]))
-
-
+        
         if state == "COMPLETED":
             st.success("Training Finished Successfully!")
             
-            # Result Visualization
-
             history = status.get("history", [])
             results_data = []
             

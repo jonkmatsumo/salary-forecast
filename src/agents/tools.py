@@ -7,7 +7,7 @@ configuration generation workflow.
 
 import re
 import json
-from typing import Any, Optional
+from typing import Any, Optional, List
 import pandas as pd
 import numpy as np
 from io import StringIO
@@ -16,26 +16,13 @@ from langchain_core.tools import tool
 
 @tool
 def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> str:
-    """
-    Compute pairwise Pearson correlation coefficients between numeric columns.
-    
-    Args:
-        df_json: JSON string representation of the DataFrame (use df.to_json()).
-        columns: Optional comma-separated list of column names to include.
-                 If not provided, uses all numeric columns.
-    
-    Returns:
-        JSON string of correlation matrix with column pairs and their correlations.
-    """
+    """Compute pairwise Pearson correlation coefficients between numeric columns. Args: df_json (str): JSON DataFrame representation. columns (Optional[str]): Comma-separated column names. Returns: str: JSON correlation matrix."""
     from src.utils.logger import get_logger
     logger = get_logger(__name__)
     
     logger.debug(f"compute_correlation_matrix called with columns: {columns}")
     logger.debug(f"df_json type: {type(df_json)}, length: {len(df_json) if df_json else 0}")
     
-    # Use StringIO to avoid deprecation warning
-    # Parse JSON string - df.to_json() creates column-oriented JSON
-    # Use json.loads then DataFrame.from_dict to preserve types better
     import json as json_lib
     
     try:
@@ -85,24 +72,11 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
 
 @tool
 def get_column_statistics(df_json: str, column: str) -> str:
-    """
-    Get detailed statistics for a specific column.
-    
-    Args:
-        df_json: JSON string representation of the DataFrame.
-        column: Name of the column to analyze.
-    
-    Returns:
-        JSON string with statistics including dtype, nulls, unique count,
-        and numeric stats (mean, std, min, max, quartiles) if applicable.
-    """
+    """Get detailed statistics for a specific column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON statistics."""
     from src.utils.logger import get_logger
     logger = get_logger(__name__)
     
     logger.debug(f"get_column_statistics called with column: {column}")
-    
-    # Use StringIO to avoid deprecation warning
-    # Parse JSON string - df.to_json() creates column-oriented JSON
     # Use json.loads then DataFrame.from_dict to preserve types better
     import json as json_lib
     
@@ -179,20 +153,7 @@ def get_column_statistics(df_json: str, column: str) -> str:
 
 @tool
 def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
-    """
-    Get unique values and their counts for a column.
-    
-    Args:
-        df_json: JSON string representation of the DataFrame.
-        column: Name of the column to analyze.
-        limit: Maximum number of unique values to return (default 20).
-    
-    Returns:
-        JSON string with value counts, sorted by frequency.
-    """
-    # Use StringIO to avoid deprecation warning
-    # Parse JSON string - df.to_json() creates column-oriented JSON
-    # Use json.loads then DataFrame.from_dict to preserve types better
+    """Get unique values and their counts for a column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. limit (int): Max unique values to return. Returns: str: JSON value counts."""
     import json as json_lib
     data_dict = json_lib.loads(df_json)
     df = pd.DataFrame.from_dict(data_dict)
@@ -202,8 +163,6 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
     
     value_counts = df[column].value_counts()
     total_unique = len(value_counts)
-    
-    # Limit output
     value_counts = value_counts.head(limit)
     
     result = {
@@ -221,24 +180,7 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
 
 @tool
 def detect_ordinal_patterns(df_json: str, column: str) -> str:
-    """
-    Detect if a column contains ordinal patterns (e.g., "Level 1", "L2", "Senior", "Junior").
-    
-    Checks for:
-    - Numeric patterns in strings (e.g., "Level 1", "L2", "Grade 3")
-    - Common ordinal keywords (junior, senior, entry, mid, etc.)
-    - Roman numerals (I, II, III, IV, V)
-    
-    Args:
-        df_json: JSON string representation of the DataFrame.
-        column: Name of the column to analyze.
-    
-    Returns:
-        JSON string with detected patterns and suggested ordinal mapping.
-    """
-    # Use StringIO to avoid deprecation warning
-    # Parse JSON string - df.to_json() creates column-oriented JSON
-    # Use json.loads then DataFrame.from_dict to preserve types better
+    """Detect if a column contains ordinal patterns. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON with detected patterns and suggested mapping."""
     import json as json_lib
     data_dict = json_lib.loads(df_json)
     df = pd.DataFrame.from_dict(data_dict)
@@ -257,7 +199,6 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
         "suggested_mapping": {}
     }
     
-    # Pattern 1: Numeric extraction (Level 1, L2, Grade 3, etc.)
     numeric_pattern = re.compile(r'(\d+)')
     values_with_numbers = []
     for val in unique_values:
@@ -268,11 +209,9 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
     if len(values_with_numbers) > len(unique_values) * 0.5:
         result["patterns_detected"].append("numeric_in_string")
         result["is_ordinal"] = True
-        # Sort by extracted number
         sorted_values = sorted(values_with_numbers, key=lambda x: x[1])
         result["suggested_mapping"] = {v[0]: i for i, v in enumerate(sorted_values)}
     
-    # Pattern 2: Common ordinal keywords
     ordinal_keywords = {
         "intern": 0, "entry": 1, "junior": 2, "associate": 3,
         "mid": 4, "senior": 5, "staff": 6, "principal": 7,
@@ -293,8 +232,6 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
         sorted_matches = sorted(keyword_matches, key=lambda x: x[1])
         result["suggested_mapping"] = {v[0]: i for i, v in enumerate(sorted_matches)}
         result["matched_keywords"] = [(v[0], v[2]) for v in sorted_matches]
-    
-    # Pattern 3: Roman numerals
     roman_pattern = re.compile(r'\b(I{1,3}|IV|V|VI{0,3}|IX|X)\b', re.IGNORECASE)
     roman_values = {
         'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
@@ -320,26 +257,7 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
 
 @tool
 def detect_column_dtype(df_json: str, column: str) -> str:
-    """
-    Infer the semantic data type of a column.
-    
-    Categories:
-    - numeric_continuous: Float values, likely continuous measurements
-    - numeric_discrete: Integer values, possibly counts or IDs
-    - categorical: String/object with limited unique values
-    - datetime: Date or timestamp values
-    - text: String with high cardinality (possibly free text)
-    - identifier: Likely an ID column (unique values, numeric pattern)
-    - boolean: True/False or binary values
-    - location: Geographic/location data (cities, addresses, regions)
-    
-    Args:
-        df_json: JSON string representation of the DataFrame.
-        column: Name of the column to analyze.
-    
-    Returns:
-        JSON string with inferred semantic type and reasoning.
-    """
+    """Infer the semantic data type of a column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON with inferred semantic type and reasoning."""
     from src.utils.logger import get_logger
     logger = get_logger(__name__)
     
@@ -347,9 +265,6 @@ def detect_column_dtype(df_json: str, column: str) -> str:
     logger.debug(f"df_json type: {type(df_json)}, length: {len(df_json) if df_json else 0}")
     logger.debug(f"df_json preview: {df_json[:200] if df_json else 'None'}")
     
-    # Use StringIO to avoid deprecation warning
-    # Parse JSON string - df.to_json() creates column-oriented JSON
-    # Use json.loads then DataFrame.from_dict to preserve types better
     import json as json_lib
     
     try:
@@ -385,21 +300,17 @@ def detect_column_dtype(df_json: str, column: str) -> str:
         "reasoning": []
     }
     
-    # Check for datetime
     if pd.api.types.is_datetime64_any_dtype(col_data):
         result["semantic_type"] = "datetime"
         result["reasoning"].append("Column has datetime dtype")
         return json.dumps(result, indent=2)
     
-    # Check for boolean
     if pd.api.types.is_bool_dtype(col_data) or set(col_data.dropna().unique()).issubset({True, False, 0, 1, "True", "False", "true", "false"}):
         result["semantic_type"] = "boolean"
         result["reasoning"].append("Column contains only boolean-like values")
         return json.dumps(result, indent=2)
     
-    # Check for numeric types
     if pd.api.types.is_numeric_dtype(col_data):
-        # Check if it's likely an ID column
         col_name_lower = column.lower()
         if unique_ratio > 0.9 and ("id" in col_name_lower or "key" in col_name_lower or "index" in col_name_lower):
             result["semantic_type"] = "identifier"
@@ -441,7 +352,6 @@ def detect_column_dtype(df_json: str, column: str) -> str:
         
         # Check uniqueness for categorical vs text
         if unique_ratio > 0.8:
-            # Check if looks like ID
             if "id" in col_name_lower or "key" in col_name_lower or "name" in col_name_lower:
                 result["semantic_type"] = "identifier"
                 result["reasoning"].append("High uniqueness and name suggests identifier")
@@ -459,8 +369,8 @@ def detect_column_dtype(df_json: str, column: str) -> str:
     return json.dumps(result, indent=2)
 
 
-def get_all_tools():
-    """Return list of all analysis tools for use with agents."""
+def get_all_tools() -> List[Any]:
+    """Return list of all analysis tools for use with agents. Returns: List[Any]: List of tool functions."""
     return [
         compute_correlation_matrix,
         get_column_statistics,

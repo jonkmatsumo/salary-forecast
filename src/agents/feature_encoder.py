@@ -25,8 +25,8 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-def get_feature_encoder_tools():
-    """Return tools available to the feature encoder agent."""
+def get_feature_encoder_tools() -> List[Any]:
+    """Return tools available to the feature encoder agent. Returns: List[Any]: List of tool functions."""
     return [
         get_unique_value_counts,
         detect_ordinal_patterns,
@@ -34,32 +34,14 @@ def get_feature_encoder_tools():
     ]
 
 
-def create_feature_encoder_agent(llm: BaseChatModel):
-    """
-    Create a feature encoder agent with tool-calling capabilities.
-    
-    Args:
-        llm: A LangChain chat model that supports tool calling.
-        
-    Returns:
-        An agent that can determine encoding strategies using tools.
-    """
+def create_feature_encoder_agent(llm: BaseChatModel) -> Any:
+    """Create a feature encoder agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model. Returns: Any: Agent with bound tools."""
     tools = get_feature_encoder_tools()
     return llm.bind_tools(tools)
 
 
 def build_encoding_prompt(df_json: str, features: List[str], dtypes: Dict[str, str]) -> str:
-    """
-    Build the user prompt for feature encoding analysis.
-    
-    Args:
-        df_json: JSON representation of the DataFrame sample.
-        features: List of feature column names to encode.
-        dtypes: Dictionary mapping column names to their dtypes.
-        
-    Returns:
-        Formatted user prompt string.
-    """
+    """Build the user prompt for feature encoding analysis. Args: df_json (str): JSON DataFrame sample. features (List[str]): Feature column names. dtypes (Dict[str, str]): Column to dtype mapping. Returns: str: Formatted prompt."""
     feature_info = "\n".join([f"- {col}: {dtypes.get(col, 'unknown')}" for col in features])
     
     return f"""Please analyze these feature columns and determine the best encoding strategy for each.
@@ -88,15 +70,7 @@ Provide your final recommendations as JSON with key "encodings" mapping column n
 
 
 def parse_encoding_response(response_content: str) -> Dict[str, Any]:
-    """
-    Parse the agent's response to extract encoding recommendations.
-    
-    Args:
-        response_content: Raw response text from the agent.
-        
-    Returns:
-        Parsed encoding dictionary.
-    """
+    """Parse the agent's response to extract encoding recommendations. Args: response_content (str): Raw response text. Returns: Dict[str, Any]: Parsed encoding dictionary."""
     try:
         if "```json" in response_content:
             json_str = response_content.split("```json")[1].split("```")[0].strip()
@@ -193,19 +167,7 @@ def run_feature_encoder_sync(
     dtypes: Dict[str, str],
     max_iterations: int = 15
 ) -> Dict[str, Any]:
-    """
-    Synchronous version of run_feature_encoder.
-    
-    Args:
-        llm: LangChain chat model with tool-calling support.
-        df_json: JSON representation of DataFrame sample.
-        features: List of feature column names.
-        dtypes: Dict mapping column names to dtypes.
-        max_iterations: Maximum tool-calling iterations.
-        
-    Returns:
-        Encoding recommendations with encodings dict and summary.
-    """
+    """Synchronous feature encoder. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. features (List[str]): Feature column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max iterations. Returns: Dict[str, Any]: Encoding recommendations."""
     if not features:
         return {
             "encodings": {},

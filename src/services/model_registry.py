@@ -1,46 +1,43 @@
 import mlflow
 from mlflow.tracking import MlflowClient
-from typing import List, Any
+from typing import List, Any, Optional
 from src.xgboost.model import SalaryForecaster
 from mlflow.pyfunc import PythonModel
 from src.utils.logger import get_logger
 
 class SalaryForecasterWrapper(PythonModel):
     """Wrapper for MLflow persistence of SalaryForecaster."""
-    def __init__(self, forecaster):
+    def __init__(self, forecaster: Any) -> None:
         self.forecaster = forecaster
-    def predict(self, context, model_input):
+    def predict(self, context: Any, model_input: Any) -> Any:
+        """Predict using wrapped forecaster. Args: context (Any): MLflow context. model_input (Any): Input data. Returns: Any: Predictions."""
         return self.forecaster.predict(model_input)
-    def unwrap_python_model(self):
+    def unwrap_python_model(self) -> Any:
+        """Unwrap the Python model. Returns: Any: Unwrapped forecaster."""
         return self.forecaster
 
 class ModelRegistry:
     """Service for managing model persistence and retrieval via MLflow."""
 
-    def __init__(self, experiment_name: str = "Salary_Forecast"):
+    def __init__(self, experiment_name: str = "Salary_Forecast") -> None:
         self.logger = get_logger(__name__)
-        # Ensure experiment exists
         self.client = MlflowClient()
         self.experiment = mlflow.set_experiment(experiment_name)
         self.experiment_id = self.experiment.experiment_id
         self.logger.debug(f"Initialized ModelRegistry with experiment: {experiment_name}")
 
     def list_models(self) -> List[Any]:
-        """Lists successful runs that have a model artifact."""
+        """List successful runs that have a model artifact. Returns: List[Any]: List of run dictionaries."""
         runs = mlflow.search_runs(
             experiment_ids=[self.experiment_id],
             filter_string="status = 'FINISHED'",
             order_by=["start_time DESC"]
         )
-        # Return summary list/dataframe directly for now
         if len(runs) == 0:
             return []
         
-        # Prepare a lightweight format for UI
-        # We want run_id, start_time, and any tags or metrics of interest
         cols_to_keep = ["run_id", "start_time"]
         
-        # Add any columns that look like tags or metrics
         for c in runs.columns:
             if c.startswith("tags.") or c.startswith("metrics."):
                 cols_to_keep.append(c)
@@ -51,19 +48,13 @@ class ModelRegistry:
         return runs[cols_to_keep].to_dict('records')
 
     def load_model(self, run_id: str) -> SalaryForecaster:
-        """Loads the 'model' artifact from the specified run."""
+        """Load the 'model' artifact from the specified run. Args: run_id (str): MLflow run ID. Returns: SalaryForecaster: Loaded model."""
         model_uri = f"runs:/{run_id}/model"
-
-        
         self.logger.info(f"Loading model from run: {run_id}")
         return mlflow.pyfunc.load_model(model_uri).unwrap_python_model().unwrap_python_model()
 
-    def save_model(self, model: SalaryForecaster, run_name: str = None) -> None:
-        """
-        Models should be logged during training context.
-
-        This generic save is kept for compatibility or manual saves.
-        """
+    def save_model(self, model: SalaryForecaster, run_name: Optional[str] = None) -> None:
+        """Save model to MLflow. Args: model (SalaryForecaster): Model to save. run_name (Optional[str]): Run name. Returns: None."""
         if mlflow.active_run():
             mlflow.pyfunc.log_model(
                 artifact_path="model", 

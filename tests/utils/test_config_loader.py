@@ -18,7 +18,6 @@ def test_load_config_success():
     with patch("builtins.open", mock_open(read_data=mock_json)), \
          patch("os.path.exists", return_value=True):
         
-        # Reset global config
         config_loader_module._CONFIG = None
         
         config = load_config()
@@ -26,20 +25,19 @@ def test_load_config_success():
         assert config_loader_module._CONFIG == mock_data
 
 def test_get_config_singleton():
+    """Verify singleton pattern prevents redundant file reads."""
     mock_data = {"key": "value"}
     
-    # Manually set global config
     config_loader_module._CONFIG = mock_data
     
-    # Should return existing config without loading
     with patch("src.utils.config_loader.load_config") as mock_load:
         config = get_config()
         assert config == mock_data
         mock_load.assert_not_called()
 
 def test_load_config_file_not_found():
+    """Verify proper error handling when config file is missing."""
     with patch("os.path.exists", return_value=False):
-        # Reset global config
         config_loader_module._CONFIG = None
         
         with pytest.raises(FileNotFoundError):
@@ -47,13 +45,12 @@ def test_load_config_file_not_found():
 
 
 def test_load_config_invalid_json():
-    """Test load_config with invalid JSON."""
+    """Verify proper error handling for malformed JSON files."""
     invalid_json = "{ invalid json }"
     
     with patch("builtins.open", mock_open(read_data=invalid_json)), \
          patch("os.path.exists", return_value=True):
         
-        # Reset global config
         config_loader_module._CONFIG = None
         
         with pytest.raises(json.JSONDecodeError):
@@ -61,17 +58,15 @@ def test_load_config_invalid_json():
 
 
 def test_load_config_missing_required_keys():
-    """Test load_config validation with missing required keys."""
+    """Verify validation catches incomplete configuration files."""
     incomplete_config = {
         "mappings": {}
-        # Missing location_settings and model
     }
     mock_json = json.dumps(incomplete_config)
     
     with patch("builtins.open", mock_open(read_data=mock_json)), \
          patch("os.path.exists", return_value=True):
         
-        # Reset global config
         config_loader_module._CONFIG = None
         
         with pytest.raises(ValueError) as exc_info:
@@ -81,7 +76,7 @@ def test_load_config_missing_required_keys():
 
 
 def test_get_config_fallback_to_load():
-    """Test get_config falls back to load_config when _CONFIG is None."""
+    """Verify get_config automatically loads config on first access."""
     mock_data = {
         "mappings": {},
         "location_settings": {},
@@ -92,7 +87,6 @@ def test_get_config_fallback_to_load():
     with patch("builtins.open", mock_open(read_data=mock_json)), \
          patch("os.path.exists", return_value=True):
         
-        # Reset global config
         config_loader_module._CONFIG = None
         
         config = get_config()

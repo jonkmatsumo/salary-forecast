@@ -26,7 +26,7 @@ class LLMService:
     This class is kept for backward compatibility only.
     """
     
-    def __init__(self, provider: str = "openai"):
+    def __init__(self, provider: str = "openai") -> None:
         warnings.warn(
             "LLMService is deprecated. Use WorkflowService from "
             "src.services.workflow_service for AI-powered configuration generation.",
@@ -42,11 +42,7 @@ class LLMService:
             self.client = None
 
     def generate_config(self, df: pd.DataFrame, preset: str = "none") -> Dict[str, Any]:
-        """
-        Generates configuration from dataframe using LLM.
-        
-        DEPRECATED: Use WorkflowService.start_workflow() for the new multi-step
-        agentic workflow with user confirmation at each phase.
+        """Generate configuration from dataframe using LLM (DEPRECATED).
         
         Args:
             df: Input dataframe.

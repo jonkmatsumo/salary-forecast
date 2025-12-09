@@ -51,15 +51,7 @@ class ConfigGenerator:
         return {lvl: i for i, lvl in enumerate(sorted_levels)}
 
     def infer_locations(self, df: pd.DataFrame, loc_col: str = "Location") -> Dict[str, int]:
-        """Infers locations from column. Default tier is 2.
-        
-        Args:
-            df: Input DataFrame.
-            loc_col: Name of the location column.
-            
-        Returns:
-            Dictionary mapping location names to tier integers.
-        """
+        """Infer locations from column. Args: df (pd.DataFrame): Input DataFrame. loc_col (str): Location column name. Returns: Dict[str, int]: Location name to tier mapping."""
         if loc_col not in df.columns:
             return {}
             
@@ -67,16 +59,7 @@ class ConfigGenerator:
         return {loc: 2 for loc in unique_locs}
     
     def infer_targets(self, df: pd.DataFrame) -> List[str]:
-        """Infer likely target columns based on heuristics.
-        
-        Looks for numeric columns with names suggesting they are outcomes.
-        
-        Args:
-            df: Input DataFrame.
-            
-        Returns:
-            List of likely target column names.
-        """
+        """Infer likely target columns based on heuristics. Args: df (pd.DataFrame): Input DataFrame. Returns: List[str]: Likely target column names."""
         target_keywords = ['salary', 'price', 'cost', 'total', 'amount', 'revenue', 
                           'profit', 'value', 'comp', 'bonus', 'stock']
         

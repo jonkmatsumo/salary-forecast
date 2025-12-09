@@ -11,29 +11,14 @@ import streamlit as st
 import pandas as pd
 import json
 import copy
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
+
 from src.services.workflow_service import WorkflowService, get_workflow_providers
-from src.services.config_generator import ConfigGenerator
 from src.app.caching import load_data_cached
 from src.utils.csv_validator import validate_csv
 
-
-# =============================================================================
-# Workflow Wizard Components
-# =============================================================================
-
 def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Optional[Dict[str, Any]]:
-    """
-    Render the multi-step agentic workflow wizard.
-
-    Args:
-        df: DataFrame to analyze.
-        provider: LLM provider to use.
-        
-    Returns:
-        Final configuration if workflow completes, None otherwise.
-    """
-    # Initialize workflow state in session
+    """Render the multi-step agentic workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
     if "workflow_service" not in st.session_state:
         st.session_state["workflow_service"] = None
     if "workflow_phase" not in st.session_state:
@@ -64,7 +49,6 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
     
     st.markdown("---")
     
-    # Start workflow button
     if st.session_state["workflow_phase"] == "not_started":
         if st.button("Start AI-Powered Configuration Wizard", type="primary"):
             with st.spinner("Initializing workflow and analyzing columns..."):
@@ -79,7 +63,6 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
                     st.error(f"Failed to start workflow: {e}")
         return None
     
-    # Get current service and result
     service: WorkflowService = st.session_state["workflow_service"]
     result = st.session_state.get("workflow_result")
     
@@ -93,7 +76,6 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
             st.rerun()
         return None
     
-    # Render phase-specific UI
     if st.session_state["workflow_phase"] == "classification":
         return _render_classification_phase(service, result, df)
     elif st.session_state["workflow_phase"] == "encoding":
@@ -107,12 +89,10 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
 
 
 def _render_classification_phase(service: WorkflowService, result: Dict[str, Any], df: pd.DataFrame) -> Optional[Dict[str, Any]]:
-    """Render the column classification review phase."""
+    """Render the column classification review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Classification result. df (pd.DataFrame): Data. Returns: Optional[Dict[str, Any]]: Config if confirmed, None otherwise."""
     st.subheader("Step 1: Column Classification")
     
     data = result.get("data", {})
-    
-    # Show agent reasoning
     reasoning = data.get("reasoning", "")
     if reasoning:
         with st.expander("Agent Reasoning", expanded=True):
@@ -205,7 +185,7 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
 
 
 def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Render the feature encoding review phase."""
+    """Render the feature encoding review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Encoding result. Returns: Optional[Dict[str, Any]]: Config if confirmed, None otherwise."""
     st.subheader("Step 2: Feature Encoding")
     
     data = result.get("data", {})
@@ -342,7 +322,7 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
 
 
 def _render_configuration_phase(service: WorkflowService, result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Render the model configuration review phase."""
+    """Render the model configuration review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Configuration result. Returns: Optional[Dict[str, Any]]: Config if finalized, None otherwise."""
     st.subheader("Step 3: Model Configuration")
     
     data = result.get("data", {})
@@ -519,7 +499,7 @@ def _render_configuration_phase(service: WorkflowService, result: Dict[str, Any]
 
 
 def _render_complete_phase(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Render the completion phase with final config."""
+    """Render the completion phase with final config. Args: result (Dict[str, Any]): Complete workflow result. Returns: Optional[Dict[str, Any]]: Final config."""
     st.subheader("Configuration Complete!")
     st.success("Your configuration has been generated successfully.")
     
@@ -559,12 +539,11 @@ def _render_complete_phase(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _reset_workflow_state():
-    """Reset all workflow-related session state."""
+def _reset_workflow_state() -> None:
+    """Reset all workflow-related session state. Returns: None."""
     keys_to_remove = [
         "workflow_service", "workflow_phase", "workflow_result"
     ]
-    # Also remove any encoding mapping keys
     for key in list(st.session_state.keys()):
         if key.startswith("encoding_mapping_"):
             keys_to_remove.append(key)

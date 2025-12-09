@@ -28,7 +28,7 @@ class AnalyticsService:
             
         return summary
     def get_feature_importance(self, model: SalaryForecaster, target: str, quantile_val: float) -> Optional[pd.DataFrame]:
-        """Extracts feature importance (Gain) for a specific target/quantile model."""
+        """Extract feature importance (Gain) for a specific target/quantile model. Args: model (SalaryForecaster): Trained model. target (str): Target column. quantile_val (float): Quantile value. Returns: Optional[pd.DataFrame]: Feature importance DataFrame."""
         model_name = f"{target}_p{int(quantile_val*100)}"
         
         if not hasattr(model, "models") or model_name not in model.models:
@@ -61,7 +61,7 @@ class AnalyticsService:
         return []
 
     def get_available_quantiles(self, model: SalaryForecaster, target: Optional[str] = None) -> List[float]:
-        """Returns list of available quantiles."""
+        """Return list of available quantiles. Args: model (SalaryForecaster): Trained model. target (Optional[str]): Target column. Returns: List[float]: Available quantiles."""
         if hasattr(model, "quantiles"):
             return sorted(model.quantiles)
         

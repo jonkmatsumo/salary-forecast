@@ -49,35 +49,19 @@ class WorkflowService:
             raise
     
     def start_workflow(self, df: pd.DataFrame, sample_size: int = 50) -> Dict[str, Any]:
-        """
-        Start a new configuration workflow with the given dataset.
-        
-        This runs the column classification agent and returns its results
-        for user review.
-        
-        Args:
-            df: Input DataFrame to analyze.
-            sample_size: Number of rows to sample for analysis.
-            
-        Returns:
-            Dictionary with classification results and metadata.
-        """
+        """Start a new configuration workflow. Args: df (pd.DataFrame): Input DataFrame. sample_size (int): Rows to sample. Returns: Dict[str, Any]: Classification results."""
         logger.info(f"Starting workflow with {len(df)} rows, sampling {sample_size}")
         logger.debug(f"DataFrame columns: {df.columns.tolist()}")
         logger.debug(f"DataFrame dtypes: {df.dtypes.to_dict()}")
         
-        # Prepare data for workflow
         sample_df = df.head(sample_size)
         logger.debug(f"Sampled DataFrame shape: {sample_df.shape}")
         
         try:
-            # Use orient='columns' to ensure consistent format
-            # This creates a dict where keys are column names and values are lists
             df_json = sample_df.to_json(orient='columns', date_format='iso')
             logger.debug(f"Generated df_json length: {len(df_json)} characters")
             logger.debug(f"df_json preview (first 200 chars): {df_json[:200]}")
             
-            # Validate JSON can be parsed
             import json
             try:
                 parsed = json.loads(df_json)
@@ -88,7 +72,6 @@ class WorkflowService:
                 logger.error(f"df_json is not valid JSON: {json_err}")
                 logger.error(f"df_json content (first 500 chars): {df_json[:500]}")
                 logger.error(f"df_json content (last 200 chars): {df_json[-200:]}")
-                # Try alternative serialization
                 logger.warning("Attempting alternative JSON serialization...")
                 try:
                     df_json = sample_df.to_json(orient='records', date_format='iso')
@@ -128,7 +111,6 @@ class WorkflowService:
             logger.info("workflow.start() completed successfully")
             logger.debug(f"Current state keys: {list(self.current_state.keys())}")
             
-            # Only log if there's an actual error (not None or empty)
             error_value = self.current_state.get("error")
             if error_value:
                 logger.error(f"Workflow state contains error: {error_value}")
@@ -149,12 +131,7 @@ class WorkflowService:
             }
     
     def get_current_state(self) -> Dict[str, Any]:
-        """
-        Get the current workflow state.
-        
-        Returns:
-            Current state dictionary with phase info and results.
-        """
+        """Get the current workflow state. Returns: Dict[str, Any]: Current state dictionary."""
         if not self.workflow:
             return {"phase": "not_started", "status": "pending"}
         
@@ -165,18 +142,7 @@ class WorkflowService:
         self, 
         modifications: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Confirm the column classification and proceed to encoding.
-        
-        Args:
-            modifications: Optional dict with modified classification:
-                - targets: List of target column names
-                - features: List of feature column names
-                - ignore: List of columns to ignore
-                
-        Returns:
-            Dictionary with encoding results.
-        """
+        """Confirm column classification and proceed to encoding. Args: modifications (Optional[Dict[str, Any]]): Modified classification. Returns: Dict[str, Any]: Encoding results."""
         if not self.workflow:
             raise RuntimeError("Workflow not started")
         
@@ -198,16 +164,7 @@ class WorkflowService:
         self,
         modifications: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Confirm the feature encoding and proceed to model configuration.
-        
-        Args:
-            modifications: Optional dict with modified encodings:
-                - encodings: Dict mapping column names to encoding configs
-                
-        Returns:
-            Dictionary with final configuration.
-        """
+        """Confirm feature encoding and proceed to model configuration. Args: modifications (Optional[Dict[str, Any]]): Modified encodings. Returns: Dict[str, Any]: Configuration results."""
         if not self.workflow:
             raise RuntimeError("Workflow not started")
         
@@ -226,33 +183,20 @@ class WorkflowService:
             }
     
     def get_final_config(self) -> Optional[Dict[str, Any]]:
-        """
-        Get the final configuration if workflow is complete.
-        
-        Returns:
-            Final configuration dictionary or None if not complete.
-        """
+        """Get the final configuration if workflow is complete. Returns: Optional[Dict[str, Any]]: Final configuration or None."""
         if not self.workflow:
             return None
         
         return self.workflow.get_final_config()
     
     def is_complete(self) -> bool:
-        """Check if the workflow has completed successfully."""
+        """Check if the workflow has completed successfully. Returns: bool: True if complete."""
         if not self.workflow:
             return False
         return self.workflow.get_current_phase() == "complete"
     
     def _format_phase_result(self, phase: str) -> Dict[str, Any]:
-        """
-        Format the current state for UI consumption.
-        
-        Args:
-            phase: Current phase name.
-            
-        Returns:
-            Formatted result dictionary.
-        """
+        """Format the current state for UI consumption. Args: phase (str): Current phase name. Returns: Dict[str, Any]: Formatted result dictionary."""
         result = {
             "phase": phase,
             "status": "success" if not self.current_state.get("error") else "error"
@@ -299,25 +243,11 @@ class WorkflowService:
 
 
 def create_workflow_service(provider: str = "openai", model: Optional[str] = None) -> WorkflowService:
-    """
-    Factory function to create a WorkflowService instance.
-    
-    Args:
-        provider: LLM provider name.
-        model: Optional model name.
-        
-    Returns:
-        WorkflowService instance.
-    """
+    """Factory function to create a WorkflowService instance. Args: provider (str): LLM provider name. model (Optional[str]): Model name. Returns: WorkflowService: WorkflowService instance."""
     return WorkflowService(provider=provider, model=model)
 
 
 def get_workflow_providers() -> List[str]:
-    """
-    Get list of available LLM providers for the workflow.
-    
-    Returns:
-        List of provider names.
-    """
+    """Get list of available LLM providers for the workflow. Returns: List[str]: Provider names."""
     return get_available_providers()
 

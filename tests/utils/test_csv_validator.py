@@ -25,9 +25,7 @@ def test_too_few_columns():
     assert "must have at least 2 columns" in err
 
 def test_parsing_error():
-    f = io.BytesIO(b"garbage data")
-    # pd.read_csv actually handles garbage pretty well (single col), unless totally binary
-    # We test non-utf8?
+    """Verify proper error handling for binary or corrupted files."""
     f = io.BytesIO(b"\xff\xff")
     is_valid, err, df = validate_csv(f)
     assert not is_valid
@@ -35,7 +33,7 @@ def test_parsing_error():
 
 
 def test_csv_with_missing_values():
-    """Test CSV with missing values (should still be valid)."""
+    """Verify missing values are acceptable in CSV data."""
     data = "Col1,Col2\n1,2\n,4\n3,"
     f = io.BytesIO(data.encode('utf-8'))
     is_valid, err, df = validate_csv(f)
@@ -45,12 +43,10 @@ def test_csv_with_missing_values():
 
 
 def test_csv_single_row():
-    """Test CSV with only header row."""
+    """Verify CSV validation requires at least one data row."""
     data = "Col1,Col2"
     f = io.BytesIO(data.encode('utf-8'))
     is_valid, err, df = validate_csv(f)
-    # CSV validator may reject empty dataframes - check actual behavior
-    # If invalid, should have error message
     if not is_valid:
         assert err is not None
     else:
@@ -58,7 +54,7 @@ def test_csv_single_row():
 
 
 def test_csv_unicode_characters():
-    """Test CSV with unicode characters."""
+    """Verify CSV validator handles international characters correctly."""
     data = "Name,Salary\nJosé,100000\nMüller,200000"
     f = io.BytesIO(data.encode('utf-8'))
     is_valid, err, df = validate_csv(f)

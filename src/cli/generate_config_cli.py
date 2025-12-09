@@ -8,7 +8,8 @@ from src.utils.logger import setup_logging, get_logger
 
 logger = get_logger(__name__)
 
-def main():
+def main() -> None:
+    """Main entry point for config generation CLI. Returns: None."""
     parser = argparse.ArgumentParser(description="Generate salary forecast configuration from data.")
     parser.add_argument("input_file", help="Path to input CSV file.")
     parser.add_argument("-o", "--output", help="Output JSON file path (default: stdout).")
@@ -31,8 +32,6 @@ def main():
         logger.info(f"Loaded data with shape {df.shape}")
         
         generator = ConfigGenerator()
-        
-        # Use centralized generate_config logic
         logger.info(f"Generating config (LLM={args.llm})...")
         config = generator.generate_config(
             df, 

@@ -95,8 +95,7 @@ def test_render_config_ui(sample_config):
          patch("src.app.config_ui.render_location_settings_editor") as mock_settings, \
          patch("src.app.config_ui.render_model_config_editor") as mock_model, \
          patch("src.app.config_ui.render_save_load_controls"), \
-         patch("src.app.config_ui.validate_csv"), \
-         patch("src.app.config_ui.ConfigGenerator"):
+         patch("src.app.config_ui.validate_csv"):
          
         # Mock side effect to update config for ranked
         def update_ranked(c):
@@ -177,7 +176,6 @@ def test_render_config_ui_generator_upload_flow(sample_config):
     """Test upload flow in generator."""
     
     with patch("src.app.config_ui.st") as mock_st, \
-         patch("src.app.config_ui.ConfigGenerator") as MockGenerator, \
          patch("src.app.config_ui.validate_csv") as mock_validate, \
          patch("src.app.config_ui.load_data_cached") as mock_load_data, \
          patch("src.app.config_ui.render_ranked_mappings_section"), \
@@ -319,8 +317,7 @@ def test_render_config_ui_uses_override(sample_config):
          patch("src.app.config_ui.render_location_settings_editor") as mock_settings, \
          patch("src.app.config_ui.render_model_config_editor") as mock_model, \
          patch("src.app.config_ui.render_save_load_controls") as mock_save_load, \
-         patch("src.app.config_ui.validate_csv"), \
-         patch("src.app.config_ui.ConfigGenerator"):
+         patch("src.app.config_ui.validate_csv"):
 
         # Use side_effects to return the existing values
         mock_loc.side_effect = lambda c: c["mappings"].get("location_targets", {})

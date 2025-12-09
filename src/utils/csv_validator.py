@@ -1,18 +1,9 @@
 import pandas as pd
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Any
 
-def validate_csv(file_buffer) -> Tuple[bool, Optional[str], Optional[pd.DataFrame]]:
-    """
-    Validates a CSV file buffer.
-    
-    Args:
-        file_buffer: File-like object (e.g. UploadedFile).
-        
-    Returns:
-        (is_valid, error_message, dataframe)
-    """
+def validate_csv(file_buffer: Any) -> Tuple[bool, Optional[str], Optional[pd.DataFrame]]:
+    """Validate a CSV file buffer. Args: file_buffer (Any): File-like object. Returns: Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe)."""
     try:
-        # Try reading a few bytes check emptiness
         file_buffer.seek(0)
         first_byte = file_buffer.read(1)
         if not first_byte:
@@ -32,5 +23,4 @@ def validate_csv(file_buffer) -> Tuple[bool, Optional[str], Optional[pd.DataFram
     except Exception as e:
         return False, f"Failed to parse CSV: {str(e)}", None
     finally:
-        # Reset pointer for downstream usage if needed, though streamlit usually handles this or we pass DF
         file_buffer.seek(0)

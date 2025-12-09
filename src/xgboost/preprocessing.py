@@ -1,5 +1,4 @@
 import pandas as pd
-import numpy as np
 from datetime import datetime
 from typing import Union, Optional, Any, Dict
 from src.utils.config_loader import get_config
@@ -11,10 +10,11 @@ class RankedCategoryEncoder:
         mapping (dict): Dictionary mapping category names to integer ranks.
     """
     def __init__(self, mapping: Optional[Dict[str, int]] = None, config_key: Optional[str] = None) -> None:
-        """
+        """Initialize encoder.
+        
         Args:
-            mapping (dict, optional): Direct mapping dictionary.
-            config_key (str, optional): Key in config['mappings'] to load mapping from.
+            mapping: Direct mapping dictionary.
+            config_key: Key in config['mappings'] to load mapping from.
         """
         if mapping is not None:
             self.mapping = mapping
@@ -27,11 +27,11 @@ class RankedCategoryEncoder:
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "RankedCategoryEncoder":
         """Fits the encoder (no-op as mapping is static).
-
+        
         Args:
             X: Input data.
             y: Target data (optional).
-
+            
         Returns:
             self
         """
@@ -39,12 +39,12 @@ class RankedCategoryEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series, list]) -> pd.Series:
         """Transforms categories to their integer representation.
-
+        
         Args:
-            X (Union[pd.DataFrame, pd.Series, list]): Input categories.
-
+            X: Input categories.
+            
         Returns:
-            pd.Series: Integer encoded categories. Unknown categories mapped to -1.
+            Integer encoded categories. Unknown categories mapped to -1.
         """
         if isinstance(X, pd.DataFrame):
             X = X.iloc[:, 0]
@@ -64,11 +64,11 @@ class ProximityEncoder:
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "ProximityEncoder":
         """Fits the encoder (no-op).
-
+        
         Args:
             X: Input data.
             y: Target data (optional).
-
+            
         Returns:
             self
         """
@@ -76,12 +76,12 @@ class ProximityEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """Transforms location names to their cost zone integers.
-
+        
         Args:
-            X (Union[pd.DataFrame, pd.Series]): Input locations.
-
+            X: Input locations.
+            
         Returns:
-            pd.Series: Cost zones (1-4).
+            Cost zones (1-4).
         """
         if isinstance(X, pd.DataFrame):
             X = X.iloc[:, 0]
@@ -104,12 +104,12 @@ class SampleWeighter:
         date_col (str): Name of the date column to use if dataframe passed.
     """
     def __init__(self, k: Optional[float] = None, ref_date: Optional[Union[str, datetime]] = None, date_col: str = "Date") -> None:
-        """Initializes the weighter.
-
+        """Initialize the weighter.
+        
         Args:
-            k (Optional[float]): Decay parameter. If None, loads from config.
-            ref_date (Optional[Union[str, datetime]]): Reference date. Defaults to now.
-            date_col (str): Column name for date if dataframe is passed. Defaults to "Date".
+            k: Decay parameter. If None, loads from config.
+            ref_date: Reference date. Defaults to now.
+            date_col: Column name for date if dataframe is passed. Defaults to "Date".
         """
         if k is None:
             config = get_config()
@@ -122,11 +122,11 @@ class SampleWeighter:
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "SampleWeighter":
         """Fits the weighter (no-op).
-
+        
         Args:
             X: Input data.
             y: Target data (optional).
-
+            
         Returns:
             self
         """
@@ -134,19 +134,17 @@ class SampleWeighter:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """Calculates weights for the input dates.
-
+        
         Args:
-            X (Union[pd.DataFrame, pd.Series]): Input dates or dataframe containing date_col.
-
+            X: Input dates or dataframe containing date_col.
+            
         Returns:
-            pd.Series: Calculated weights.
+            Calculated weights.
         """
         if isinstance(X, pd.DataFrame):
             if self.date_col in X.columns:
                 X = X[self.date_col]
             else:
-                # Fallback to first column if specific col not found, but warn? 
-                # For now assume user knows what they are doing or it's just a series wrapped in DF
                 X = X.iloc[:, 0]
         
         X = pd.to_datetime(X)

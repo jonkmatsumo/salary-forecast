@@ -6,7 +6,7 @@ for use with the agentic workflow.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import os
 import google.generativeai as genai
 from openai import OpenAI
@@ -16,19 +16,15 @@ from src.utils.logger import get_logger
 logger = get_logger(__name__)
 
 
-# =============================================================================
-# Legacy LLM Clients (for backward compatibility)
-# =============================================================================
-
 class LLMClient(ABC):
     @abstractmethod
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generates text from the LLM."""
+        """Generate text from the LLM. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
         pass
 
 
 class OpenAIClient(LLMClient):
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4-turbo-preview"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4-turbo-preview") -> None:
         self.api_key = api_key or get_env_var("OPENAI_API_KEY")
         if not self.api_key:
             raise ValueError("OPENAI_API_KEY not found.")
@@ -54,7 +50,7 @@ class OpenAIClient(LLMClient):
 
 
 class GeminiClient(LLMClient):
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-pro"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-pro") -> None:
         self.api_key = api_key or get_env_var("GEMINI_API_KEY")
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found.")
@@ -62,7 +58,7 @@ class GeminiClient(LLMClient):
         self.model = genai.GenerativeModel(model)
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        # Gemini handling of system prompts varies, effectively prepending is often easiest for basic usage
+        """Generate text using Gemini. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
@@ -77,11 +73,13 @@ class GeminiClient(LLMClient):
 
 class DebugClient(LLMClient):
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
+        """Generate mock text for debugging. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Mock response."""
         logger.info("DebugClient: Generating mock response.")
         return "MOCK_RESPONSE"
 
 
 def get_llm_client(provider: str = "openai") -> LLMClient:
+    """Get a legacy LLM client. Args: provider (str): Provider name. Returns: LLMClient: LLM client instance."""
     """
     Get a legacy LLM client instance.
     
@@ -101,32 +99,13 @@ def get_llm_client(provider: str = "openai") -> LLMClient:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
-# =============================================================================
-# LangChain-Compatible LLM Wrappers (for agentic workflow)
-# =============================================================================
-
 def get_langchain_llm(
     provider: str = "openai",
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-):
-    """
-    Get a LangChain-compatible LLM instance for use with agents.
-    
-    Args:
-        provider: Provider name ("openai" or "gemini").
-        model: Optional model name override.
-        temperature: Temperature for generation (default 0.0 for determinism).
-        **kwargs: Additional arguments passed to the LLM constructor.
-        
-    Returns:
-        LangChain BaseChatModel instance.
-        
-    Raises:
-        ValueError: If provider is not supported.
-        ImportError: If required LangChain package is not installed.
-    """
+) -> Any:
+    """Get a LangChain-compatible LLM instance. Args: provider (str): Provider name. model (Optional[str]): Model name override. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: LangChain BaseChatModel instance."""
     provider_lower = provider.lower()
     
     if provider_lower == "openai":
@@ -141,18 +120,8 @@ def _get_langchain_openai(
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-):
-    """
-    Get a LangChain ChatOpenAI instance.
-    
-    Args:
-        model: Model name (default: gpt-4-turbo-preview).
-        temperature: Temperature for generation.
-        **kwargs: Additional arguments.
-        
-    Returns:
-        ChatOpenAI instance.
-    """
+) -> Any:
+    """Get a LangChain ChatOpenAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: ChatOpenAI instance."""
     try:
         from langchain_openai import ChatOpenAI
     except ImportError:
@@ -179,18 +148,8 @@ def _get_langchain_gemini(
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-):
-    """
-    Get a LangChain ChatGoogleGenerativeAI instance.
-    
-    Args:
-        model: Model name (default: gemini-1.5-pro).
-        temperature: Temperature for generation.
-        **kwargs: Additional arguments.
-        
-    Returns:
-        ChatGoogleGenerativeAI instance.
-    """
+) -> Any:
+    """Get a LangChain ChatGoogleGenerativeAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: ChatGoogleGenerativeAI instance."""
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
     except ImportError:
@@ -213,16 +172,10 @@ def _get_langchain_gemini(
     )
 
 
-def get_available_providers() -> list:
-    """
-    Get list of available LLM providers based on installed packages and API keys.
-    
-    Returns:
-        List of available provider names.
-    """
+def get_available_providers() -> List[str]:
+    """Get list of available LLM providers. Returns: List[str]: Available provider names."""
     available = []
     
-    # Check OpenAI
     try:
         from langchain_openai import ChatOpenAI
         if get_env_var("OPENAI_API_KEY"):
@@ -230,7 +183,6 @@ def get_available_providers() -> list:
     except ImportError:
         pass
     
-    # Check Gemini
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         if get_env_var("GEMINI_API_KEY"):
@@ -242,15 +194,7 @@ def get_available_providers() -> list:
 
 
 def validate_provider(provider: str) -> bool:
-    """
-    Check if a provider is available and properly configured.
-    
-    Args:
-        provider: Provider name to check.
-        
-    Returns:
-        True if provider is available, False otherwise.
-    """
+    """Check if a provider is available and properly configured. Args: provider (str): Provider name. Returns: bool: True if available, False otherwise."""
     try:
         llm = get_langchain_llm(provider)
         return llm is not None

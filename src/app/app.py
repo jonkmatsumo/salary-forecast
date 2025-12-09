@@ -1,51 +1,32 @@
 import streamlit as st
 import pandas as pd
-import json
-import traceback
-import os
-import sys
 import matplotlib.pyplot as plt
 import seaborn as sns
-from datetime import datetime
-from typing import Optional, Dict, Any, List
-
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
+from typing import Dict, Any, List
 
 from src.utils.compatibility import apply_backward_compatibility
-apply_backward_compatibility()
-
 from src.xgboost.model import SalaryForecaster
 from src.app.train_ui import render_training_ui
 from src.utils.config_loader import get_config
 from src.app.caching import load_data_cached as load_data
 from src.utils.logger import setup_logging
-
-
 from src.services.model_registry import ModelRegistry
 from src.services.analytics_service import AnalyticsService
 
+apply_backward_compatibility()
+
 
 def render_model_information(forecaster: Any, run_id: str, runs: List[Dict[str, Any]]) -> None:
-    """
-    Display model metadata and feature information.
-    
-    Args:
-        forecaster: The loaded forecaster model
-        run_id: The MLflow run ID
-        runs: List of all runs from registry
-    """
+    """Display model metadata and feature information. Args: forecaster (Any): Loaded forecaster model. run_id (str): MLflow run ID. runs (List[Dict[str, Any]]): List of all runs from registry. Returns: None."""
     st.markdown("---")
     st.subheader("Model Information")
     
-    # Find the current run's metadata
     current_run = None
     for r in runs:
         if r['run_id'] == run_id:
             current_run = r
             break
     
-    # Model Metadata
     with st.expander("Model Metadata", expanded=True):
         if current_run:
             col1, col2 = st.columns(2)
@@ -71,61 +52,49 @@ def render_model_information(forecaster: Any, run_id: str, runs: List[Dict[str, 
         else:
             st.info("Metadata not available")
     
-    # Feature Information
     with st.expander("Feature Information", expanded=False):
-        # Ranked Features
         if forecaster.ranked_encoders:
             st.markdown("**Ranked Features:**")
             for col_name, encoder in forecaster.ranked_encoders.items():
                 levels = list(encoder.mapping.keys())
                 st.markdown(f"- **{col_name}**: {len(levels)} levels - {', '.join(levels[:5])}{'...' if len(levels) > 5 else ''}")
         
-        # Proximity Features
         if forecaster.proximity_encoders:
             st.markdown("**Proximity Features:**")
             for col_name, encoder in forecaster.proximity_encoders.items():
                 st.markdown(f"- **{col_name}**: Proximity-based encoding")
         
-        # Other Numerical Features
         handled = list(forecaster.ranked_encoders.keys()) + list(forecaster.proximity_encoders.keys())
         remaining = [f for f in forecaster.feature_names if f not in handled and f not in [f"{h}_Enc" for h in handled]]
         if remaining:
             st.markdown("**Numerical Features:**")
             st.markdown(f"- {', '.join(remaining[:10])}{'...' if len(remaining) > 10 else ''}")
         
-        # Total feature count
         st.markdown(f"**Total Features:** {len(forecaster.feature_names)}")
 
 
 def render_inference_ui() -> None:
-    """Renders the inference interface."""
+    """Render the inference interface. Returns: None."""
     st.header("Salary Inference")
     
     registry = ModelRegistry()
-    
-    # Display format: "RunID (Date) - Metric"
     runs = registry.list_models()
-
     
     if not runs:
         st.warning("No trained models found in MLflow. Please train a new model.")
         return
 
 
-    def fmt_score(x):
+    def fmt_score(x: Any) -> str:
         try:
             return f"{float(x):.4f}"
         except (ValueError, TypeError):
             return str(x)
     
-    def get_run_label(r):
+    def get_run_label(r: Dict[str, Any]) -> str:
         ts = r['start_time'].strftime('%Y-%m-%d %H:%M')
-        # Check tags first, fallback to hardcoded or empty
-        # Note: ModelRegistry returns flat dict with keys "tags.xxx"
         m_type = r.get("tags.model_type", "XGBoost") 
         d_name = r.get("tags.dataset_name", "Unknown Data")
-        
-        # Check for additional tag (or legacy output_filename)
         add_tag = r.get("tags.additional_tag")
         if not add_tag or add_tag == "N/A":
              add_tag = r.get("tags.output_filename")
@@ -149,7 +118,6 @@ def render_inference_ui() -> None:
         
     run_id = run_options[selected_label]
     
-
     if "forecaster" not in st.session_state or st.session_state.get("current_run_id") != run_id:
         with st.spinner(f"Loading model from MLflow run {run_id}..."):
             try:
@@ -160,11 +128,8 @@ def render_inference_ui() -> None:
                 return
     
     forecaster = st.session_state["forecaster"]
-    
-    # Display model information before the input form
     render_model_information(forecaster, run_id, runs)
     
-    # Model Analysis Section
     with st.expander("Model Analysis", expanded=False):
         analytics_service = AnalyticsService()
         targets = analytics_service.get_available_targets(forecaster)
@@ -220,31 +185,25 @@ def render_inference_ui() -> None:
         input_data = {}
         
         with c1:
-            # Ranked Features (e.g. Level)
             for col_name, encoder in forecaster.ranked_encoders.items():
                 levels = list(encoder.mapping.keys())
                 val = st.selectbox(col_name, levels, key=f"input_{col_name}")
                 input_data[col_name] = val
             
-            # Proximity Features (e.g. Location)
             for col_name, encoder in forecaster.proximity_encoders.items():
-                val = st.text_input(col_name, "New York", key=f"input_{col_name}") # Default?
+                val = st.text_input(col_name, "New York", key=f"input_{col_name}")
                 input_data[col_name] = val
             
         with c2:
-            # Other features (Numerical)
-            # Filter out ones we already handled
             handled = list(forecaster.ranked_encoders.keys()) + list(forecaster.proximity_encoders.keys())
             remaining = [f for f in forecaster.feature_names if f not in handled and f not in [f"{h}_Enc" for h in handled]]
             
             for feat in remaining:
-                # heuristic defaults
                 val = st.number_input(feat, 0, 100, 5, key=f"input_{feat}")
                 input_data[feat] = val
             
         submitted = st.form_submit_button("Predict")
     
-    # Handle prediction after form submission
     if submitted:
         input_df = pd.DataFrame([input_data])
         
@@ -253,14 +212,12 @@ def render_inference_ui() -> None:
             
         st.subheader("Prediction Results")
         
-        # Show zone info if Location available
         if "Location" in forecaster.proximity_encoders:
              encoder = forecaster.proximity_encoders["Location"]
              loc_val = input_data.get("Location")
              if loc_val:
                  st.markdown(f"**Target Location Zone:** {encoder.mapper.get_zone(loc_val)}")
         
-        # Prepare data for display
         res_data = []
         for target, preds in results.items():
             row = {"Component": target}
@@ -269,18 +226,12 @@ def render_inference_ui() -> None:
             res_data.append(row)
             
         res_df = pd.DataFrame(res_data)
-        
-        # Visualization (Interactive Line Chart)
-        # X-axis = Percentiles (p10, p25...), Lines = Components
         chart_df = res_df.set_index("Component").T
         
-        # Sort index (percentiles) numerically
         try:
-            # Extract integer part for sorting
             sorted_index = sorted(chart_df.index, key=lambda x: int(x.replace("p", "")))
             chart_df = chart_df.reindex(sorted_index)
         except ValueError:
-            # Fallback if index format is unexpected
             pass
             
         st.line_chart(chart_df)
@@ -290,16 +241,13 @@ def render_inference_ui() -> None:
 
 
 def main() -> None:
-    """Main entry point for the Streamlit application."""
+    """Main entry point for the Streamlit application. Returns: None."""
     st.set_page_config(page_title="Salary Forecaster", layout="wide")
     
     config = get_config()
     st.session_state["config_override"] = config
-
-    
     st.sidebar.title("Navigation")
     
-
     if "nav" not in st.session_state:
         st.session_state["nav"] = "Training"
         
@@ -309,8 +257,6 @@ def main() -> None:
         default_index = options.index(st.session_state["nav"])
         
     nav = st.sidebar.radio("Go to", options, index=default_index, key="nav_radio")
-    
-
     st.session_state["nav"] = nav
     
     if nav == "Training":

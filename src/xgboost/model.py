@@ -1,7 +1,6 @@
 import xgboost as xgb
 import optuna
 import pandas as pd
-import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any, Callable
 from src.xgboost.preprocessing import RankedCategoryEncoder, ProximityEncoder, SampleWeighter
 from src.utils.config_loader import get_config
@@ -11,8 +10,7 @@ class QuantileForecaster:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
         self.logger = get_logger(__name__)
         self.models: Dict[str, Any] = {}
-        # Use provided config or load from disk
-
+        
         if config is None:
             config = get_config()
         
@@ -23,13 +21,11 @@ class QuantileForecaster:
         self.targets: List[str] = model_config["targets"]
         self.quantiles: List[float] = model_config["quantiles"]
         
-        # Feature Engineering Setup
         self.ranked_encoders: Dict[str, RankedCategoryEncoder] = {}
         self.proximity_encoders: Dict[str, ProximityEncoder] = {}
         
         fe_config = config.get("feature_engineering", {})
         
-        # Fallback/Default if not configured
         if not fe_config:
             if "mappings" in config and "levels" in config["mappings"]:
                  fe_config = {
@@ -51,9 +47,16 @@ class QuantileForecaster:
         self.feature_names: List[str] = [f["name"] for f in self.features_config]
         
     def _preprocess(self, X: pd.DataFrame) -> pd.DataFrame:
+        """Preprocess input data.
+        
+        Args:
+            X: Input data.
+            
+        Returns:
+            Preprocessed data.
+        """
         X_proc = X.copy()
         
-        # Generic Feature Engineering
         for col, encoder in self.ranked_encoders.items():
             if col in X_proc.columns:
                  X_proc[f"{col}_Enc"] = encoder.transform(X_proc[col])
@@ -62,7 +65,6 @@ class QuantileForecaster:
             if col in X_proc.columns:
                 X_proc[f"{col}_Enc"] = encoder.transform(X_proc[col])
         
-        # Ensure all required features exist (simple pass-through check)
         missing_feats = [f for f in self.feature_names if f not in X_proc.columns]
         if missing_feats:
              for f in missing_feats:
@@ -71,20 +73,16 @@ class QuantileForecaster:
 
         return X_proc[self.feature_names]
 
-    # Removed stub train method
-
     def remove_outliers(self, df: pd.DataFrame, method: str = "iqr", threshold: float = 1.5) -> Tuple[pd.DataFrame, int]:
-        """
-        Removes outliers from the dataframe based on target columns.
+        """Remove outliers from the dataframe based on target columns.
         
         Args:
-            df (pd.DataFrame): Input data.
-            method (str): "iqr" or "zscore" (only iqr implemented for now).
-            threshold (float): Multiplier for IQR (typically 1.5).
+            df: Input data.
+            method: Outlier method.
+            threshold: IQR multiplier.
             
         Returns:
-            pd.DataFrame: Filtered dataframe.
-            int: Number of rows removed.
+            Tuple of filtered dataframe and number of rows removed.
         """
         if method != "iqr":
             raise NotImplementedError("Only IQR method is currently supported.")
@@ -92,7 +90,6 @@ class QuantileForecaster:
         df_clean = df.copy()
         initial_len = len(df_clean)
         
-        # Calculate mask for all targets
         mask = pd.Series(True, index=df_clean.index)
         
         for target in self.targets:
@@ -104,8 +101,6 @@ class QuantileForecaster:
                 lower_bound = q1 - threshold * iqr
                 upper_bound = q3 + threshold * iqr
                 
-                # Update mask: Keep row if it's within bounds for THIS target
-
                 col_mask = (df_clean[target] >= lower_bound) & (df_clean[target] <= upper_bound)
                 mask = mask & col_mask
                 

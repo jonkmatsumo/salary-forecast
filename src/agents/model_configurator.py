@@ -25,20 +25,7 @@ def build_configuration_prompt(
     column_stats: Optional[Dict[str, Any]] = None,
     dataset_size: int = 0
 ) -> str:
-    """
-    Build the user prompt for model configuration.
-    
-    Args:
-        targets: List of target column names.
-        encodings: Feature encoding recommendations from previous agent.
-        correlation_data: Optional correlation matrix JSON string.
-        column_stats: Optional statistics for key columns.
-        dataset_size: Number of rows in the dataset.
-        
-    Returns:
-        Formatted user prompt string.
-    """
-    # Format encodings info
+    """Build the user prompt for model configuration. Args: targets (List[str]): Target column names. encodings (Dict[str, Any]): Feature encoding recommendations. correlation_data (Optional[str]): Correlation matrix JSON. column_stats (Optional[Dict[str, Any]]): Column statistics. dataset_size (int): Number of rows. Returns: str: Formatted prompt."""
     encoding_lines = []
     for col, config in encodings.get("encodings", {}).items():
         enc_type = config.get("type", "unknown")
@@ -133,7 +120,7 @@ def parse_configuration_response(response_content: str) -> Dict[str, Any]:
 
 
 def get_default_hyperparameters() -> Dict[str, Any]:
-    """Return default hyperparameters for XGBoost."""
+    """Return default hyperparameters for XGBoost. Returns: Dict[str, Any]: Default hyperparameters."""
     return {
         "training": {
             "objective": "reg:quantileerror",
@@ -200,18 +187,7 @@ def run_model_configurator_sync(
     column_stats: Optional[Dict[str, Any]] = None,
     dataset_size: int = 0
 ) -> Dict[str, Any]:
-    """
-    Synchronous version of run_model_configurator.
-    
-    Args:
-        llm: LangChain chat model.
-        targets: List of target column names.
-        encodings: Feature encoding recommendations.
-        correlation_data: Optional correlation JSON string.
-        column_stats: Optional column statistics.
-        dataset_size: Number of rows in dataset.
-        
-    Returns:
+    """Synchronous model configurator. Args: llm (BaseChatModel): LangChain chat model. targets (List[str]): Target column names. encodings (Dict[str, Any]): Feature encoding recommendations. correlation_data (Optional[str]): Correlation JSON. column_stats (Optional[Dict[str, Any]]): Column statistics. dataset_size (int): Number of rows. Returns:
         Model configuration with features, quantiles, hyperparameters.
     """
     system_prompt = load_prompt("agents/model_configurator_system")

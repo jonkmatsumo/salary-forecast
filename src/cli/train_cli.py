@@ -1,39 +1,27 @@
 import os
-import pickle
-import pandas as pd
-import numpy as np
+import argparse
+import sys
 import contextlib
 import io
 import traceback
+from typing import Optional, Any
+
+import pandas as pd
+import mlflow
 from rich import box
 from rich.console import Console, Group
 from rich.live import Live
 from rich.table import Table
 from rich.text import Text
+
 from src.xgboost.model import SalaryForecaster
 from src.utils.data_utils import load_data
 from src.utils.config_loader import load_config
-
-
-import argparse
-import sys
-from typing import Optional, Any
-import mlflow
 from src.services.model_registry import SalaryForecasterWrapper
 from src.utils.logger import setup_logging
 
 def train_workflow(csv_path: str, config_path: str, output_path: str, console: Any, do_tune: bool = False, num_trials: int = 20, remove_outliers: bool = False) -> None:
-    """Executes the model training workflow.
-
-    Args:
-        csv_path (str): Path to the training data CSV.
-        config_path (str): Path to configuration file.
-        output_path (str): Path to save the trained model.
-        console (Any): Rich console instance for output.
-        do_tune (bool): whether to run hyperparameter tuning. Defaults to False.
-        num_trials (int): Number of trials for tuning. Defaults to 20.
-        remove_outliers (bool): Whether to remove outliers before training. Defaults to False.
-    """
+    """Execute the model training workflow. Args: csv_path (str): Training data CSV path. config_path (str): Config file path. output_path (str): Model output path. console (Any): Rich console. do_tune (bool): Run hyperparameter tuning. num_trials (int): Tuning trials. remove_outliers (bool): Remove outliers. Returns: None."""
     if not os.path.exists(csv_path):
         console.print(f"[bold red]Error: {csv_path} not found.[/bold red]")
         return

@@ -4,21 +4,24 @@ import pandas as pd
 import sys
 import glob
 import plotext as plt
-import logging
 import argparse
+import json
+import logging
+from typing import Any, Callable, List, Optional, Union
+
 from rich.console import Console
 from rich.table import Table
 
-from typing import Any, Callable, List, Optional, Union
 from src.utils.logger import setup_logging, get_logger
-
 from src.utils.compatibility import apply_backward_compatibility
+from src.services.model_registry import ModelRegistry
+
 apply_backward_compatibility()
 
 logger = get_logger(__name__)
 
 def load_model(path: str) -> Any:
-    """Loads a pickled model object."""
+    """Load a pickled model object. Args: path (str): Model file path. Returns: Any: Loaded model."""
     if not os.path.exists(path):
         logger.error(f"Model file '{path}' not found.")
         sys.exit(1)
@@ -27,7 +30,7 @@ def load_model(path: str) -> Any:
         return pickle.load(f)
 
 def get_input(prompt: str, type_func: Callable[[str], Any] = str, valid_options: Optional[List[Any]] = None) -> Any:
-    """Prompts user for input with type validation and optional allowed values."""
+    """Prompt user for input with type validation. Args: prompt (str): Input prompt. type_func (Callable): Type conversion function. valid_options (Optional[List[Any]]): Allowed values. Returns: Any: User input."""
     while True:
         try:
             user_input = input(prompt).strip()
@@ -45,10 +48,11 @@ def get_input(prompt: str, type_func: Callable[[str], Any] = str, valid_options:
             print(f"Invalid input. Please enter a valid {type_func.__name__}.")
 
 def format_currency(val: float) -> str:
+    """Format value as currency. Args: val (float): Value. Returns: str: Formatted currency string."""
     return f"${val:,.0f}"
 
 def collect_user_data() -> pd.DataFrame:
-    """Interactive prompt for candidate details."""
+    """Interactive prompt for candidate details. Returns: pd.DataFrame: Candidate data."""
 
     print("\n--- Enter Candidate Details ---")
     level = get_input("Level (e.g. E3, E4, E5, E6, E7): ", str, ["E3", "E4", "E5", "E6", "E7"])
@@ -63,10 +67,8 @@ def collect_user_data() -> pd.DataFrame:
         "YearsAtCompany": yac
     }])
 
-from src.services.model_registry import ModelRegistry
-
 def select_model(console: Console, registry: ModelRegistry) -> str:
-    """Interactive model selection from MLflow runs."""
+    """Interactive model selection from MLflow runs. Args: console (Console): Rich console. registry (ModelRegistry): Model registry. Returns: str: Selected run ID."""
 
     runs = registry.list_models()
     if not runs:
@@ -108,9 +110,8 @@ def get_ordinal_suffix(n: int) -> str:
         suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
     return f"{n}{suffix}"
 
-import json
-
-def main():
+def main() -> None:
+    """Main entry point for inference CLI. Returns: None."""
     parser = argparse.ArgumentParser(description="Salary Forecasting Inference CLI")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose logging")
     

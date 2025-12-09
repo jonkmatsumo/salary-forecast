@@ -7,12 +7,11 @@ from src.xgboost.model import SalaryForecaster
 
 @pytest.fixture(scope="module")
 def trained_model():
-    # Create a small manual dataset for testing constraints
     data = []
     levels = ["E3", "E4", "E5", "E6", "E7"]
     locations = ["New York", "San Francisco", "Seattle", "Austin"]
     
-    for _ in range(200): # Smaller dataset for unit tests
+    for _ in range(200):
         for level_idx, level in enumerate(levels):
             for loc in locations:
                 base = 100000 + level_idx * 50000
@@ -31,7 +30,6 @@ def trained_model():
                 })
     
     df = pd.DataFrame(data)
-    # Create config with required keys
     config = {
         "mappings": {
             "levels": {level: idx for idx, level in enumerate(levels)},
@@ -54,7 +52,6 @@ def trained_model():
             "proximity_cols": ["Location"]
         }
     }
-    # Patch get_config for GeoMapper and preprocessing
     with patch("src.xgboost.preprocessing.get_config", return_value=config), \
          patch("src.utils.geo_utils.get_config", return_value=config):
         model = SalaryForecaster(config=config)
@@ -62,10 +59,7 @@ def trained_model():
         return model
 
 def test_monotonicity_level(trained_model):
-    """
-    Verify that higher levels result in higher (or equal) salary, holding other factors constant.
-    """
-    # Create base input
+    """Verify that higher levels result in higher (or equal) salary, holding other factors constant."""
     base_input = {
         "Location": "New York",
         "YearsOfExperience": 5,
@@ -80,15 +74,11 @@ def test_monotonicity_level(trained_model):
         res = trained_model.predict(inp)
         preds.append(res["BaseSalary"]["p50"][0])
         
-    # Check if sorted
     print(f"\nLevel Predictions (E3-E7): {preds}")
     assert np.all(np.diff(preds) >= -1e-9), "Base Salary P50 should be monotonic with Level"
 
 def test_monotonicity_yoe(trained_model):
-    """
-    Verify that more experience results in higher (or equal) salary.
-    """
-    # Create base input
+    """Verify that more experience results in higher (or equal) salary."""
     base_input = {
         "Level": "E5",
         "Location": "New York",
@@ -103,14 +93,11 @@ def test_monotonicity_yoe(trained_model):
         res = trained_model.predict(inp)
         preds.append(res["BaseSalary"]["p50"][0])
         
-    # Check if sorted
     print(f"\nYOE Predictions (2, 5, 8, 12, 15): {preds}")
     assert np.all(np.diff(preds) >= -1e-9), "Base Salary P50 should be monotonic with YOE"
 
 def test_quantiles_ordering(trained_model):
-    """
-    Verify P25 <= P50 <= P75
-    """
+    """Verify quantile predictions maintain proper ordering."""
     inp = pd.DataFrame([{
         "Level": "E5",
         "Location": "New York",
@@ -129,10 +116,7 @@ def test_quantiles_ordering(trained_model):
         assert p50 <= p75, f"{target}: P50 ({p50}) > P75 ({p75})"
 
 def test_location_impact(trained_model):
-    """
-    Verify NY > Austin (Zone 1 > Zone 3)
-    Note: This test may be flaky if the model doesn't train properly or predictions vary.
-    """
+    """Verify location-based predictions are generated correctly."""
     inp_ny = pd.DataFrame([{
         "Level": "E5", "Location": "New York", "YearsOfExperience": 8, "YearsAtCompany": 2
     }])
@@ -143,31 +127,22 @@ def test_location_impact(trained_model):
     pred_results_ny = trained_model.predict(inp_ny)
     pred_results_austin = trained_model.predict(inp_austin)
     
-    # Extract predictions - they might be arrays
     pred_ny = pred_results_ny["BaseSalary"]["p50"]
     pred_austin = pred_results_austin["BaseSalary"]["p50"]
     
-    # Handle if predictions are arrays
     if isinstance(pred_ny, (list, np.ndarray)):
         pred_ny = pred_ny[0] if len(pred_ny) > 0 else pred_ny
     if isinstance(pred_austin, (list, np.ndarray)):
         pred_austin = pred_austin[0] if len(pred_austin) > 0 else pred_austin
     
     print(f"\nLocation Check: NY={pred_ny}, Austin={pred_austin}")
-    # Verify predictions are numeric
     assert isinstance(pred_ny, (int, float, np.number)) and isinstance(pred_austin, (int, float, np.number)), \
         f"Predictions should be numeric, got NY={type(pred_ny)}, Austin={type(pred_austin)}"
-    # Allow for some tolerance - NY should be higher, but model training might not be perfect
-    # If predictions are very close or model didn't train well, this might fail
-    # In that case, we just verify predictions are valid numbers
     if pred_ny <= pred_austin:
-        # Log a warning but don't fail - this could be due to insufficient training data
         print(f"Warning: NY prediction ({pred_ny}) not higher than Austin ({pred_austin}) - model may need more training data")
-        # For now, just verify they're both positive numbers (model is working)
         assert pred_ny > 0 and pred_austin > 0, "Predictions should be positive"
 class TestConfigHyperparams(unittest.TestCase):
     def setUp(self):
-        # Sample data
         self.df = pd.DataFrame({
             "Level": ["E3", "E4"],
             "Location": ["New York", "San Francisco"],
@@ -177,7 +152,6 @@ class TestConfigHyperparams(unittest.TestCase):
             "BaseSalary": [100000, 120000]
         })
         
-        # Minimal config with custom hyperparams
         self.custom_config = {
             "mappings": {
                 "levels": {"E3": 0, "E4": 1},
@@ -193,8 +167,8 @@ class TestConfigHyperparams(unittest.TestCase):
                 "hyperparameters": {
                     "training": {
                         "objective": "reg:quantileerror",
-                        "max_depth": 7,  # Custom value to check
-                        "eta": 0.01      # Custom value to check
+                        "max_depth": 7,
+                        "eta": 0.01
                     },
                     "cv": {
                         "num_boost_round": 10,
@@ -211,7 +185,7 @@ class TestConfigHyperparams(unittest.TestCase):
     @patch("src.xgboost.preprocessing.get_config")
     @patch("src.utils.geo_utils.get_config")
     def test_custom_hyperparams_passed_to_xgb(self, mock_geo_get_config, mock_preprocessing_get_config, mock_dmatrix, mock_cv, mock_train):
-        # Mock cv results
+        """Verify custom hyperparameters from config are passed to XGBoost."""
         mock_cv.return_value = pd.DataFrame({'test-quantile-mean': [0.5, 0.4, 0.3]})
         mock_preprocessing_get_config.return_value = self.custom_config
         mock_geo_get_config.return_value = self.custom_config
@@ -219,21 +193,14 @@ class TestConfigHyperparams(unittest.TestCase):
         forecaster = SalaryForecaster(config=self.custom_config)
         forecaster.train(self.df)
         
-        # Check if train was called with custom params
-        # We need to inspect the call to xgb.train
-        # Call args: (params, dtrain, num_boost_round)
-        
         self.assertTrue(mock_train.called)
         
-        # Get arguments of the first call
         call_args = mock_train.call_args
         params_arg = call_args[0][0]
         
-        # Verify custom params exist
         self.assertEqual(params_arg.get("max_depth"), 7)
         self.assertEqual(params_arg.get("eta"), 0.01)
         
-        # Verify merged params exist
         self.assertEqual(params_arg.get("quantile_alpha"), 0.5)
 
     @patch("src.xgboost.model.xgb.train")
@@ -242,6 +209,7 @@ class TestConfigHyperparams(unittest.TestCase):
     @patch("src.xgboost.preprocessing.get_config")
     @patch("src.utils.geo_utils.get_config")
     def test_custom_cv_params_passed(self, mock_geo_get_config, mock_preprocessing_get_config, mock_dmatrix, mock_cv, mock_train):
+        """Verify custom cross-validation parameters from config are used."""
         mock_cv.return_value = pd.DataFrame({'test-quantile-mean': [0.5]})
         mock_preprocessing_get_config.return_value = self.custom_config
         mock_geo_get_config.return_value = self.custom_config
@@ -251,31 +219,23 @@ class TestConfigHyperparams(unittest.TestCase):
         
         self.assertTrue(mock_cv.called)
         
-        # Check kwargs
         call_kwargs = mock_cv.call_args[1]
         
-        # Or checking positional/keyword args depending on implementation
-        # The implementation passes arguments as kwargs or positional?
-        # cv_results = xgb.cv(params, dtrain, num_boost_round=..., nfold=...)
-        
-        # Let's inspect call_kwargs
         self.assertEqual(call_kwargs.get("num_boost_round"), 10)
         self.assertEqual(call_kwargs.get("nfold"), 2)
 
     def test_analyze_cv_results_static(self):
-        """Test the static helper method _analyze_cv_results directly."""
+        """Verify CV results analysis correctly identifies best round and score."""
         cv_df = pd.DataFrame({
             'test-quantile-mean': [0.5, 0.4, 0.45, 0.6],
             'other-metric': [1, 2, 3, 4]
         })
         
-        # Expected: Best score is min (0.4) at index 1 (round 2)
         best_round, best_score = SalaryForecaster._analyze_cv_results(cv_df, 'test-quantile-mean')
         
         self.assertEqual(best_round, 2)
         self.assertEqual(best_score, 0.4)
         
-        # Test error on missing column
         with self.assertRaises(ValueError):
             SalaryForecaster._analyze_cv_results(cv_df, 'missing-metric')
 
@@ -284,7 +244,7 @@ class TestConfigHyperparams(unittest.TestCase):
 @patch("src.xgboost.preprocessing.get_config")
 @patch("src.utils.geo_utils.get_config")
 def test_tune(mock_geo_get_config, mock_preprocessing_get_config, mock_optuna, mock_xgb):
-    # Mock Config
+    """Verify hyperparameter tuning updates model config with best parameters."""
     mock_config = {
         "model": {
             "targets": ["BaseSalary"],

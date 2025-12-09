@@ -1,14 +1,15 @@
 import streamlit as st
 import pandas as pd
-import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 import traceback
+from typing import Any
+
 from src.services.model_registry import ModelRegistry
 from src.services.analytics_service import AnalyticsService
 
 def render_model_analysis_ui() -> None:
-    """Renders the model analysis dashboard."""
+    """Render the model analysis dashboard. Returns: None."""
     st.header("Model Analysis")
     
     registry = ModelRegistry()
@@ -19,8 +20,7 @@ def render_model_analysis_ui() -> None:
         st.warning("No models found in MLflow. Please train a new model.")
         return
 
-    # Create display labels
-    def fmt_score(x):
+    def fmt_score(x: Any) -> str:
         try:
             return f"{float(x):.4f}"
         except (ValueError, TypeError):
@@ -60,7 +60,6 @@ def render_model_analysis_ui() -> None:
             else:
                 st.dataframe(df_imp, width="stretch")
                 
-
                 fig, ax = plt.subplots(figsize=(10, 6))
                 sns.barplot(data=df_imp.head(20), x="Gain", y="Feature", ax=ax, palette="viridis", hue="Feature", legend=False)
                 ax.set_title(f"Top 20 Features for {selected_target} (P{int(selected_q_val*100)})")

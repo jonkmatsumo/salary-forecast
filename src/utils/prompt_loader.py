@@ -1,17 +1,8 @@
 import os
 
 def load_prompt(prompt_name: str) -> str:
-    """
-    Loads a prompt template from the 'prompts' directory.
-    
-    Args:
-        prompt_name (str): Filename without extension (e.g., 'config_generation_system').
-        
-    Returns:
-        str: The content of the prompt file.
-    """
+    """Load a prompt template from the 'prompts' directory. Args: prompt_name (str): Filename without extension. Returns: str: Prompt file content. Raises: FileNotFoundError: If prompt file not found."""
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    # Points to src/utils/../llm/prompts -> src/llm/prompts
     prompt_dir = os.path.join(current_dir, "..", "llm", "prompts")
     prompt_path = os.path.join(prompt_dir, f"{prompt_name}.md")
     

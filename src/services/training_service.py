@@ -24,7 +24,7 @@ class TrainingService:
                    data: pd.DataFrame, 
                    remove_outliers: bool = True,
                    callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None) -> SalaryForecaster:
-        """Synchronous training (blocking)."""
+        """Synchronous training (blocking). Args: data (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. callback (Optional[Callable]): Progress callback. Returns: SalaryForecaster: Trained model."""
         forecaster = SalaryForecaster()
         if callback:
             callback("Starting training...", None)
@@ -35,7 +35,7 @@ class TrainingService:
                   data: pd.DataFrame, 
                   n_trials: int = 20, 
                   callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None) -> Dict[str, Any]:
-        """Synchronous tuning (blocking)."""
+        """Synchronous tuning (blocking). Args: data (pd.DataFrame): Training data. n_trials (int): Number of trials. callback (Optional[Callable]): Progress callback. Returns: Dict[str, Any]: Best hyperparameters."""
         forecaster = SalaryForecaster()
         if callback:
             callback(f"Starting tuning with {n_trials} trials...", None)
@@ -51,7 +51,7 @@ class TrainingService:
                            n_trials: int = 20,
                            additional_tag: Optional[str] = None,
                            dataset_name: str = "Unknown") -> str:
-        """Starts training in a background thread and returns a Job ID."""
+        """Start training in a background thread. Args: data (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. do_tune (bool): Run tuning. n_trials (int): Tuning trials. additional_tag (Optional[str]): Additional tag. dataset_name (str): Dataset name. Returns: str: Job ID."""
         job_id = str(uuid.uuid4())
         
         with self._lock:

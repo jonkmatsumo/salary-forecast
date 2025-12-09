@@ -5,19 +5,11 @@ import re
 from typing import Union
 
 def load_data(filepath: str) -> pd.DataFrame:
-    """
-    Loads and cleans the salary data from CSV.
-
-    Args:
-        filepath (str): Path to the CSV file.
-
-    Returns:
-        pd.DataFrame: Cleaned dataframe with parsed dates and numeric columns.
-    """
+    """Load and clean salary data from CSV. Args: filepath (str): CSV file path. Returns: pd.DataFrame: Cleaned DataFrame."""
     df = pd.read_csv(filepath)
     
     def clean_years(val: Union[int, float, str]) -> float:
-        """Parses year strings like '11+' or '5-10' into floats."""
+        """Parse year strings like '11+' or '5-10' into floats. Args: val (Union[int, float, str]): Year value. Returns: float: Parsed year."""
         if isinstance(val, (int, float)):
             return float(val)
         val = str(val).strip()
