@@ -22,6 +22,7 @@ build/
 *.md
 !README.md
 !src/llm/prompts/*.md
+!src/llm/prompts/agents/*.md
 !src/llm/prompts/presets/*.md
 
 # MLflow
