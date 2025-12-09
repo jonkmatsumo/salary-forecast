@@ -81,7 +81,10 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
     
     # Get current service and result
     service: WorkflowService = st.session_state["workflow_service"]
-    result = st.session_state["workflow_result"]
+    result = st.session_state.get("workflow_result")
+    
+    if result is None:
+        return None
     
     if result.get("status") == "error":
         st.error(f"Workflow error: {result.get('error')}")
@@ -421,7 +424,8 @@ def _render_configuration_phase(service: WorkflowService, result: Dict[str, Any]
         early_stop = st.number_input("Early Stopping", value=cv.get("early_stopping_rounds", 20), min_value=5, max_value=100)
     
     # Action buttons
-    col1, col2, col3 = st.columns([1, 1, 2])
+    action_cols = st.columns([1, 1, 2])
+    col1, col2, col3 = action_cols[0], action_cols[1], action_cols[2]
     
     with col1:
         if st.button("Finalize Configuration", type="primary", key="finalize_config"):

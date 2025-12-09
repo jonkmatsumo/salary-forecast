@@ -56,7 +56,11 @@ class TestPromptLoader(unittest.TestCase):
         
         content = load_prompt("agents/model_configurator_system")
         
-        self.assertIn("Model Configuration", content or "")
+        # Check that the prompt was loaded (content should contain something from the file)
+        self.assertIsInstance(content, str)
+        self.assertGreater(len(content), 0)
+        # The mock returns "Model Configurator System Prompt", so check for that
+        self.assertIn("Model Configurator", content or "")
         args, _ = mock_file.call_args
         self.assertTrue(args[0].endswith("model_configurator_system.md"))
     

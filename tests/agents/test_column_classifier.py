@@ -210,9 +210,16 @@ class TestRunColumnClassifierSync(unittest.TestCase):
         self.assertEqual(result["ignore"], ["ID"])
     
     @patch("src.agents.column_classifier.load_prompt")
-    def test_tool_calling_loop(self, mock_load_prompt):
+    @patch("src.agents.column_classifier.get_column_classifier_tools")
+    def test_tool_calling_loop(self, mock_get_tools, mock_load_prompt):
         """Test tool calling loop with multiple iterations."""
         mock_load_prompt.return_value = "System prompt"
+        
+        # Create a mock tool
+        mock_tool = MagicMock()
+        mock_tool.name = "detect_column_dtype"
+        mock_tool.invoke = MagicMock(return_value='{"semantic_type": "categorical"}')
+        mock_get_tools.return_value = [mock_tool]
         
         mock_llm = MagicMock(spec=BaseChatModel)
         
@@ -237,22 +244,18 @@ class TestRunColumnClassifierSync(unittest.TestCase):
         mock_agent.invoke.side_effect = [tool_call_response, final_response]
         mock_llm.bind_tools.return_value = mock_agent
         
-        # Mock tool execution
-        with patch("src.agents.column_classifier.detect_column_dtype") as mock_tool:
-            mock_tool.invoke.return_value = '{"semantic_type": "categorical"}'
-            
-            df = pd.DataFrame({"Salary": [100], "Level": ["L3"]})
-            result = run_column_classifier_sync(
-                mock_llm,
-                df.to_json(),
-                ["Salary", "Level"],
-                {"Salary": "int64", "Level": "object"}
-            )
-            
-            # Should have called tool
-            mock_tool.invoke.assert_called_once()
-            # Should return final result
-            self.assertEqual(result["targets"], ["Salary"])
+        df = pd.DataFrame({"Salary": [100], "Level": ["L3"]})
+        result = run_column_classifier_sync(
+            mock_llm,
+            df.to_json(),
+            ["Salary", "Level"],
+            {"Salary": "int64", "Level": "object"}
+        )
+        
+        # Should have called tool
+        mock_tool.invoke.assert_called_once()
+        # Should return final result
+        self.assertEqual(result["targets"], ["Salary"])
     
     @patch("src.agents.column_classifier.load_prompt")
     def test_max_iterations_limit(self, mock_load_prompt):

@@ -275,11 +275,17 @@ class TestRunFeatureEncoderSync(unittest.TestCase):
         mock_agent.invoke.side_effect = [tool_call_1, tool_call_2, final_response]
         mock_llm.bind_tools.return_value = mock_agent
         
-        with patch("src.agents.feature_encoder.detect_ordinal_patterns") as mock_ordinal, \
-             patch("src.agents.feature_encoder.get_unique_value_counts") as mock_counts:
+        # Mock tools via get_feature_encoder_tools
+        with patch("src.agents.feature_encoder.get_feature_encoder_tools") as mock_get_tools:
+            mock_ordinal_tool = MagicMock()
+            mock_ordinal_tool.name = "detect_ordinal_patterns"
+            mock_ordinal_tool.invoke = MagicMock(return_value='{"is_ordinal": true}')
             
-            mock_ordinal.invoke.return_value = '{"is_ordinal": true}'
-            mock_counts.invoke.return_value = '{"total_unique_values": 10}'
+            mock_counts_tool = MagicMock()
+            mock_counts_tool.name = "get_unique_value_counts"
+            mock_counts_tool.invoke = MagicMock(return_value='{"total_unique_values": 10}')
+            
+            mock_get_tools.return_value = [mock_ordinal_tool, mock_counts_tool]
             
             df = pd.DataFrame({"Level": ["L1"], "Location": ["NY"]})
             result = run_feature_encoder_sync(
@@ -290,8 +296,8 @@ class TestRunFeatureEncoderSync(unittest.TestCase):
             )
             
             # Should have called tools
-            mock_ordinal.invoke.assert_called_once()
-            mock_counts.invoke.assert_called_once()
+            mock_ordinal_tool.invoke.assert_called_once()
+            mock_counts_tool.invoke.assert_called_once()
             # Should return final result
             self.assertIn("Level", result["encodings"])
             self.assertIn("Location", result["encodings"])

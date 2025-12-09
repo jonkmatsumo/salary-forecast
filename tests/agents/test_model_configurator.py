@@ -288,9 +288,9 @@ class TestRunModelConfiguratorSync(unittest.TestCase):
             {"encodings": {}}
         )
         
-        # Should not have bind_tools called (no tool usage)
-        self.assertFalse(hasattr(mock_llm, 'bind_tools') or 
-                        not hasattr(mock_llm.bind_tools, 'call_count'))
+        # Should process successfully (model configurator doesn't use tools)
+        self.assertIn("features", result)
+        self.assertIn("quantiles", result)
     
     @patch("src.agents.model_configurator.load_prompt")
     def test_with_correlation_data(self, mock_load_prompt):

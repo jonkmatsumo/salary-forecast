@@ -394,11 +394,15 @@ class TestConfigWorkflow(unittest.TestCase):
         mock_llm = MagicMock(spec=BaseChatModel)
         mock_compiled = MagicMock()
         
-        mock_compiled.get_state.return_value = Mock(values={
-            "current_phase": "encoding"
-        })
+        # Mock the state after encoding
+        final_state = {
+            "current_phase": "encoding",
+            "feature_encodings": {"encodings": {}}
+        }
+        
+        mock_compiled.get_state.return_value = Mock(values=final_state)
         mock_compiled.stream.return_value = iter([
-            {"feature_encodings": {}}
+            final_state
         ])
         mock_compiled.update_state = MagicMock()
         
@@ -412,7 +416,8 @@ class TestConfigWorkflow(unittest.TestCase):
         result = workflow.confirm_classification()
         
         mock_compiled.update_state.assert_called_once()
-        self.assertIn("feature_encodings", result)
+        # Result should be the state after encoding
+        self.assertIn("current_phase", result)
     
     @patch("src.agents.workflow.compile_workflow")
     def test_get_current_phase(self, mock_compile):

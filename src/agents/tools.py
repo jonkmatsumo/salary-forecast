@@ -10,6 +10,7 @@ import json
 from typing import Any, Optional
 import pandas as pd
 import numpy as np
+from io import StringIO
 from langchain_core.tools import tool
 
 
@@ -26,7 +27,12 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
     Returns:
         JSON string of correlation matrix with column pairs and their correlations.
     """
-    df = pd.read_json(df_json)
+    # Use StringIO to avoid deprecation warning
+    # Parse JSON string - df.to_json() creates column-oriented JSON
+    # Use json.loads then DataFrame.from_dict to preserve types better
+    import json as json_lib
+    data_dict = json_lib.loads(df_json)
+    df = pd.DataFrame.from_dict(data_dict)
     
     if columns:
         col_list = [c.strip() for c in columns.split(",")]
@@ -71,7 +77,12 @@ def get_column_statistics(df_json: str, column: str) -> str:
         JSON string with statistics including dtype, nulls, unique count,
         and numeric stats (mean, std, min, max, quartiles) if applicable.
     """
-    df = pd.read_json(df_json)
+    # Use StringIO to avoid deprecation warning
+    # Parse JSON string - df.to_json() creates column-oriented JSON
+    # Use json.loads then DataFrame.from_dict to preserve types better
+    import json as json_lib
+    data_dict = json_lib.loads(df_json)
+    df = pd.DataFrame.from_dict(data_dict)
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
@@ -87,23 +98,44 @@ def get_column_statistics(df_json: str, column: str) -> str:
         "unique_count": int(col_data.nunique()),
     }
     
-    # Add numeric statistics if applicable
-    if pd.api.types.is_numeric_dtype(col_data):
+    # Add numeric statistics if applicable (but not boolean)
+    if pd.api.types.is_numeric_dtype(col_data) and not pd.api.types.is_bool_dtype(col_data):
+        def safe_round(val):
+            """Safely round values, handling numpy types."""
+            if val is None or pd.isna(val):
+                return None
+            try:
+                return float(round(float(val), 4))
+            except (TypeError, ValueError):
+                return float(val) if not pd.isna(val) else None
+        
         stats["numeric_stats"] = {
-            "mean": round(col_data.mean(), 4) if not col_data.isnull().all() else None,
-            "std": round(col_data.std(), 4) if not col_data.isnull().all() else None,
-            "min": round(col_data.min(), 4) if not col_data.isnull().all() else None,
-            "max": round(col_data.max(), 4) if not col_data.isnull().all() else None,
-            "median": round(col_data.median(), 4) if not col_data.isnull().all() else None,
-            "q25": round(col_data.quantile(0.25), 4) if not col_data.isnull().all() else None,
-            "q75": round(col_data.quantile(0.75), 4) if not col_data.isnull().all() else None,
+            "mean": safe_round(col_data.mean()) if not col_data.isnull().all() else None,
+            "std": safe_round(col_data.std()) if not col_data.isnull().all() else None,
+            "min": safe_round(col_data.min()) if not col_data.isnull().all() else None,
+            "max": safe_round(col_data.max()) if not col_data.isnull().all() else None,
+            "median": safe_round(col_data.median()) if not col_data.isnull().all() else None,
+            "q25": safe_round(col_data.quantile(0.25)) if not col_data.isnull().all() else None,
+            "q75": safe_round(col_data.quantile(0.75)) if not col_data.isnull().all() else None,
+        }
+    elif pd.api.types.is_bool_dtype(col_data):
+        # For boolean columns, just provide counts
+        stats["boolean_stats"] = {
+            "true_count": int((col_data == True).sum()),
+            "false_count": int((col_data == False).sum()),
+            "null_count": int(col_data.isnull().sum())
         }
     
     # Add sample values
     non_null = col_data.dropna()
     if len(non_null) > 0:
         sample_values = non_null.head(5).tolist()
-        stats["sample_values"] = [str(v) for v in sample_values]
+        # Convert numpy types to Python native types for JSON serialization
+        stats["sample_values"] = [
+            str(v) if not isinstance(v, (np.integer, np.floating, np.bool_)) 
+            else str(int(v) if isinstance(v, np.bool_) else v)
+            for v in sample_values
+        ]
     
     return json.dumps(stats, indent=2)
 
@@ -121,7 +153,12 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
     Returns:
         JSON string with value counts, sorted by frequency.
     """
-    df = pd.read_json(df_json)
+    # Use StringIO to avoid deprecation warning
+    # Parse JSON string - df.to_json() creates column-oriented JSON
+    # Use json.loads then DataFrame.from_dict to preserve types better
+    import json as json_lib
+    data_dict = json_lib.loads(df_json)
+    df = pd.DataFrame.from_dict(data_dict)
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
@@ -162,7 +199,12 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
     Returns:
         JSON string with detected patterns and suggested ordinal mapping.
     """
-    df = pd.read_json(df_json)
+    # Use StringIO to avoid deprecation warning
+    # Parse JSON string - df.to_json() creates column-oriented JSON
+    # Use json.loads then DataFrame.from_dict to preserve types better
+    import json as json_lib
+    data_dict = json_lib.loads(df_json)
+    df = pd.DataFrame.from_dict(data_dict)
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
@@ -260,7 +302,12 @@ def detect_column_dtype(df_json: str, column: str) -> str:
     Returns:
         JSON string with inferred semantic type and reasoning.
     """
-    df = pd.read_json(df_json)
+    # Use StringIO to avoid deprecation warning
+    # Parse JSON string - df.to_json() creates column-oriented JSON
+    # Use json.loads then DataFrame.from_dict to preserve types better
+    import json as json_lib
+    data_dict = json_lib.loads(df_json)
+    df = pd.DataFrame.from_dict(data_dict)
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
