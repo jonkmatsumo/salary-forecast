@@ -4,11 +4,11 @@ Integration tests for Inference tab features including Model Analysis.
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-from src.app.app import render_inference_ui, render_model_information
+from src.app.inference_ui import render_inference_ui, render_model_information
 
 @pytest.fixture
 def mock_streamlit():
-    with patch("src.app.app.st") as mock_st:
+    with patch("src.app.inference_ui.st") as mock_st:
         mock_st.session_state = {}
         # Mock columns to return proper number of mock objects
         def columns_side_effect(n):
@@ -22,7 +22,7 @@ def mock_streamlit():
 
 @pytest.fixture
 def mock_registry():
-    with patch("src.app.app.ModelRegistry") as MockReg:
+    with patch("src.app.inference_ui.ModelRegistry") as MockReg:
         mock_instance = MagicMock()
         run_data = {
             "run_id": "test_run_123",
@@ -47,7 +47,7 @@ def mock_forecaster():
 
 @pytest.fixture
 def mock_analytics_service():
-    with patch("src.app.app.AnalyticsService") as MockAn:
+    with patch("src.app.inference_ui.AnalyticsService") as MockAn:
         mock_instance = MagicMock()
         mock_instance.get_available_targets.return_value = ["BaseSalary", "TotalComp"]
         mock_instance.get_available_quantiles.return_value = [0.1, 0.5, 0.9]
