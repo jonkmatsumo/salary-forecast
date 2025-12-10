@@ -57,7 +57,8 @@ class WorkflowState(TypedDict, total=False):
     # Phase 1: Column Classification
     column_classification: Dict[str, Any]
     classification_confirmed: bool
-    location_columns: List[str]  # Extracted location columns
+    location_columns: List[str]  # Extracted location columns from column_types
+    column_types: Dict[str, str]  # Semantic types (e.g., {"Location": "location", "Date": "datetime"})
     optional_encodings: Dict[str, Dict[str, Any]]  # Optional encoding selections per column
     
     # Phase 2: Feature Encoding
@@ -76,6 +77,7 @@ class WorkflowState(TypedDict, total=False):
     
     # Workflow metadata
     current_phase: str
+    current_node: Optional[str]  # Current LangGraph node being executed
     error: Optional[str]
 
 
@@ -101,7 +103,7 @@ def validate_input_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, A
     
     if not df_json:
         logger.warning("Empty df_json in validation node")
-        return {}
+        return {"current_node": None}
     
     try:
         detection_result = detect_prompt_injection(llm, df_json, columns)
@@ -130,7 +132,7 @@ def validate_input_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, A
         
         logger.info("Input validation passed")
         log_workflow_state_transition("validate_input_after", state)
-        return {}
+        return {"current_node": None}
         
     except PromptInjectionError:
         raise
@@ -152,6 +154,7 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
     """
     logger.info("Running column classification agent...")
     log_workflow_state_transition("classify_columns_before", state)
+    
     logger.debug(f"State keys: {list(state.keys())}")
     logger.debug(f"df_json type: {type(state.get('df_json'))}, length: {len(state.get('df_json', '')) if state.get('df_json') else 0}")
     logger.debug(f"Columns: {state.get('columns', [])}")
@@ -169,8 +172,9 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
         logger.info("run_column_classifier_sync completed successfully")
         logger.debug(f"Classification result keys: {list(result.keys()) if isinstance(result, dict) else 'not a dict'}")
         
-        # Extract location columns from classification
-        location_columns = result.get("locations", [])
+        # Extract location columns from column_types
+        column_types = result.get("column_types", {})
+        location_columns = [col for col, col_type in column_types.items() if col_type == "location"]
         logger.debug(f"Detected location columns: {location_columns}")
         
         # Compute correlations for later use
@@ -189,9 +193,11 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
             "column_classification": result,
             "classification_confirmed": False,
             "location_columns": location_columns,
+            "column_types": column_types,
             "optional_encodings": state.get("optional_encodings", {}),
             "correlation_data": correlation_data,
             "current_phase": "classification",
+            "current_node": "classifying_columns",
             "error": None
         }
         updated_state = {**state, **new_state}
@@ -207,6 +213,7 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
             "column_classification": {},
             "classification_confirmed": False,
             "current_phase": "classification",
+            "current_node": None,
             "error": str(e)
         }
 
@@ -260,6 +267,7 @@ def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
             "encodings_confirmed": False,
             "optional_encodings": state.get("optional_encodings", {}),
             "current_phase": "encoding",
+            "current_node": "evaluating_features",
             "error": None
         }
         updated_state = {**state, **new_state}
@@ -272,6 +280,7 @@ def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
             "feature_encodings": {},
             "encodings_confirmed": False,
             "current_phase": "encoding",
+            "current_node": None,
             "error": str(e)
         }
 
@@ -309,6 +318,7 @@ def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
             "model_config": result,
             "optional_encodings": state.get("optional_encodings", {}),
             "current_phase": "configuration",
+            "current_node": "configuring_model",
             "error": None
         }
         updated_state = {**state, **new_state}
@@ -320,6 +330,7 @@ def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
         return {
             "model_config": {},
             "current_phase": "configuration",
+            "current_node": None,
             "error": str(e)
         }
 
@@ -399,6 +410,7 @@ def build_final_config_node(state: WorkflowState) -> Dict[str, Any]:
     return {
         "final_config": final_config,
         "current_phase": "complete",
+        "current_node": "building_config",
         "error": None
     }
 
@@ -565,7 +577,8 @@ class ConfigWorkflow:
             "optional_encodings": {},
             "classification_confirmed": False,
             "encodings_confirmed": False,
-            "current_phase": "starting"
+            "current_phase": "starting",
+            "current_node": None
         }
         
         config = {"configurable": {"thread_id": self.thread_id}}
@@ -599,15 +612,30 @@ class ConfigWorkflow:
         # Apply modifications if provided
         update_state = {"classification_confirmed": True}
         if modifications:
+            # Extract optional_encodings separately if present (copy to avoid mutating original)
+            modifications_copy = modifications.copy()
+            optional_encodings = modifications_copy.pop("optional_encodings", None)
+            if optional_encodings is not None:
+                update_state["optional_encodings"] = optional_encodings
+            
             current_classification = self.current_state.get("column_classification", {})
-            current_classification.update(modifications)
+            current_classification.update(modifications_copy)
             update_state["column_classification"] = current_classification
-            # Also update location_columns if locations are in modifications
-            if "locations" in modifications:
-                update_state["location_columns"] = modifications["locations"]
-            # Update optional_encodings if provided
-            if "optional_encodings" in modifications:
-                update_state["optional_encodings"] = modifications["optional_encodings"]
+            # Extract location columns from column_types if present
+            column_types = current_classification.get("column_types", {})
+            if column_types:
+                location_columns = [col for col, col_type in column_types.items() if col_type == "location"]
+                update_state["location_columns"] = location_columns
+                update_state["column_types"] = column_types
+            # Backward compatibility: if locations key exists, migrate to column_types
+            elif "locations" in modifications_copy:
+                location_columns = modifications_copy["locations"]
+                update_state["location_columns"] = location_columns
+                # Create column_types from locations
+                column_types = {col: "location" for col in location_columns}
+                update_state["column_types"] = column_types
+                current_classification["column_types"] = column_types
+                update_state["column_classification"] = current_classification
         
         # Update state and resume
         self.compiled.update_state(config, update_state)

@@ -237,7 +237,6 @@ class WorkflowService:
             result["data"] = {
                 "targets": classification.get("targets", []),
                 "features": classification.get("features", []),
-                "locations": classification.get("locations", []),
                 "ignore": classification.get("ignore", []),
                 "reasoning": classification.get("reasoning", "")
             }

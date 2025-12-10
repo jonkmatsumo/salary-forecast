@@ -65,7 +65,7 @@ Use the available tools to analyze the columns before making your classification
 2. Use `compute_correlation_matrix` to see relationships between numeric columns
 3. Use `get_column_statistics` on potential target columns to verify they're suitable
 
-After your analysis, provide your final classification as JSON with keys: targets, features, locations, ignore, reasoning."""
+After your analysis, provide your final classification as JSON with keys: targets, features, ignore, column_types, reasoning. Note: location columns should be assigned to targets or features based on their role, and their type should be recorded in column_types."""
 
 
 def parse_classification_response(response_content: str) -> Dict[str, Any]:
@@ -100,12 +100,21 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
             result["targets"] = []
         if "features" not in result:
             result["features"] = []
-        if "locations" not in result:
-            result["locations"] = []
         if "ignore" not in result:
             result["ignore"] = []
+        if "column_types" not in result:
+            result["column_types"] = {}
         if "reasoning" not in result:
             result["reasoning"] = "No reasoning provided"
+        
+        # Backward compatibility: if "locations" exists, migrate to column_types
+        if "locations" in result and result["locations"]:
+            for loc_col in result["locations"]:
+                if loc_col not in result["column_types"]:
+                    result["column_types"][loc_col] = "location"
+            # Remove locations key after migration
+            if "locations" in result:
+                del result["locations"]
             
         return result
         
@@ -114,8 +123,8 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
         return {
             "targets": [],
             "features": [],
-            "locations": [],
             "ignore": [],
+            "column_types": {},
             "reasoning": f"Failed to parse response: {response_content[:200]}",
             "raw_response": response_content
         }

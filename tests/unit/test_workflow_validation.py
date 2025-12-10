@@ -37,7 +37,7 @@ class TestValidateInputNode(unittest.TestCase):
         
         result = validate_input_node(self.clean_state, self.mock_llm)
         
-        self.assertEqual(result, {})
+        self.assertEqual(result, {"current_node": None})
         mock_detect.assert_called_once_with(
             self.mock_llm,
             self.clean_state["df_json"],
@@ -93,7 +93,7 @@ class TestValidateInputNode(unittest.TestCase):
         original_state = self.clean_state.copy()
         result = validate_input_node(self.clean_state, self.mock_llm)
         
-        self.assertEqual(result, {})
+        self.assertEqual(result, {"current_node": None})
         self.assertEqual(self.clean_state, original_state)
     
     @patch("src.agents.workflow.detect_prompt_injection")
@@ -109,7 +109,7 @@ class TestValidateInputNode(unittest.TestCase):
         result = validate_input_node(empty_state, self.mock_llm)
         
         mock_detect.assert_not_called()
-        self.assertEqual(result, {})
+        self.assertEqual(result, {"current_node": None})
     
     @patch("src.agents.workflow.detect_prompt_injection")
     def test_validate_input_node_detection_error(self, mock_detect):

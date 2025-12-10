@@ -18,6 +18,26 @@ from src.services.workflow_service import WorkflowService, get_workflow_provider
 from src.app.caching import load_data_cached
 from src.utils.csv_validator import validate_csv
 
+
+def _get_progress_message(service: Optional[WorkflowService]) -> str:
+    """Get progress message based on current node. Args: service (Optional[WorkflowService]): Workflow service. Returns: str: Progress message."""
+    if not service or not service.workflow:
+        return "Processing..."
+    
+    current_node = service.workflow.current_state.get("current_node")
+    if not current_node:
+        return "Processing..."
+    
+    node_messages = {
+        "validating_input": "Validating input...",
+        "classifying_columns": "Classifying columns...",
+        "evaluating_features": "Evaluating features...",
+        "configuring_model": "Configuring model...",
+        "building_config": "Building final configuration..."
+    }
+    
+    return node_messages.get(current_node, "Processing...")
+
 def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Optional[Dict[str, Any]]:
     """Render the multi-step agentic workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
     if "workflow_service" not in st.session_state:
@@ -67,16 +87,19 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
         preset_value = None if selected_preset == "None" else selected_preset.lower()
         
         if st.button("Start AI-Powered Configuration Wizard", type="primary"):
-            with st.spinner("Initializing workflow and analyzing columns..."):
-                try:
-                    service = WorkflowService(provider=provider)
+            service = WorkflowService(provider=provider)
+            st.session_state["workflow_service"] = service
+            try:
+                # Use status container for better progress visibility
+                with st.status("Initializing workflow...", expanded=False) as status:
+                    status.update(label="Validating input...", state="running")
                     result = service.start_workflow(df, preset=preset_value)
-                    st.session_state["workflow_service"] = service
-                    st.session_state["workflow_result"] = result
-                    st.session_state["workflow_phase"] = "classification"
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Failed to start workflow: {e}")
+                    status.update(label="Workflow initialized", state="complete")
+                st.session_state["workflow_result"] = result
+                st.session_state["workflow_phase"] = "classification"
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to start workflow: {e}")
         return None
     
     service: WorkflowService = st.session_state["workflow_service"]
@@ -120,26 +143,33 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
     all_columns = df.columns.tolist()
     targets = data.get("targets", [])
     features = data.get("features", [])
-    locations = data.get("locations", [])
     ignore = data.get("ignore", [])
     
-    # Get current optional encodings from workflow state
-    current_optional_encodings = service.workflow.current_state.get("optional_encodings", {}) if service.workflow else {}
+    # Get column_types from workflow state
+    column_types = service.workflow.current_state.get("column_types", {}) if service.workflow else {}
     
     # Build unified editor
     classification_data = []
     for col in all_columns:
         if col in targets:
             role = "Target"
-        elif col in locations:
-            role = "Location"
         elif col in features:
             role = "Feature"
         elif col in ignore:
             role = "Ignore"
         else:
             role = "Unclassified"
-        classification_data.append({"Column": col, "Role": role, "Dtype": str(df[col].dtype)})
+        
+        # Format dtype to show semantic type if available
+        dtype_display = str(df[col].dtype)
+        if col in column_types:
+            semantic_type = column_types[col]
+            if semantic_type == "location":
+                dtype_display = f"string (location)"
+            elif semantic_type == "datetime":
+                dtype_display = f"{dtype_display} (datetime)"
+        
+        classification_data.append({"Column": col, "Role": role, "Dtype": dtype_display})
     
     class_df = pd.DataFrame(classification_data)
     
@@ -150,7 +180,7 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
             "Column": st.column_config.TextColumn("Column Name", disabled=True),
             "Role": st.column_config.SelectboxColumn(
                 "Classification",
-                options=["Target", "Feature", "Location", "Ignore", "Unclassified"],
+                options=["Target", "Feature", "Ignore", "Unclassified"],
                 required=True
             ),
             "Dtype": st.column_config.TextColumn("Data Type", disabled=True)
@@ -158,63 +188,6 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
         hide_index=True,
         width='stretch'
     )
-    
-    # Optional encodings section
-    st.markdown("**Optional Encodings (Advanced):**")
-    st.caption("Select additional encoding strategies for specific columns. These are optional enhancements.")
-    
-    optional_encodings_ui = {}
-    location_cols = [row["Column"] for _, row in edited_df.iterrows() if row["Role"] == "Location"]
-    date_cols = [row["Column"] for _, row in edited_df.iterrows() 
-                 if pd_types.is_datetime64_any_dtype(df[row["Column"]])]
-    
-    if location_cols:
-        with st.expander("Location Column Encodings", expanded=False):
-            for col in location_cols:
-                current_enc = current_optional_encodings.get(col, {}).get("type", "")
-                enc_display = "None"
-                if current_enc == "cost_of_living":
-                    enc_display = "Cost of Living"
-                elif current_enc == "metro_population":
-                    enc_display = "Metro Population"
-                
-                selected = st.selectbox(
-                    f"{col}",
-                    ["None", "Cost of Living", "Metro Population"],
-                    index=["None", "Cost of Living", "Metro Population"].index(enc_display),
-                    key=f"opt_enc_location_{col}"
-                )
-                if selected != "None":
-                    if selected == "Cost of Living":
-                        optional_encodings_ui[col] = {"type": "cost_of_living", "params": {}}
-                    elif selected == "Metro Population":
-                        optional_encodings_ui[col] = {"type": "metro_population", "params": {}}
-    
-    if date_cols:
-        with st.expander("Date Column Encodings", expanded=False):
-            for col in date_cols:
-                current_enc = current_optional_encodings.get(col, {}).get("type", "")
-                enc_display = "None"
-                if current_enc == "normalize_recent":
-                    enc_display = "Normalize Recent"
-                elif current_enc == "weight_recent":
-                    enc_display = "Weight Recent"
-                elif current_enc == "least_recent":
-                    enc_display = "Least Recent"
-                
-                selected = st.selectbox(
-                    f"{col}",
-                    ["None", "Normalize Recent", "Weight Recent", "Least Recent"],
-                    index=["None", "Normalize Recent", "Weight Recent", "Least Recent"].index(enc_display),
-                    key=f"opt_enc_date_{col}"
-                )
-                if selected != "None":
-                    if selected == "Normalize Recent":
-                        optional_encodings_ui[col] = {"type": "normalize_recent", "params": {}}
-                    elif selected == "Weight Recent":
-                        optional_encodings_ui[col] = {"type": "weight_recent", "params": {}}
-                    elif selected == "Least Recent":
-                        optional_encodings_ui[col] = {"type": "least_recent", "params": {}}
     
     # Action buttons
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -224,7 +197,6 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
             # Parse edited classification
             new_targets = []
             new_features = []
-            new_locations = []
             new_ignore = []
             
             for _, row in edited_df.iterrows():
@@ -234,24 +206,23 @@ def _render_classification_phase(service: WorkflowService, result: Dict[str, Any
                     new_targets.append(col_name)
                 elif role == "Feature":
                     new_features.append(col_name)
-                elif role == "Location":
-                    new_locations.append(col_name)
                 elif role == "Ignore":
                     new_ignore.append(col_name)
             
             modifications = {
                 "targets": new_targets,
                 "features": new_features,
-                "locations": new_locations,
-                "ignore": new_ignore,
-                "optional_encodings": optional_encodings_ui
+                "ignore": new_ignore
             }
             
-            with st.spinner("Processing feature encoding..."):
+            progress_msg = _get_progress_message(service)
+            with st.status(progress_msg, expanded=False) as status:
+                status.update(label="Evaluating features...", state="running")
                 result = service.confirm_classification(modifications)
-                st.session_state["workflow_result"] = result
-                st.session_state["workflow_phase"] = "encoding"
-                st.rerun()
+                status.update(label="Feature encoding complete", state="complete")
+            st.session_state["workflow_result"] = result
+            st.session_state["workflow_phase"] = "encoding"
+            st.rerun()
     
     with col2:
         if st.button("Reset Workflow"):
@@ -354,63 +325,73 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
                 # Store updated mapping
                 st.session_state[f"encoding_mapping_{col}"] = new_mapping
     
-    # Optional encodings section (for review/edit)
-    st.markdown("**Optional Encodings (Review/Edit):**")
+    # Optional encodings section
+    st.markdown("**Optional Encodings:**")
+    st.caption("Select additional encoding strategies for location and date columns detected in phase 1.")
+    
     current_optional_encodings = service.workflow.current_state.get("optional_encodings", {}) if service.workflow else {}
+    column_types = service.workflow.current_state.get("column_types", {}) if service.workflow else {}
     
     optional_encodings_ui = {}
     encoded_cols = [row["Column"] for _, row in edited_enc_df.iterrows() if row["Column"]]
     
-    # Get location and date columns from the encoding table
-    location_cols = [
-        col for col in encoded_cols 
-        if len(edited_enc_df[edited_enc_df["Column"] == col]) > 0 
-        and edited_enc_df[edited_enc_df["Column"] == col]["Encoding"].iloc[0] == "proximity"
-    ]
+    # Get location columns from column_types
+    location_cols = [col for col in encoded_cols if column_types.get(col) == "location"]
     
-    # We need to check the original dataframe for date columns - but we don't have it here
-    # So we'll show optional encodings for any columns that have them set
-    if current_optional_encodings:
-        with st.expander("Edit Optional Encodings", expanded=False):
-            for col, enc_config in current_optional_encodings.items():
-                enc_type = enc_config.get("type", "")
+    # Get date columns - check if we have access to original dataframe
+    # If not available, we'll infer from column_types or encoding type
+    date_cols = []
+    if "training_data" in st.session_state:
+        df = st.session_state["training_data"]
+        date_cols = [col for col in encoded_cols if pd_types.is_datetime64_any_dtype(df[col])]
+    else:
+        # Fallback: check column_types for datetime
+        date_cols = [col for col in encoded_cols if column_types.get(col) == "datetime"]
+    
+    # Show optional encodings for location columns
+    if location_cols:
+        with st.expander("Location Column Encodings", expanded=False):
+            for col in location_cols:
+                current_enc = current_optional_encodings.get(col, {}).get("type", "")
                 enc_display = "None"
-                options = ["None"]
-                
-                if enc_type == "cost_of_living":
+                if current_enc == "cost_of_living":
                     enc_display = "Cost of Living"
-                    options = ["None", "Cost of Living", "Metro Population"]
-                elif enc_type == "metro_population":
+                elif current_enc == "metro_population":
                     enc_display = "Metro Population"
-                    options = ["None", "Cost of Living", "Metro Population"]
-                elif enc_type == "normalize_recent":
-                    enc_display = "Normalize Recent"
-                    options = ["None", "Normalize Recent", "Weight Recent", "Least Recent"]
-                elif enc_type == "weight_recent":
-                    enc_display = "Weight Recent"
-                    options = ["None", "Normalize Recent", "Weight Recent", "Least Recent"]
-                elif enc_type == "least_recent":
-                    enc_display = "Least Recent"
-                    options = ["None", "Normalize Recent", "Weight Recent", "Least Recent"]
-                else:
-                    # Determine options based on encoding type
-                    if enc_type in ["cost_of_living", "metro_population"]:
-                        options = ["None", "Cost of Living", "Metro Population"]
-                    elif enc_type in ["normalize_recent", "weight_recent", "least_recent"]:
-                        options = ["None", "Normalize Recent", "Weight Recent", "Least Recent"]
                 
                 selected = st.selectbox(
                     f"{col}",
-                    options,
-                    index=options.index(enc_display) if enc_display in options else 0,
-                    key=f"opt_enc_edit_{col}"
+                    ["None", "Cost of Living", "Metro Population"],
+                    index=["None", "Cost of Living", "Metro Population"].index(enc_display),
+                    key=f"opt_enc_location_{col}"
                 )
                 if selected != "None":
                     if selected == "Cost of Living":
                         optional_encodings_ui[col] = {"type": "cost_of_living", "params": {}}
                     elif selected == "Metro Population":
                         optional_encodings_ui[col] = {"type": "metro_population", "params": {}}
-                    elif selected == "Normalize Recent":
+    
+    # Show optional encodings for date columns
+    if date_cols:
+        with st.expander("Date Column Encodings", expanded=False):
+            for col in date_cols:
+                current_enc = current_optional_encodings.get(col, {}).get("type", "")
+                enc_display = "None"
+                if current_enc == "normalize_recent":
+                    enc_display = "Normalize Recent"
+                elif current_enc == "weight_recent":
+                    enc_display = "Weight Recent"
+                elif current_enc == "least_recent":
+                    enc_display = "Least Recent"
+                
+                selected = st.selectbox(
+                    f"{col}",
+                    ["None", "Normalize Recent", "Weight Recent", "Least Recent"],
+                    index=["None", "Normalize Recent", "Weight Recent", "Least Recent"].index(enc_display),
+                    key=f"opt_enc_date_{col}"
+                )
+                if selected != "None":
+                    if selected == "Normalize Recent":
                         optional_encodings_ui[col] = {"type": "normalize_recent", "params": {}}
                     elif selected == "Weight Recent":
                         optional_encodings_ui[col] = {"type": "weight_recent", "params": {}}
@@ -450,11 +431,14 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
                 "optional_encodings": optional_encodings_ui
             }
             
-            with st.spinner("Configuring model parameters..."):
+            progress_msg = _get_progress_message(service)
+            with st.status(progress_msg, expanded=False) as status:
+                status.update(label="Configuring model...", state="running")
                 result = service.confirm_encoding(modifications)
-                st.session_state["workflow_result"] = result
-                st.session_state["workflow_phase"] = "configuration"
-                st.rerun()
+                status.update(label="Model configuration complete", state="complete")
+            st.session_state["workflow_result"] = result
+            st.session_state["workflow_phase"] = "configuration"
+            st.rerun()
     
     with col2:
         if st.button("Back to Classification", key="back_to_class"):

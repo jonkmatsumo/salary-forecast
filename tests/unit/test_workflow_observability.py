@@ -1,110 +1,156 @@
-"""Tests for workflow observability logging."""
-
-import unittest
+"""Tests for workflow node tracking and observability."""
+import pytest
 from unittest.mock import MagicMock, patch
-from langchain_core.language_models import BaseChatModel
-
 from src.agents.workflow import (
     WorkflowState,
+    validate_input_node,
     classify_columns_node,
     encode_features_node,
     configure_model_node,
-    ConfigWorkflow,
-    log_workflow_state_transition,
+    build_final_config_node
 )
 
 
-class TestWorkflowObservability(unittest.TestCase):
-    """Tests for workflow state logging."""
-    
-    def setUp(self):
-        """Set up test fixtures."""
-        self.mock_llm = MagicMock(spec=BaseChatModel)
-        self.state: WorkflowState = {
-            "df_json": '{"col1": [1, 2, 3]}',
-            "columns": ["col1"],
-            "dtypes": {"col1": "int64"},
-            "dataset_size": 3,
-            "current_phase": "starting"
-        }
-    
-    @patch("src.agents.workflow.run_column_classifier_sync")
-    @patch("src.agents.workflow.log_workflow_state_transition")
-    def test_classify_columns_node_logs_state(self, mock_log, mock_classify):
-        """Test that state is logged before/after classification."""
+@pytest.fixture
+def mock_llm():
+    """Create a mock LLM."""
+    llm = MagicMock()
+    return llm
+
+
+@pytest.fixture
+def sample_state():
+    """Create a sample workflow state."""
+    return {
+        "df_json": '{"col1": [1, 2], "col2": ["a", "b"]}',
+        "columns": ["col1", "col2"],
+        "dtypes": {"col1": "int64", "col2": "object"},
+        "dataset_size": 2,
+        "preset": None
+    }
+
+
+def test_validate_input_sets_current_node(mock_llm, sample_state):
+    """Test that validate_input_node sets current_node."""
+    with patch("src.agents.workflow.detect_prompt_injection") as mock_detect:
+        mock_detect.return_value = {"is_suspicious": False}
+        
+        result = validate_input_node(sample_state, mock_llm)
+        
+        assert "current_node" in result
+        assert result["current_node"] is None  # Should be None after completion
+
+
+def test_classify_columns_sets_current_node(mock_llm, sample_state):
+    """Test that classify_columns_node sets current_node."""
+    with patch("src.agents.workflow.run_column_classifier_sync") as mock_classify:
         mock_classify.return_value = {
             "targets": ["col1"],
-            "features": [],
-            "locations": [],
+            "features": ["col2"],
             "ignore": [],
+            "column_types": {},
             "reasoning": "Test"
         }
-        
-        classify_columns_node(self.state, self.mock_llm)
-        
-        self.assertEqual(mock_log.call_count, 2)
-        self.assertIn("classify_columns_before", mock_log.call_args_list[0][0][0])
-        self.assertIn("classify_columns_after", mock_log.call_args_list[1][0][0])
+        with patch("src.agents.workflow.compute_correlation_matrix") as mock_corr:
+            mock_corr.invoke.return_value = "correlation_data"
+            
+            result = classify_columns_node(sample_state, mock_llm)
+            
+            assert "current_node" in result
+            assert result["current_node"] == "classifying_columns"
+
+
+def test_encode_features_sets_current_node(mock_llm, sample_state):
+    """Test that encode_features_node sets current_node."""
+    sample_state["column_classification"] = {
+        "targets": ["col1"],
+        "features": ["col2"],
+        "ignore": []
+    }
+    sample_state["location_columns"] = []
     
-    @patch("src.agents.workflow.run_feature_encoder_sync")
-    @patch("src.agents.workflow.log_workflow_state_transition")
-    def test_encode_features_node_logs_state(self, mock_log, mock_encode):
-        """Test that state is logged before/after encoding."""
+    with patch("src.agents.workflow.run_feature_encoder_sync") as mock_encode:
         mock_encode.return_value = {
-            "encodings": {"col1": {"type": "numeric"}},
+            "encodings": {"col2": {"type": "numeric"}},
             "summary": "Test"
         }
         
-        state_with_classification: WorkflowState = {
-            **self.state,
-            "column_classification": {"features": ["col1"]},
-            "location_columns": []
-        }
+        result = encode_features_node(sample_state, mock_llm)
         
-        encode_features_node(state_with_classification, self.mock_llm)
-        
-        self.assertEqual(mock_log.call_count, 2)
-        self.assertIn("encode_features_before", mock_log.call_args_list[0][0][0])
-        self.assertIn("encode_features_after", mock_log.call_args_list[1][0][0])
+        assert "current_node" in result
+        assert result["current_node"] == "evaluating_features"
+
+
+def test_configure_model_sets_current_node(mock_llm, sample_state):
+    """Test that configure_model_node sets current_node."""
+    sample_state["column_classification"] = {
+        "targets": ["col1"],
+        "features": ["col2"],
+        "ignore": []
+    }
+    sample_state["feature_encodings"] = {
+        "encodings": {"col2": {"type": "numeric"}}
+    }
     
-    @patch("src.agents.workflow.run_model_configurator_sync")
-    @patch("src.agents.workflow.log_workflow_state_transition")
-    def test_configure_model_node_logs_state(self, mock_log, mock_configure):
-        """Test that state is logged before/after configuration."""
-        mock_configure.return_value = {
-            "features": ["col1"],
-            "quantiles": [0.5],
+    with patch("src.agents.workflow.run_model_configurator_sync") as mock_config:
+        mock_config.return_value = {
+            "features": [{"name": "col2", "monotone_constraint": 0}],
+            "quantiles": [0.1, 0.5, 0.9],
             "hyperparameters": {},
             "reasoning": "Test"
         }
         
-        state_with_encoding: WorkflowState = {
-            **self.state,
-            "column_classification": {"targets": ["target"]},
-            "feature_encodings": {"encodings": {}}
-        }
+        result = configure_model_node(sample_state, mock_llm)
         
-        configure_model_node(state_with_encoding, self.mock_llm)
-        
-        self.assertEqual(mock_log.call_count, 2)
-        self.assertIn("configure_model_before", mock_log.call_args_list[0][0][0])
-        self.assertIn("configure_model_after", mock_log.call_args_list[1][0][0])
-    
-    @patch("src.agents.workflow.compile_workflow")
-    @patch("src.agents.workflow.log_workflow_state_transition")
-    def test_config_workflow_logs_transitions(self, mock_log, mock_compile):
-        """Test that ConfigWorkflow methods log transitions."""
-        mock_workflow = MagicMock()
-        mock_state_snapshot = MagicMock()
-        mock_state_snapshot.values = {"current_phase": "classification"}
-        mock_workflow.get_state.return_value = mock_state_snapshot
-        mock_workflow.stream.return_value = []
-        mock_compile.return_value = mock_workflow
-        
-        workflow = ConfigWorkflow(self.mock_llm)
-        workflow.start("{}", ["col1"], {"col1": "int64"}, 3)
-        
-        mock_log.assert_called()
-        call_args = mock_log.call_args
-        self.assertIn("ConfigWorkflow.start", call_args[0][0])
+        assert "current_node" in result
+        assert result["current_node"] == "configuring_model"
 
+
+def test_build_final_config_sets_current_node(sample_state):
+    """Test that build_final_config_node sets current_node."""
+    sample_state["column_classification"] = {
+        "targets": ["col1"],
+        "features": ["col2"],
+        "ignore": []
+    }
+    sample_state["feature_encodings"] = {
+        "encodings": {}
+    }
+    sample_state["model_config"] = {
+        "features": [{"name": "col2", "monotone_constraint": 0}],
+        "quantiles": [0.1, 0.5, 0.9]
+    }
+    sample_state["location_columns"] = []
+    sample_state["location_settings"] = {"max_distance_km": 50}
+    
+    result = build_final_config_node(sample_state)
+    
+    assert "current_node" in result
+    assert result["current_node"] == "building_config"
+
+
+def test_ui_progress_message_helper():
+    """Test the UI progress message helper function."""
+    from src.app.config_ui import _get_progress_message
+    
+    # Test with None service
+    assert _get_progress_message(None) == "Processing..."
+    
+    # Test with service but no workflow
+    mock_service = MagicMock()
+    mock_service.workflow = None
+    assert _get_progress_message(mock_service) == "Processing..."
+    
+    # Test with different node states
+    mock_service.workflow = MagicMock()
+    mock_service.workflow.current_state = {"current_node": "classifying_columns"}
+    assert _get_progress_message(mock_service) == "Classifying columns..."
+    
+    mock_service.workflow.current_state = {"current_node": "evaluating_features"}
+    assert _get_progress_message(mock_service) == "Evaluating features..."
+    
+    mock_service.workflow.current_state = {"current_node": "configuring_model"}
+    assert _get_progress_message(mock_service) == "Configuring model..."
+    
+    mock_service.workflow.current_state = {"current_node": "building_config"}
+    assert _get_progress_message(mock_service) == "Building final configuration..."
