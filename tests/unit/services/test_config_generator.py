@@ -1,5 +1,3 @@
-"""Tests for ConfigGenerator service."""
-
 import unittest
 import warnings
 import pandas as pd
@@ -14,7 +12,6 @@ class TestConfigGenerator(unittest.TestCase):
         data = pd.DataFrame({"Level": ["L4", "L3", "L5"]})
         levels = self.generator.infer_levels(data)
         
-        # Expected: L3=0, L4=1, L5=2
         sorted_keys = sorted(levels, key=levels.get)
         self.assertEqual(sorted_keys, ["L3", "L4", "L5"])
         
@@ -22,7 +19,6 @@ class TestConfigGenerator(unittest.TestCase):
         data = pd.DataFrame({"Level": ["Senior", "Junior", "Staff"]})
         levels = self.generator.infer_levels(data)
         
-        # Should be alphabetical since no numbers
         sorted_keys = sorted(levels, key=levels.get)
         self.assertEqual(sorted_keys, ["Junior", "Senior", "Staff"])
         

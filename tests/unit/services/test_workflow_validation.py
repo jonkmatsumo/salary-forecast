@@ -1,5 +1,3 @@
-"""Tests for workflow validation node."""
-
 import unittest
 from unittest.mock import MagicMock, patch
 from langchain_core.language_models import BaseChatModel
@@ -13,10 +11,7 @@ from src.agents.workflow import (
 
 
 class TestValidateInputNode(unittest.TestCase):
-    """Tests for validate_input_node function."""
-    
     def setUp(self):
-        """Set up test fixtures."""
         self.mock_llm = MagicMock(spec=BaseChatModel)
         self.clean_state: WorkflowState = {
             "df_json": '{"col1": [1, 2, 3]}',

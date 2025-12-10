@@ -1,5 +1,3 @@
-"""Tests for agent analysis tools."""
-
 import unittest
 import json
 import pandas as pd
@@ -16,14 +14,11 @@ from src.agents.tools import (
 
 
 class TestComputeCorrelationMatrix(unittest.TestCase):
-    """Tests for compute_correlation_matrix tool."""
-    
     def test_basic_correlation(self):
-        """Test basic correlation computation."""
         df = pd.DataFrame({
             "A": [1, 2, 3, 4, 5],
-            "B": [2, 4, 6, 8, 10],  # Perfect correlation with A
-            "C": [5, 4, 3, 2, 1]   # Perfect negative correlation with A
+            "B": [2, 4, 6, 8, 10],
+            "C": [5, 4, 3, 2, 1]
         })
         
         result = compute_correlation_matrix.invoke({"df_json": df.to_json()})
@@ -41,12 +36,11 @@ class TestComputeCorrelationMatrix(unittest.TestCase):
         self.assertAlmostEqual(ab_corr["correlation"], 1.0, places=4)
     
     def test_specific_columns(self):
-        """Test correlation with specific columns."""
         df = pd.DataFrame({
             "A": [1, 2, 3],
             "B": [2, 4, 6],
             "C": [1, 1, 1],
-            "D": "text"  # Non-numeric
+            "D": "text"
         })
         
         result = compute_correlation_matrix.invoke({
@@ -58,7 +52,6 @@ class TestComputeCorrelationMatrix(unittest.TestCase):
         self.assertEqual(set(result_dict["columns_analyzed"]), {"A", "B"})
     
     def test_insufficient_columns(self):
-        """Test with less than 2 numeric columns."""
         df = pd.DataFrame({
             "A": [1, 2, 3],
             "B": ["x", "y", "z"]
@@ -70,7 +63,6 @@ class TestComputeCorrelationMatrix(unittest.TestCase):
         self.assertIn("error", result_dict)
     
     def test_all_nan_columns(self):
-        """Test with all NaN columns."""
         df = pd.DataFrame({
             "A": [np.nan, np.nan, np.nan],
             "B": [np.nan, np.nan, np.nan]
@@ -162,7 +154,6 @@ class TestComputeCorrelationMatrix(unittest.TestCase):
 
 
 class TestGetColumnStatistics(unittest.TestCase):
-    """Tests for get_column_statistics tool."""
     
     def test_numeric_column(self):
         """Test statistics for numeric column."""
@@ -309,7 +300,6 @@ class TestGetColumnStatistics(unittest.TestCase):
 
 
 class TestGetUniqueValueCounts(unittest.TestCase):
-    """Tests for get_unique_value_counts tool."""
     
     def test_basic_counts(self):
         """Test basic value counting."""
@@ -416,7 +406,6 @@ class TestGetUniqueValueCounts(unittest.TestCase):
 
 
 class TestDetectOrdinalPatterns(unittest.TestCase):
-    """Tests for detect_ordinal_patterns tool."""
     
     def test_numeric_pattern(self):
         """Test detection of numeric patterns like L1, L2, L3."""
@@ -570,7 +559,6 @@ class TestDetectOrdinalPatterns(unittest.TestCase):
 
 
 class TestDetectColumnDtype(unittest.TestCase):
-    """Tests for detect_column_dtype tool."""
     
     def test_numeric_continuous(self):
         """Test detection of continuous numeric column."""
@@ -718,7 +706,6 @@ class TestDetectColumnDtype(unittest.TestCase):
 
 
 class TestEscapedJsonHandling(unittest.TestCase):
-    """Tests for handling escaped JSON strings (the actual issue)."""
     
     def test_compute_correlation_matrix_with_escaped_json(self):
         """Test compute_correlation_matrix with escaped JSON."""
@@ -840,7 +827,6 @@ class TestEscapedJsonHandling(unittest.TestCase):
 
 
 class TestGetAllTools(unittest.TestCase):
-    """Tests for get_all_tools function."""
     
     def test_get_all_tools(self):
         """Test get_all_tools() returns all tools."""

@@ -1,5 +1,3 @@
-"""Tests for LangGraph workflow."""
-
 import unittest
 import json
 from unittest.mock import MagicMock, patch, Mock
@@ -21,10 +19,7 @@ from src.agents.workflow import (
 
 
 class TestWorkflowState(unittest.TestCase):
-    """Tests for WorkflowState TypedDict."""
-    
     def test_state_structure(self):
-        """Test WorkflowState structure."""
         state: WorkflowState = {
             "df_json": '{}',
             "columns": ["A"],
@@ -50,7 +45,6 @@ class TestWorkflowState(unittest.TestCase):
         self.assertIn("optional_encodings", state)
     
     def test_state_with_preset(self):
-        """Test WorkflowState with preset."""
         state: WorkflowState = {
             "df_json": '{}',
             "columns": ["A"],
@@ -64,7 +58,6 @@ class TestWorkflowState(unittest.TestCase):
         self.assertEqual(state["preset"], "salary")
     
     def test_state_with_optional_encodings(self):
-        """Test WorkflowState with optional_encodings."""
         state: WorkflowState = {
             "df_json": '{}',
             "columns": ["A"],
@@ -82,12 +75,9 @@ class TestWorkflowState(unittest.TestCase):
 
 
 class TestClassifyColumnsNode(unittest.TestCase):
-    """Tests for classify_columns_node function."""
-    
     @patch("src.agents.workflow.run_column_classifier_sync")
     @patch("src.agents.workflow.compute_correlation_matrix")
     def test_successful_classification(self, mock_corr, mock_classifier):
-        """Test successful column classification."""
         mock_classifier.return_value = {
             "targets": ["Salary"],
             "features": ["Level"],

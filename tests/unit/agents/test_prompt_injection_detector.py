@@ -1,5 +1,3 @@
-"""Tests for prompt injection detection."""
-
 import unittest
 import json
 from unittest.mock import MagicMock, patch
@@ -10,10 +8,7 @@ from src.agents.prompt_injection_detector import detect_prompt_injection
 
 
 class TestPromptInjectionDetector(unittest.TestCase):
-    """Tests for prompt injection detection."""
-    
     def setUp(self):
-        """Set up test fixtures."""
         self.mock_llm = MagicMock(spec=BaseChatModel)
         self.df_json = json.dumps({"col1": [1, 2, 3], "col2": ["a", "b", "c"]})
         self.columns = ["col1", "col2"]

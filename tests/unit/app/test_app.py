@@ -12,7 +12,6 @@ class TestStreamlitApp(unittest.TestCase):
             self.fail(f"App file not found at {self.app_path}")
 
     def test_app_smoke(self):
-        """Verify the app launches without error."""
         at = AppTest.from_file(self.app_path)
         at.run()
         
@@ -22,7 +21,6 @@ class TestStreamlitApp(unittest.TestCase):
         self.assertTrue(at.sidebar.title[0].value == "Navigation")
 
     def test_navigation_training(self):
-        """Verify navigation to Training page."""
         at = AppTest.from_file(self.app_path)
         at.run()
         
@@ -34,7 +32,6 @@ class TestStreamlitApp(unittest.TestCase):
             self.assertTrue(len(at.checkbox) >= 2, "Should have at least 2 checkboxes (Outliers, Tune)")
 
     def test_navigation_inference(self):
-        """Verify navigation to Inference page."""
         at = AppTest.from_file(self.app_path)
         at.run()
         
@@ -53,7 +50,6 @@ class TestStreamlitApp(unittest.TestCase):
             self.assertTrue(len(subheaders) > 0, "Should have subheaders when model is loaded")
 
     def test_navigation_configuration_removed(self):
-        """Verify Configuration tab has been removed."""
         at = AppTest.from_file(self.app_path)
         at.run()
         
@@ -65,7 +61,6 @@ class TestStreamlitApp(unittest.TestCase):
         self.assertIn("Inference", radio_options)
 
     def test_inference_inputs(self):
-        """Verify inference inputs exist when a model is selected."""
         at = AppTest.from_file(self.app_path)
         at.run()
         at.sidebar.radio[0].set_value("Inference").run()
@@ -79,13 +74,10 @@ class TestStreamlitApp(unittest.TestCase):
 
 
 class TestMain(unittest.TestCase):
-    """Tests for main() function."""
-    
     @patch("src.app.app.st")
     @patch("src.app.app.get_config")
     @patch("src.app.app.render_training_ui")
     def test_main_defaults_to_training(self, mock_render_training, mock_get_config, mock_st):
-        """Test that main() defaults to Training page."""
         mock_get_config.return_value = {}
         mock_st.session_state = {}
         mock_st.sidebar.radio.return_value = "Training"
@@ -100,7 +92,6 @@ class TestMain(unittest.TestCase):
     @patch("src.app.app.get_config")
     @patch("src.app.app.render_inference_ui")
     def test_main_navigation_to_inference(self, mock_render_inference, mock_get_config, mock_st):
-        """Test that main() navigates to Inference page."""
         mock_get_config.return_value = {}
         mock_st.session_state = {"nav": "Inference"}
         mock_st.sidebar.radio.return_value = "Inference"

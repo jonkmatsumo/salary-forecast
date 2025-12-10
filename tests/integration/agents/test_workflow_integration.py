@@ -1,5 +1,3 @@
-"""Integration tests for end-to-end workflow."""
-
 import unittest
 import json
 from unittest.mock import MagicMock, patch
@@ -15,19 +13,14 @@ from src.agents.tools import compute_correlation_matrix, detect_ordinal_patterns
 
 
 class TestEndToEndWorkflow(unittest.TestCase):
-    """End-to-end workflow integration tests."""
-    
     @patch("src.services.workflow_service.get_langchain_llm")
     @patch("src.services.workflow_service.ConfigWorkflow")
     def test_full_workflow_mock_llm(self, mock_workflow_class, mock_get_llm):
-        """Test full workflow from DataFrame to final config with mock LLM."""
         mock_llm = MagicMock(spec=BaseChatModel)
         mock_get_llm.return_value = mock_llm
         
-        # Mock workflow that simulates full execution
         mock_workflow = MagicMock()
         
-        # Start returns classification
         mock_workflow.start.return_value = {
             "column_classification": {
                 "targets": ["Salary"],
@@ -39,7 +32,6 @@ class TestEndToEndWorkflow(unittest.TestCase):
         }
         mock_workflow.get_current_phase.return_value = "classification"
         
-        # Confirm classification returns encoding
         mock_workflow.confirm_classification.return_value = {
             "feature_encodings": {
                 "encodings": {
@@ -51,7 +43,6 @@ class TestEndToEndWorkflow(unittest.TestCase):
             "current_phase": "encoding"
         }
         
-        # Confirm encoding returns final config
         mock_workflow.confirm_encoding.return_value = {
             "model_config": {
                 "features": [{"name": "Level", "monotone_constraint": 1}],
@@ -79,7 +70,6 @@ class TestEndToEndWorkflow(unittest.TestCase):
         
         mock_workflow_class.return_value = mock_workflow
         
-        # Create service and run workflow
         service = WorkflowService(provider="openai")
         
         df = pd.DataFrame({
@@ -89,15 +79,12 @@ class TestEndToEndWorkflow(unittest.TestCase):
             "Salary": [100000, 150000]
         })
         
-        # Start workflow
         result1 = service.start_workflow(df)
         self.assertEqual(result1["phase"], "classification")
         
-        # Confirm classification
         result2 = service.confirm_classification()
         self.assertEqual(result2["phase"], "encoding")
         
-        # Confirm encoding
         result3 = service.confirm_encoding()
         self.assertEqual(result3["phase"], "configuration")
         
