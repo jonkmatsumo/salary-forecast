@@ -717,6 +717,128 @@ class TestDetectColumnDtype(unittest.TestCase):
             self.assertIn(result_dict["semantic_type"], [expected_type, "boolean", "numeric_discrete"])
 
 
+class TestEscapedJsonHandling(unittest.TestCase):
+    """Tests for handling escaped JSON strings (the actual issue)."""
+    
+    def test_compute_correlation_matrix_with_escaped_json(self):
+        """Test compute_correlation_matrix with escaped JSON."""
+        df = pd.DataFrame({
+            "A": [1, 2, 3],
+            "B": [2, 4, 6]
+        })
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        result = compute_correlation_matrix.invoke({
+            "df_json": escaped_json,
+            "columns": None
+        })
+        result_dict = json.loads(result)
+        
+        self.assertIn("correlations", result_dict)
+        self.assertNotIn("error", result_dict)
+    
+    def test_get_column_statistics_with_escaped_json(self):
+        """Test get_column_statistics with escaped JSON."""
+        df = pd.DataFrame({
+            "Level": ["E6", "E6", "E3"],
+            "Salary": [100000, 150000, 120000]
+        })
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        result = get_column_statistics.invoke({
+            "df_json": escaped_json,
+            "column": "Salary"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Salary")
+        self.assertNotIn("error", result_dict)
+    
+    def test_detect_column_dtype_with_escaped_json(self):
+        """Test detect_column_dtype with escaped JSON."""
+        df = pd.DataFrame({
+            "Level": {"0": "E6", "1": "E6", "2": "E3"}
+        })
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        result = detect_column_dtype.invoke({
+            "df_json": escaped_json,
+            "column": "Level"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Level")
+        self.assertNotIn("error", result_dict)
+    
+    def test_get_unique_value_counts_with_escaped_json(self):
+        """Test get_unique_value_counts with escaped JSON."""
+        df = pd.DataFrame({
+            "Category": ["A", "B", "A", "C"]
+        })
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        result = get_unique_value_counts.invoke({
+            "df_json": escaped_json,
+            "column": "Category"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Category")
+        self.assertNotIn("error", result_dict)
+    
+    def test_detect_ordinal_patterns_with_escaped_json(self):
+        """Test detect_ordinal_patterns with escaped JSON."""
+        df = pd.DataFrame({
+            "Level": ["L1", "L2", "L3", "L4"]
+        })
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        result = detect_ordinal_patterns.invoke({
+            "df_json": escaped_json,
+            "column": "Level"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Level")
+        self.assertNotIn("error", result_dict)
+    
+    def test_real_world_escaped_json_scenario(self):
+        """Test with real-world escaped JSON from the issue."""
+        escaped_json = '{\\"Level\\": {\\"0\\": \\"E6\\", \\"1\\": \\"E6\\", \\"2\\": \\"E3\\"}}'
+        
+        result = detect_column_dtype.invoke({
+            "df_json": escaped_json,
+            "column": "Level"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Level")
+        self.assertNotIn("error", result_dict)
+    
+    def test_double_quoted_escaped_json(self):
+        """Test JSON wrapped in quotes with escaped content."""
+        df = pd.DataFrame({
+            "A": [1, 2, 3],
+            "B": [4, 5, 6]
+        })
+        normal_json = df.to_json()
+        double_quoted = f'"{normal_json}"'
+        
+        result = compute_correlation_matrix.invoke({
+            "df_json": double_quoted,
+            "columns": None
+        })
+        result_dict = json.loads(result)
+        
+        self.assertIn("correlations", result_dict)
+        self.assertNotIn("error", result_dict)
+
+
 class TestGetAllTools(unittest.TestCase):
     """Tests for get_all_tools function."""
     

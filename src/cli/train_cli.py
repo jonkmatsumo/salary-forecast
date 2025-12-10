@@ -17,7 +17,7 @@ from rich.text import Text
 from src.xgboost.model import SalaryForecaster
 from src.utils.data_utils import load_data
 from src.utils.config_loader import load_config
-from src.services.model_registry import SalaryForecasterWrapper
+from src.services.model_registry import SalaryForecasterWrapper, get_experiment_name
 from src.utils.logger import setup_logging
 
 def train_workflow(csv_path: str, config_path: str, output_path: str, console: Any, do_tune: bool = False, num_trials: int = 20, remove_outliers: bool = False) -> None:
@@ -88,9 +88,10 @@ def train_workflow(csv_path: str, config_path: str, output_path: str, console: A
         forecaster.train(df, callback=console_callback, remove_outliers=remove_outliers)
         
         
-        status_text.plain = f"Status: Logging model to MLflow (Experiment: Salary_Forecast)..."
+        experiment_name = get_experiment_name()
+        status_text.plain = f"Status: Logging model to MLflow (Experiment: {experiment_name})..."
         
-        mlflow.set_experiment("Salary_Forecast")
+        mlflow.set_experiment(experiment_name)
         with mlflow.start_run() as run:
             # Log Params
             mlflow.log_params({

@@ -260,6 +260,118 @@ class TestToolIntegration(unittest.TestCase):
         # This result would influence agent to recommend ordinal encoding
     
     @patch("src.agents.column_classifier.load_prompt")
+    def test_llm_tool_call_with_escaped_json(self, mock_load_prompt):
+        """Test that tools handle escaped JSON from LLM tool calls."""
+        mock_load_prompt.return_value = "System prompt"
+        
+        df = pd.DataFrame({
+            "Level": {"0": "E6", "1": "E6", "2": "E3", "3": "E3"},
+            "Salary": {"0": 100000, "1": 150000, "2": 120000, "3": 130000}
+        })
+        
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        mock_llm = MagicMock(spec=BaseChatModel)
+        
+        tool_response = AIMessage(content="")
+        tool_response.tool_calls = [{
+            "name": "detect_column_dtype",
+            "args": {"df_json": escaped_json, "column": "Level"},
+            "id": "call_1"
+        }]
+        
+        final_response = AIMessage(content=json.dumps({
+            "targets": ["Salary"],
+            "features": ["Level"],
+            "ignore": [],
+            "reasoning": "Used dtype detection tool"
+        }))
+        final_response.tool_calls = []
+        
+        mock_agent = MagicMock()
+        mock_agent.invoke.side_effect = [tool_response, final_response]
+        mock_llm.bind_tools.return_value = mock_agent
+        
+        result = run_column_classifier_sync(
+            mock_llm,
+            df.to_json(),
+            ["Level", "Salary"],
+            {"Level": "object", "Salary": "int64"}
+        )
+        
+        self.assertIn("targets", result)
+        self.assertTrue(mock_agent.invoke.called)
+    
+    @patch("src.agents.column_classifier.load_prompt")
+    def test_multiple_tool_calls_with_escaped_json(self, mock_load_prompt):
+        """Test multiple tool calls with escaped JSON."""
+        mock_load_prompt.return_value = "System prompt"
+        
+        df = pd.DataFrame({
+            "A": [1, 2, 3, 4, 5],
+            "B": [2, 4, 6, 8, 10],
+            "C": ["x", "y", "z", "x", "y"]
+        })
+        
+        normal_json = df.to_json()
+        escaped_json = json.dumps(normal_json)
+        
+        mock_llm = MagicMock(spec=BaseChatModel)
+        
+        tool_response_1 = AIMessage(content="")
+        tool_response_1.tool_calls = [{
+            "name": "compute_correlation_matrix",
+            "args": {"df_json": escaped_json, "columns": None},
+            "id": "call_1"
+        }]
+        
+        tool_response_2 = AIMessage(content="")
+        tool_response_2.tool_calls = [{
+            "name": "get_column_statistics",
+            "args": {"df_json": escaped_json, "column": "A"},
+            "id": "call_2"
+        }]
+        
+        final_response = AIMessage(content=json.dumps({
+            "targets": ["A"],
+            "features": ["B", "C"],
+            "ignore": [],
+            "reasoning": "Used multiple tools"
+        }))
+        final_response.tool_calls = []
+        
+        mock_agent = MagicMock()
+        mock_agent.invoke.side_effect = [tool_response_1, tool_response_2, final_response]
+        mock_llm.bind_tools.return_value = mock_agent
+        
+        result = run_column_classifier_sync(
+            mock_llm,
+            df.to_json(),
+            ["A", "B", "C"],
+            {"A": "int64", "B": "int64", "C": "object"}
+        )
+        
+        self.assertIn("targets", result)
+        self.assertEqual(mock_agent.invoke.call_count, 3)
+    
+    def test_real_world_escaped_json_from_issue(self):
+        """Test with the exact escaped JSON format from the issue."""
+        escaped_json = '{\\"Level\\": {\\"0\\": \\"E6\\", \\"1\\": \\"E6\\", \\"2\\": \\"E3\\", \\"3\\": \\"E3\\"}}'
+        
+        from src.agents.tools import detect_column_dtype
+        
+        result = detect_column_dtype.invoke({
+            "df_json": escaped_json,
+            "column": "Level"
+        })
+        result_dict = json.loads(result)
+        
+        self.assertEqual(result_dict["column"], "Level")
+        self.assertNotIn("error", result_dict)
+        self.assertIn("semantic_type", result_dict)
+    
+    @patch("src.agents.column_classifier.load_prompt")
     def test_tool_error_handling_in_agents(self, mock_load_prompt):
         """Test tool error handling in agents."""
         mock_load_prompt.return_value = "System prompt"

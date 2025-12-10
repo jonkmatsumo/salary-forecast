@@ -19,6 +19,12 @@ from src.agents.tools import (
 )
 from src.utils.prompt_loader import load_prompt
 from src.utils.logger import get_logger
+from src.utils.observability import (
+    log_llm_tool_call,
+    log_tool_result,
+    log_llm_follow_up,
+    log_agent_interaction,
+)
 
 logger = get_logger(__name__)
 
@@ -51,6 +57,8 @@ def build_classification_prompt(df_json: str, columns: List[str], dtypes: Dict[s
 ```json
 {df_json}
 ```
+
+**IMPORTANT**: When calling tools that require the `df_json` parameter, pass the JSON string exactly as shown above without any additional escaping or quoting. The `df_json` parameter should be a valid JSON string that can be parsed directly. Do not wrap it in extra quotes or escape the quotes within it.
 
 Use the available tools to analyze the columns before making your classification. Focus on:
 1. Use `detect_column_dtype` on ambiguous columns to understand their semantic type (especially for string columns that might be locations)
@@ -187,6 +195,7 @@ def run_column_classifier_sync(
                 tool_args = tool_call["args"]
                 
                 logger.info(f"Column classifier calling tool: {tool_name}")
+                log_llm_tool_call("column_classifier", tool_name, tool_args, iteration + 1)
                 
                 if tool_name in tools:
                     try:
@@ -194,6 +203,8 @@ def run_column_classifier_sync(
                         tool_result = tools[tool_name].invoke(tool_args)
                         logger.debug(f"Tool {tool_name} returned result (type: {type(tool_result)}, length: {len(str(tool_result)) if tool_result else 0})")
                         logger.debug(f"Tool result preview: {str(tool_result)[:200] if tool_result else 'None'}")
+                        
+                        log_tool_result("column_classifier", tool_name, tool_result, iteration + 1)
                         
                         if not isinstance(tool_result, str):
                             logger.warning(f"Tool {tool_name} returned non-string result: {type(tool_result)}, converting to string")
@@ -204,6 +215,7 @@ def run_column_classifier_sync(
                             tool_call_id=tool_call["id"]
                         ))
                         logger.debug(f"Added ToolMessage for {tool_name}")
+                        log_llm_follow_up("column_classifier", messages, iteration + 1)
                     except Exception as tool_err:
                         logger.error(f"Error invoking tool {tool_name}: {tool_err}", exc_info=True)
                         logger.error(f"Tool args that caused error: {tool_args}")
@@ -223,6 +235,12 @@ def run_column_classifier_sync(
                 result = parse_classification_response(response.content)
                 logger.info("Successfully parsed classification response")
                 logger.debug(f"Parsed result keys: {list(result.keys())}")
+                log_agent_interaction(
+                    "column_classifier",
+                    system_prompt,
+                    user_prompt,
+                    response.content if response.content else ""
+                )
                 return result
             except Exception as parse_err:
                 logger.error(f"Failed to parse classification response: {parse_err}", exc_info=True)
@@ -230,5 +248,13 @@ def run_column_classifier_sync(
                 raise
     
     logger.warning("Max iterations reached in column classifier")
-    return parse_classification_response(messages[-1].content if messages else "")
+    final_content = messages[-1].content if messages else ""
+    result = parse_classification_response(final_content)
+    log_agent_interaction(
+        "column_classifier",
+        system_prompt,
+        user_prompt,
+        final_content
+    )
+    return result
 

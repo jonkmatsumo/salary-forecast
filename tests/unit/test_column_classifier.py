@@ -422,8 +422,8 @@ class TestRunColumnClassifierSync(unittest.TestCase):
         self.assertEqual(result["targets"], ["Salary"])
 
 
-class TestColumnClassifierIntegration(unittest.TestCase):
-    """Integration tests for column classifier."""
+class TestColumnClassifierWithTools(unittest.TestCase):
+    """Tests for column classifier using real tools with mocked LLM."""
     
     @patch("src.agents.column_classifier.load_prompt")
     def test_end_to_end_with_mock_llm(self, mock_load_prompt):

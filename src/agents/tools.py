@@ -12,6 +12,7 @@ import pandas as pd
 import numpy as np
 from io import StringIO
 from langchain_core.tools import tool
+from src.utils.json_utils import parse_df_json_safely
 
 
 @tool
@@ -23,15 +24,17 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
     logger.debug(f"compute_correlation_matrix called with columns: {columns}")
     logger.debug(f"df_json type: {type(df_json)}, length: {len(df_json) if df_json else 0}")
     
-    import json as json_lib
-    
     try:
-        data_dict = json_lib.loads(df_json)
+        data_dict = parse_df_json_safely(df_json)
         logger.debug(f"Successfully parsed df_json for correlation matrix")
-    except json_lib.JSONDecodeError as e:
+    except ValueError as e:
         logger.error(f"Failed to parse df_json as JSON in compute_correlation_matrix: {e}")
         logger.error(f"df_json preview: {df_json[:500] if df_json else 'None'}")
-        return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}"})
+        try:
+            error_detail = json.loads(str(e))
+            return json.dumps(error_detail, indent=2)
+        except:
+            return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}", "error_type": "json_parse_error"})
     
     try:
         df = pd.DataFrame.from_dict(data_dict)
@@ -77,16 +80,18 @@ def get_column_statistics(df_json: str, column: str) -> str:
     logger = get_logger(__name__)
     
     logger.debug(f"get_column_statistics called with column: {column}")
-    # Use json.loads then DataFrame.from_dict to preserve types better
-    import json as json_lib
     
     try:
-        data_dict = json_lib.loads(df_json)
+        data_dict = parse_df_json_safely(df_json)
         logger.debug(f"Successfully parsed df_json for column statistics")
-    except json_lib.JSONDecodeError as e:
+    except ValueError as e:
         logger.error(f"Failed to parse df_json as JSON in get_column_statistics: {e}")
         logger.error(f"df_json preview: {df_json[:500] if df_json else 'None'}")
-        return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}"})
+        try:
+            error_detail = json.loads(str(e))
+            return json.dumps(error_detail, indent=2)
+        except:
+            return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}", "error_type": "json_parse_error"})
     
     try:
         df = pd.DataFrame.from_dict(data_dict)
@@ -154,9 +159,19 @@ def get_column_statistics(df_json: str, column: str) -> str:
 @tool
 def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
     """Get unique values and their counts for a column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. limit (int): Max unique values to return. Returns: str: JSON value counts."""
-    import json as json_lib
-    data_dict = json_lib.loads(df_json)
-    df = pd.DataFrame.from_dict(data_dict)
+    from src.utils.logger import get_logger
+    logger = get_logger(__name__)
+    
+    try:
+        data_dict = parse_df_json_safely(df_json)
+        df = pd.DataFrame.from_dict(data_dict)
+    except ValueError as e:
+        logger.error(f"Failed to parse df_json as JSON in get_unique_value_counts: {e}")
+        try:
+            error_detail = json.loads(str(e))
+            return json.dumps(error_detail, indent=2)
+        except:
+            return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}", "error_type": "json_parse_error"})
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
@@ -181,9 +196,19 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
 @tool
 def detect_ordinal_patterns(df_json: str, column: str) -> str:
     """Detect if a column contains ordinal patterns. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON with detected patterns and suggested mapping."""
-    import json as json_lib
-    data_dict = json_lib.loads(df_json)
-    df = pd.DataFrame.from_dict(data_dict)
+    from src.utils.logger import get_logger
+    logger = get_logger(__name__)
+    
+    try:
+        data_dict = parse_df_json_safely(df_json)
+        df = pd.DataFrame.from_dict(data_dict)
+    except ValueError as e:
+        logger.error(f"Failed to parse df_json as JSON in detect_ordinal_patterns: {e}")
+        try:
+            error_detail = json.loads(str(e))
+            return json.dumps(error_detail, indent=2)
+        except:
+            return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}", "error_type": "json_parse_error"})
     
     if column not in df.columns:
         return json.dumps({"error": f"Column '{column}' not found in DataFrame"})
@@ -265,15 +290,17 @@ def detect_column_dtype(df_json: str, column: str) -> str:
     logger.debug(f"df_json type: {type(df_json)}, length: {len(df_json) if df_json else 0}")
     logger.debug(f"df_json preview: {df_json[:200] if df_json else 'None'}")
     
-    import json as json_lib
-    
     try:
-        data_dict = json_lib.loads(df_json)
+        data_dict = parse_df_json_safely(df_json)
         logger.debug(f"Successfully parsed df_json, keys: {list(data_dict.keys())[:10] if isinstance(data_dict, dict) else 'not a dict'}")
-    except json_lib.JSONDecodeError as e:
+    except ValueError as e:
         logger.error(f"Failed to parse df_json as JSON: {e}")
         logger.error(f"df_json content (first 500 chars): {df_json[:500] if df_json else 'None'}")
-        return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}"})
+        try:
+            error_detail = json.loads(str(e))
+            return json.dumps(error_detail, indent=2)
+        except:
+            return json.dumps({"error": f"Invalid JSON in df_json parameter: {str(e)}", "error_type": "json_parse_error"})
     
     try:
         df = pd.DataFrame.from_dict(data_dict)

@@ -14,6 +14,7 @@ from langchain_core.language_models import BaseChatModel
 
 from src.utils.prompt_loader import load_prompt
 from src.utils.logger import get_logger
+from src.utils.observability import log_agent_interaction
 
 logger = get_logger(__name__)
 
@@ -201,5 +202,12 @@ def run_model_configurator_sync(
     ]
     
     response = llm.invoke(messages)
-    return parse_configuration_response(response.content)
+    result = parse_configuration_response(response.content)
+    log_agent_interaction(
+        "model_configurator",
+        system_prompt,
+        user_prompt,
+        response.content if response.content else ""
+    )
+    return result
 

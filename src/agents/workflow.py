@@ -19,9 +19,30 @@ from src.agents.column_classifier import run_column_classifier_sync
 from src.agents.feature_encoder import run_feature_encoder_sync
 from src.agents.model_configurator import run_model_configurator_sync
 from src.agents.tools import compute_correlation_matrix
+from src.agents.prompt_injection_detector import detect_prompt_injection
 from src.utils.logger import get_logger
+from src.utils.observability import log_workflow_state_transition
 
 logger = get_logger(__name__)
+
+
+class PromptInjectionError(Exception):
+    """Exception raised when prompt injection is detected in user input."""
+    
+    def __init__(self, message: str, confidence: float, reasoning: str, suspicious_content: str):
+        """
+        Initialize the error.
+        
+        Args:
+            message: Error message.
+            confidence: Detection confidence level.
+            reasoning: Explanation of the detection.
+            suspicious_content: Content that triggered the detection.
+        """
+        super().__init__(message)
+        self.confidence = confidence
+        self.reasoning = reasoning
+        self.suspicious_content = suspicious_content
 
 
 class WorkflowState(TypedDict, total=False):
@@ -56,6 +77,66 @@ class WorkflowState(TypedDict, total=False):
     error: Optional[str]
 
 
+def validate_input_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
+    """
+    Node that validates user input for prompt injection attacks.
+    
+    Args:
+        state: Current workflow state.
+        llm: Language model for detection.
+        
+    Returns:
+        Empty dict if validation passes (no state change).
+        
+    Raises:
+        PromptInjectionError: If prompt injection is detected.
+    """
+    logger.info("Validating input for prompt injection...")
+    log_workflow_state_transition("validate_input_before", state)
+    
+    df_json = state.get("df_json", "")
+    columns = state.get("columns", [])
+    
+    if not df_json:
+        logger.warning("Empty df_json in validation node")
+        return {}
+    
+    try:
+        detection_result = detect_prompt_injection(llm, df_json, columns)
+        
+        if detection_result.get("is_suspicious", False):
+            confidence = detection_result.get("confidence", 0.0)
+            reasoning = detection_result.get("reasoning", "No reasoning provided")
+            suspicious_content = detection_result.get("suspicious_content", "")
+            
+            logger.warning(
+                f"Prompt injection detected: confidence={confidence}, "
+                f"reasoning={reasoning}, suspicious_content={suspicious_content[:200]}"
+            )
+            
+            error_message = (
+                f"Potential prompt injection detected in uploaded data. "
+                f"Confidence: {confidence:.2f}. {reasoning}"
+            )
+            
+            raise PromptInjectionError(
+                error_message,
+                confidence,
+                reasoning,
+                suspicious_content
+            )
+        
+        logger.info("Input validation passed")
+        log_workflow_state_transition("validate_input_after", state)
+        return {}
+        
+    except PromptInjectionError:
+        raise
+    except Exception as e:
+        logger.error(f"Error during input validation: {e}", exc_info=True)
+        return {}
+
+
 def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
     """
     Node that runs the column classification agent.
@@ -68,6 +149,7 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
         State updates with classification results.
     """
     logger.info("Running column classification agent...")
+    log_workflow_state_transition("classify_columns_before", state)
     logger.debug(f"State keys: {list(state.keys())}")
     logger.debug(f"df_json type: {type(state.get('df_json'))}, length: {len(state.get('df_json', '')) if state.get('df_json') else 0}")
     logger.debug(f"Columns: {state.get('columns', [])}")
@@ -100,7 +182,7 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
         except Exception as e:
             logger.warning(f"Could not compute correlations: {e}", exc_info=True)
         
-        return {
+        new_state = {
             "column_classification": result,
             "classification_confirmed": False,
             "location_columns": location_columns,
@@ -108,6 +190,9 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
             "current_phase": "classification",
             "error": None
         }
+        updated_state = {**state, **new_state}
+        log_workflow_state_transition("classify_columns_after", updated_state)
+        return new_state
         
     except Exception as e:
         logger.error(f"Column classification failed: {e}", exc_info=True)
@@ -134,6 +219,7 @@ def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
         State updates with encoding recommendations.
     """
     logger.info("Running feature encoding agent...")
+    log_workflow_state_transition("encode_features_before", state)
     
     try:
         classification = state.get("column_classification", {})
@@ -164,12 +250,15 @@ def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
                     }
             logger.debug(f"Set proximity encoding for location columns: {location_columns}")
         
-        return {
+        new_state = {
             "feature_encodings": result,
             "encodings_confirmed": False,
             "current_phase": "encoding",
             "error": None
         }
+        updated_state = {**state, **new_state}
+        log_workflow_state_transition("encode_features_after", updated_state)
+        return new_state
         
     except Exception as e:
         logger.error(f"Feature encoding failed: {e}")
@@ -193,6 +282,7 @@ def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
         State updates with model configuration.
     """
     logger.info("Running model configuration agent...")
+    log_workflow_state_transition("configure_model_before", state)
     
     try:
         classification = state.get("column_classification", {})
@@ -208,11 +298,14 @@ def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
             dataset_size=state.get("dataset_size", 0)
         )
         
-        return {
+        new_state = {
             "model_config": result,
             "current_phase": "configuration",
             "error": None
         }
+        updated_state = {**state, **new_state}
+        log_workflow_state_transition("configure_model_after", updated_state)
+        return new_state
         
     except Exception as e:
         logger.error(f"Model configuration failed: {e}")
@@ -316,10 +409,11 @@ def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
     """
     Create the LangGraph workflow for configuration generation.
     
-    The workflow has three main phases with human-in-the-loop checkpoints:
-    1. classify_columns -> (await confirmation) -> 
-    2. encode_features -> (await confirmation) ->
-    3. configure_model -> build_final_config -> END
+    The workflow has validation and three main phases with human-in-the-loop checkpoints:
+    1. validate_input -> 
+    2. classify_columns -> (await confirmation) -> 
+    3. encode_features -> (await confirmation) ->
+    4. configure_model -> build_final_config -> END
     
     Args:
         llm: Language model to use for agents.
@@ -331,6 +425,7 @@ def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
     workflow = StateGraph(WorkflowState)
     
     # Define nodes with llm bound
+    workflow.add_node("validate_input", lambda state: validate_input_node(state, llm))
     workflow.add_node("classify_columns", lambda state: classify_columns_node(state, llm))
     workflow.add_node("await_classification", lambda state: state)  # No-op, just a checkpoint
     workflow.add_node("encode_features", lambda state: encode_features_node(state, llm))
@@ -339,7 +434,10 @@ def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
     workflow.add_node("build_final_config", build_final_config_node)
     
     # Set entry point
-    workflow.set_entry_point("classify_columns")
+    workflow.set_entry_point("validate_input")
+    
+    # Add edge from validation to classification
+    workflow.add_edge("validate_input", "classify_columns")
     
     # Add edges
     workflow.add_conditional_edges(
@@ -465,6 +563,7 @@ class ConfigWorkflow:
         state_snapshot = self.compiled.get_state(config)
         self.current_state = dict(state_snapshot.values) if state_snapshot.values else {}
         
+        log_workflow_state_transition("ConfigWorkflow.start", self.current_state)
         return self.current_state
     
     def confirm_classification(self, modifications: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -502,6 +601,7 @@ class ConfigWorkflow:
         state_snapshot = self.compiled.get_state(config)
         self.current_state = dict(state_snapshot.values) if state_snapshot.values else {}
         
+        log_workflow_state_transition("ConfigWorkflow.confirm_classification", self.current_state)
         return self.current_state
     
     def confirm_encoding(self, modifications: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -537,6 +637,7 @@ class ConfigWorkflow:
         state_snapshot = self.compiled.get_state(config)
         self.current_state = dict(state_snapshot.values) if state_snapshot.values else {}
         
+        log_workflow_state_transition("ConfigWorkflow.confirm_encoding", self.current_state)
         return self.current_state
     
     def get_current_phase(self) -> str:

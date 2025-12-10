@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 import pandas as pd
 
 from src.llm.client import get_langchain_llm, get_available_providers
-from src.agents.workflow import ConfigWorkflow
+from src.agents.workflow import ConfigWorkflow, PromptInjectionError
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -63,23 +63,26 @@ class WorkflowService:
             logger.debug(f"df_json preview (first 200 chars): {df_json[:200]}")
             
             import json
+            from src.utils.json_utils import parse_df_json_safely
+            
             try:
-                parsed = json.loads(df_json)
+                parsed = parse_df_json_safely(df_json)
                 logger.debug(f"df_json is valid JSON, parsed type: {type(parsed)}")
                 if isinstance(parsed, dict):
                     logger.debug(f"JSON has {len(parsed)} top-level keys: {list(parsed.keys())[:10]}")
-            except json.JSONDecodeError as json_err:
-                logger.error(f"df_json is not valid JSON: {json_err}")
+                    logger.debug(f"df_json format validated successfully - can be parsed by tools")
+            except ValueError as json_err:
+                logger.error(f"df_json validation failed: {json_err}")
                 logger.error(f"df_json content (first 500 chars): {df_json[:500]}")
                 logger.error(f"df_json content (last 200 chars): {df_json[-200:]}")
                 logger.warning("Attempting alternative JSON serialization...")
                 try:
                     df_json = sample_df.to_json(orient='records', date_format='iso')
-                    json.loads(df_json)  # Validate
-                    logger.info("Alternative serialization (orient='records') succeeded")
+                    parse_df_json_safely(df_json)  # Validate with normalization utility
+                    logger.info("Alternative serialization (orient='records') succeeded and validated")
                 except Exception as alt_err:
                     logger.error(f"Alternative serialization also failed: {alt_err}")
-                    raise ValueError(f"Failed to serialize DataFrame to JSON: {json_err}") from json_err
+                    raise ValueError(f"Failed to serialize and validate DataFrame to JSON: {json_err}") from json_err
             
         except Exception as e:
             logger.error(f"Failed to prepare DataFrame JSON: {e}", exc_info=True)
@@ -118,6 +121,29 @@ class WorkflowService:
                 logger.debug("Workflow state has no errors")
             
             return self._format_phase_result("classification")
+            
+        except PromptInjectionError as e:
+            logger.warning(
+                f"Prompt injection detected: confidence={e.confidence}, "
+                f"reasoning={e.reasoning}, suspicious_content={e.suspicious_content[:200]}"
+            )
+            logger.info("[OBSERVABILITY] prompt_injection detection=failed confidence={:.2f}".format(e.confidence))
+            
+            user_message = (
+                "Your uploaded data contains content that appears to be an attempt to "
+                "manipulate the system. For security reasons, the workflow cannot proceed. "
+                "Please review your data and remove any instructions or commands that are not "
+                "part of the actual data values."
+            )
+            
+            return {
+                "phase": "validation",
+                "status": "error",
+                "error": user_message,
+                "error_type": "prompt_injection",
+                "confidence": e.confidence,
+                "reasoning": e.reasoning
+            }
             
         except Exception as e:
             logger.error(f"Workflow start failed: {e}", exc_info=True)

@@ -21,6 +21,12 @@ from src.agents.tools import (
 )
 from src.utils.prompt_loader import load_prompt
 from src.utils.logger import get_logger
+from src.utils.observability import (
+    log_llm_tool_call,
+    log_tool_result,
+    log_llm_follow_up,
+    log_agent_interaction,
+)
 
 logger = get_logger(__name__)
 
@@ -195,18 +201,36 @@ def run_feature_encoder_sync(
                 tool_args = tool_call["args"]
                 
                 logger.info(f"Feature encoder calling tool: {tool_name}")
+                log_llm_tool_call("feature_encoder", tool_name, tool_args, iteration + 1)
                 
                 if tool_name in tools:
                     tool_result = tools[tool_name].invoke(tool_args)
+                    log_tool_result("feature_encoder", tool_name, tool_result, iteration + 1)
                     messages.append(ToolMessage(
                         content=str(tool_result),
                         tool_call_id=tool_call["id"]
                     ))
+                    log_llm_follow_up("feature_encoder", messages, iteration + 1)
                 else:
                     logger.warning(f"Unknown tool requested: {tool_name}")
         else:
-            return parse_encoding_response(response.content)
+            result = parse_encoding_response(response.content)
+            log_agent_interaction(
+                "feature_encoder",
+                system_prompt,
+                user_prompt,
+                response.content if response.content else ""
+            )
+            return result
     
     logger.warning("Max iterations reached in feature encoder")
-    return parse_encoding_response(messages[-1].content if messages else "")
+    final_content = messages[-1].content if messages else ""
+    result = parse_encoding_response(final_content)
+    log_agent_interaction(
+        "feature_encoder",
+        system_prompt,
+        user_prompt,
+        final_content
+    )
+    return result
 

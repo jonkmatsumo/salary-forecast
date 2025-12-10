@@ -6,7 +6,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import mlflow
-from src.services.model_registry import SalaryForecasterWrapper
+from src.services.model_registry import SalaryForecasterWrapper, get_experiment_name
 from src.xgboost.model import SalaryForecaster
 from src.utils.logger import get_logger
 
@@ -111,8 +111,8 @@ class TrainingService:
             
             self.logger.info(f"Starting async training job: {job_id}")
 
-
-            mlflow.set_experiment("Salary_Forecast")
+            experiment_name = get_experiment_name()
+            mlflow.set_experiment(experiment_name)
             run_name = f"Training_{job_id}"
             if additional_tag:
                 run_name = additional_tag
