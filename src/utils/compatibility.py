@@ -1,4 +1,3 @@
-import sys
 from src.utils.logger import get_logger
 
 def apply_backward_compatibility() -> None:

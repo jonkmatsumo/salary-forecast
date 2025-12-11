@@ -1,6 +1,5 @@
 """Workflow service that wraps the LangGraph workflow and provides a simple interface for the Streamlit UI to manage the multi-step configuration process."""
 
-import json
 from typing import Any, Dict, List, Optional
 import pandas as pd
 
@@ -42,7 +41,6 @@ class WorkflowService:
             logger.debug(f"Generated df_json length: {len(df_json)} characters")
             logger.debug(f"df_json preview (first 200 chars): {df_json[:200]}")
             
-            import json
             from src.utils.json_utils import parse_df_json_safely
             
             try:

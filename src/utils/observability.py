@@ -1,7 +1,7 @@
 """Observability utilities for logging LLM interactions, tool calls, agent interactions, and workflow state transitions."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)

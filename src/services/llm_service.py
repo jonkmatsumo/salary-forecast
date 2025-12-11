@@ -3,8 +3,8 @@
 import warnings
 import json
 import pandas as pd
-from typing import Dict, Any, Optional
-from src.llm.client import get_llm_client, LLMClient
+from typing import Dict, Any
+from src.llm.client import get_llm_client
 from src.utils.prompt_loader import load_prompt
 from src.utils.logger import get_logger
 from src.model.config_schema_model import Config

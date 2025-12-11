@@ -1,12 +1,10 @@
 import os
 import argparse
-import sys
 import contextlib
 import io
 import traceback
 from typing import Optional, Any
 
-import pandas as pd
 import mlflow
 from rich import box
 from rich.console import Console, Group

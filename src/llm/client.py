@@ -1,8 +1,7 @@
 """LLM client module providing both legacy LLM clients and LangChain-compatible wrappers for use with the agentic workflow."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List, TYPE_CHECKING, Union
-import os
+from typing import Optional, Any, List, TYPE_CHECKING
 import google.generativeai as genai
 from openai import OpenAI
 from src.utils.env_loader import get_env_var
@@ -171,14 +170,14 @@ def get_available_providers() -> List[str]:
     available = []
     
     try:
-        from langchain_openai import ChatOpenAI
+        from langchain_openai import ChatOpenAI  # noqa: F401
         if get_env_var("OPENAI_API_KEY"):
             available.append("openai")
     except ImportError:
         pass
     
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
+        from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: F401
         if get_env_var("GEMINI_API_KEY"):
             available.append("gemini")
     except ImportError:

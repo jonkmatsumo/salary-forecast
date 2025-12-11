@@ -1,6 +1,5 @@
 from typing import Dict, Any, List, Optional
 import pandas as pd
-import matplotlib.pyplot as plt
 from src.xgboost.model import SalaryForecaster
 from src.utils.logger import get_logger
 

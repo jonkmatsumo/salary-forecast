@@ -2,12 +2,11 @@ import pickle
 import os
 import pandas as pd
 import sys
-import glob
 import plotext as plt
 import argparse
 import json
 import logging
-from typing import Any, Callable, List, Optional, Union, TypeVar
+from typing import Any, Callable, List, Optional, TypeVar
 
 from rich.console import Console
 from rich.table import Table

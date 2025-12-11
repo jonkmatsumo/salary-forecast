@@ -1,7 +1,7 @@
 import xgboost as xgb
 import optuna
 import pandas as pd
-from typing import Dict, List, Optional, Union, Tuple, Any, Callable
+from typing import Dict, List, Optional, Tuple, Any, Callable
 from src.xgboost.preprocessing import (
     RankedCategoryEncoder, ProximityEncoder, SampleWeighter,
     CostOfLivingEncoder, MetroPopulationEncoder, DateNormalizer
