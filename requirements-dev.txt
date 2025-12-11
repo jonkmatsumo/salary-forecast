@@ -1,0 +1,12 @@
+# Development dependencies with pinned versions
+# Include production dependencies plus dev tools
+
+-r requirements.txt
+
+# Testing
+pytest>=7.0.0,<8.0.0
+
+# Type checking
+mypy>=1.0.0,<2.0.0
+types-python-dotenv>=1.0.0,<2.0.0
+

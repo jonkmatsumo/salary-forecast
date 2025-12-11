@@ -396,8 +396,8 @@ def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
     return workflow
 
 
-def compile_workflow(llm: BaseChatModel, checkpointer: Optional[MemorySaver] = None):
-    """Compiles the workflow graph with optional checkpointing. Args: llm (BaseChatModel): Language model to use for agents. checkpointer (Optional[MemorySaver]): Optional memory saver for state persistence. Returns: Compiled workflow ready for execution."""
+def compile_workflow(llm: BaseChatModel, checkpointer: Optional[MemorySaver] = None) -> Any:
+    """Compiles the workflow graph with optional checkpointing. Args: llm (BaseChatModel): Language model to use for agents. checkpointer (Optional[MemorySaver]): Optional memory saver for state persistence. Returns: Any: Compiled workflow ready for execution."""
     workflow = create_workflow_graph(llm)
     
     if checkpointer is None:

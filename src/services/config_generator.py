@@ -19,7 +19,8 @@ class ConfigGenerator:
             
         unique_levels = df[level_col].dropna().unique().tolist()
         
-        def extract_rank(val: str):
+        def extract_rank(val: str) -> int:
+            """Extract numeric rank from level string. Args: val (str): Level value. Returns: int: Extracted rank or -1 if not found."""
             match = re.search(r'\d+', str(val))
             if match:
                 return int(match.group())

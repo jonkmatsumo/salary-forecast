@@ -16,6 +16,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 requires-python = ">=3.9"
+# Dependencies use flexible version constraints (>=) for development
+# For reproducible builds, see requirements.txt with pinned versions
+# Tested with Python 3.9, 3.10, 3.11 (see CI matrix)
 dependencies = [
     "xgboost>=2.0.0",
     "pandas>=2.0.0",
@@ -38,8 +41,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Development dependencies
+# For pinned versions, see requirements-dev.txt
 dev = [
-    "pytest"
+    "pytest",
+    "mypy>=1.0.0",
+    "types-python-dotenv",
 ]
 
 [project.scripts]

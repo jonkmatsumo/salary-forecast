@@ -237,8 +237,21 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
         with st.expander("Agent Summary", expanded=True):
             st.markdown(summary)
     
+    # Get column types and current optional encodings
+    current_optional_encodings = service.workflow.current_state.get("optional_encodings", {}) if service.workflow else {}
+    column_types = service.workflow.current_state.get("column_types", {}) if service.workflow else {}
+    
+    # Get date columns - check if we have access to original dataframe
+    date_cols = []
+    if "training_data" in st.session_state:
+        df = st.session_state["training_data"]
+        date_cols = [col for col in df.columns if pd_types.is_datetime64_any_dtype(df[col])]
+    else:
+        date_cols = [col for col, col_type in column_types.items() if col_type == "datetime"]
+    
     # Editable encoding table
     st.markdown("**Review and edit encoding strategies:**")
+    st.caption("💡 **Optional Encoding** column shows additional encoding strategies: Location columns can use 'Cost of Living' or 'Metro Population'; Date columns can use 'Normalize Recent', 'Weight Recent', or 'Least Recent'.")
     
     encodings = data.get("encodings", {})
     
@@ -248,35 +261,62 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
         mapping = config.get("mapping", {})
         reasoning = config.get("reasoning", "")
         
+        # Get current optional encoding display value
+        optional_enc_display = "None"
+        col_type = column_types.get(col, "")
+        current_enc = current_optional_encodings.get(col, {}).get("type", "")
+        
+        if col_type == "location":
+            if current_enc == "cost_of_living":
+                optional_enc_display = "Cost of Living"
+            elif current_enc == "metro_population":
+                optional_enc_display = "Metro Population"
+        elif col_type == "datetime" or col in date_cols:
+            if current_enc == "normalize_recent":
+                optional_enc_display = "Normalize Recent"
+            elif current_enc == "weight_recent":
+                optional_enc_display = "Weight Recent"
+            elif current_enc == "least_recent":
+                optional_enc_display = "Least Recent"
+        
         encoding_data.append({
             "Column": col,
             "Encoding": enc_type,
             "Mapping": json.dumps(mapping) if mapping else "",
-            "Notes": reasoning
+            "Notes": reasoning,
+            "Optional Encoding": optional_enc_display
         })
     
     if not encoding_data:
         st.info("No features require encoding (all numeric).")
-        encoding_data = [{"Column": "", "Encoding": "numeric", "Mapping": "", "Notes": ""}]
+        encoding_data = [{"Column": "", "Encoding": "numeric", "Mapping": "", "Notes": "", "Optional Encoding": "None"}]
     
     enc_df = pd.DataFrame(encoding_data)
+    
+    # Build column config with dynamic options for Optional Encoding
+    column_config = {
+        "Column": st.column_config.TextColumn("Feature Column"),
+        "Encoding": st.column_config.SelectboxColumn(
+            "Encoding Type",
+            options=["numeric", "ordinal", "onehot", "proximity", "label"],
+            required=True
+        ),
+        "Mapping": st.column_config.TextColumn(
+            "Mapping (JSON)",
+            help="For ordinal encoding, provide a JSON mapping like {\"Low\": 0, \"High\": 1}"
+        ),
+        "Notes": st.column_config.TextColumn("Notes"),
+        "Optional Encoding": st.column_config.SelectboxColumn(
+            "Optional Encoding",
+            options=["None", "Cost of Living", "Metro Population", "Normalize Recent", "Weight Recent", "Least Recent"],
+            help="Location: Cost of Living, Metro Population | Date: Normalize Recent, Weight Recent, Least Recent"
+        )
+    }
     
     edited_enc_df = st.data_editor(
         enc_df,
         key="encoding_editor",
-        column_config={
-            "Column": st.column_config.TextColumn("Feature Column"),
-            "Encoding": st.column_config.SelectboxColumn(
-                "Encoding Type",
-                options=["numeric", "ordinal", "onehot", "proximity", "label"],
-                required=True
-            ),
-            "Mapping": st.column_config.TextColumn(
-                "Mapping (JSON)",
-                help="For ordinal encoding, provide a JSON mapping like {\"Low\": 0, \"High\": 1}"
-            ),
-            "Notes": st.column_config.TextColumn("Notes")
-        },
+        column_config=column_config,
         hide_index=True,
         width='stretch',
         num_rows="dynamic"
@@ -318,79 +358,6 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
                 # Store updated mapping
                 st.session_state[f"encoding_mapping_{col}"] = new_mapping
     
-    # Optional encodings section
-    st.markdown("**Optional Encodings:**")
-    st.caption("Select additional encoding strategies for location and date columns detected in phase 1.")
-    
-    current_optional_encodings = service.workflow.current_state.get("optional_encodings", {}) if service.workflow else {}
-    column_types = service.workflow.current_state.get("column_types", {}) if service.workflow else {}
-    
-    optional_encodings_ui = {}
-    encoded_cols = [row["Column"] for _, row in edited_enc_df.iterrows() if row["Column"]]
-    
-    # Get location columns from column_types
-    location_cols = [col for col in encoded_cols if column_types.get(col) == "location"]
-    
-    # Get date columns - check if we have access to original dataframe
-    # If not available, we'll infer from column_types or encoding type
-    date_cols = []
-    if "training_data" in st.session_state:
-        df = st.session_state["training_data"]
-        date_cols = [col for col in encoded_cols if pd_types.is_datetime64_any_dtype(df[col])]
-    else:
-        # Fallback: check column_types for datetime
-        date_cols = [col for col in encoded_cols if column_types.get(col) == "datetime"]
-    
-    # Show optional encodings for location columns
-    if location_cols:
-        with st.expander("Location Column Encodings", expanded=False):
-            for col in location_cols:
-                current_enc = current_optional_encodings.get(col, {}).get("type", "")
-                enc_display = "None"
-                if current_enc == "cost_of_living":
-                    enc_display = "Cost of Living"
-                elif current_enc == "metro_population":
-                    enc_display = "Metro Population"
-                
-                selected = st.selectbox(
-                    f"{col}",
-                    ["None", "Cost of Living", "Metro Population"],
-                    index=["None", "Cost of Living", "Metro Population"].index(enc_display),
-                    key=f"opt_enc_location_{col}"
-                )
-                if selected != "None":
-                    if selected == "Cost of Living":
-                        optional_encodings_ui[col] = {"type": "cost_of_living", "params": {}}
-                    elif selected == "Metro Population":
-                        optional_encodings_ui[col] = {"type": "metro_population", "params": {}}
-    
-    # Show optional encodings for date columns
-    if date_cols:
-        with st.expander("Date Column Encodings", expanded=False):
-            for col in date_cols:
-                current_enc = current_optional_encodings.get(col, {}).get("type", "")
-                enc_display = "None"
-                if current_enc == "normalize_recent":
-                    enc_display = "Normalize Recent"
-                elif current_enc == "weight_recent":
-                    enc_display = "Weight Recent"
-                elif current_enc == "least_recent":
-                    enc_display = "Least Recent"
-                
-                selected = st.selectbox(
-                    f"{col}",
-                    ["None", "Normalize Recent", "Weight Recent", "Least Recent"],
-                    index=["None", "Normalize Recent", "Weight Recent", "Least Recent"].index(enc_display),
-                    key=f"opt_enc_date_{col}"
-                )
-                if selected != "None":
-                    if selected == "Normalize Recent":
-                        optional_encodings_ui[col] = {"type": "normalize_recent", "params": {}}
-                    elif selected == "Weight Recent":
-                        optional_encodings_ui[col] = {"type": "weight_recent", "params": {}}
-                    elif selected == "Least Recent":
-                        optional_encodings_ui[col] = {"type": "least_recent", "params": {}}
-    
     # Action buttons
     col1, col2, col3 = st.columns([1, 1, 2])
     
@@ -398,6 +365,8 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
         if st.button("Confirm & Continue", type="primary", key="confirm_encoding"):
             # Build modifications
             new_encodings = {}
+            optional_encodings_ui = {}
+            
             for _, row in edited_enc_df.iterrows():
                 col_name = row["Column"]
                 if not col_name:
@@ -418,6 +387,34 @@ def _render_encoding_phase(service: WorkflowService, result: Dict[str, Any]) -> 
                     "mapping": mapping,
                     "reasoning": row.get("Notes", "")
                 }
+                
+                # Parse optional encoding from table
+                optional_enc = row.get("Optional Encoding", "None")
+                col_type = column_types.get(col_name, "")
+                is_location = col_type == "location"
+                is_datetime = col_type == "datetime" or col_name in date_cols
+                
+                if optional_enc != "None":
+                    # Validate and apply optional encoding based on column type
+                    if is_location:
+                        if optional_enc == "Cost of Living":
+                            optional_encodings_ui[col_name] = {"type": "cost_of_living", "params": {}}
+                        elif optional_enc == "Metro Population":
+                            optional_encodings_ui[col_name] = {"type": "metro_population", "params": {}}
+                        elif optional_enc in ["Normalize Recent", "Weight Recent", "Least Recent"]:
+                            st.warning(f"⚠️ '{optional_enc}' is not valid for location column '{col_name}'. Only 'Cost of Living' and 'Metro Population' are supported.")
+                    elif is_datetime:
+                        if optional_enc == "Normalize Recent":
+                            optional_encodings_ui[col_name] = {"type": "normalize_recent", "params": {}}
+                        elif optional_enc == "Weight Recent":
+                            optional_encodings_ui[col_name] = {"type": "weight_recent", "params": {}}
+                        elif optional_enc == "Least Recent":
+                            optional_encodings_ui[col_name] = {"type": "least_recent", "params": {}}
+                        elif optional_enc in ["Cost of Living", "Metro Population"]:
+                            st.warning(f"⚠️ '{optional_enc}' is not valid for datetime column '{col_name}'. Only 'Normalize Recent', 'Weight Recent', and 'Least Recent' are supported.")
+                    else:
+                        if optional_enc != "None":
+                            st.warning(f"⚠️ Optional encoding '{optional_enc}' is only available for location or datetime columns. Column '{col_name}' is not a location or datetime column.")
             
             modifications = {
                 "encodings": new_encodings,

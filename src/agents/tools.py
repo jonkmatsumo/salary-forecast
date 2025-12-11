@@ -2,12 +2,15 @@
 
 import re
 import json
-from typing import Any, Optional, List
+from typing import Any, Optional, List, TYPE_CHECKING
 import pandas as pd
 import numpy as np
 from io import StringIO
 from langchain_core.tools import tool
 from src.utils.json_utils import parse_df_json_safely
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
 
 
 @tool
@@ -108,8 +111,8 @@ def get_column_statistics(df_json: str, column: str) -> str:
     }
     
     if pd.api.types.is_numeric_dtype(col_data) and not pd.api.types.is_bool_dtype(col_data):
-        def safe_round(val):
-            """Safely round values, handling numpy types."""
+        def safe_round(val: Any) -> Optional[float]:
+            """Safely round values, handling numpy types. Args: val (Any): Value to round. Returns: Optional[float]: Rounded value or None."""
             if val is None or pd.isna(val):
                 return None
             try:
@@ -385,8 +388,8 @@ def detect_column_dtype(df_json: str, column: str) -> str:
     return json.dumps(result, indent=2)
 
 
-def get_all_tools() -> List[Any]:
-    """Return list of all analysis tools for use with agents. Returns: List[Any]: List of tool functions."""
+def get_all_tools() -> List["BaseTool"]:
+    """Return list of all analysis tools for use with agents. Returns: List[BaseTool]: List of tool functions."""
     return [
         compute_correlation_matrix,
         get_column_statistics,

@@ -7,10 +7,12 @@ import plotext as plt
 import argparse
 import json
 import logging
-from typing import Any, Callable, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union, TypeVar
 
 from rich.console import Console
 from rich.table import Table
+
+T = TypeVar('T')
 
 from src.utils.logger import setup_logging, get_logger
 from src.utils.compatibility import apply_backward_compatibility
@@ -29,8 +31,8 @@ def load_model(path: str) -> Any:
     with open(path, "rb") as f:
         return pickle.load(f)
 
-def get_input(prompt: str, type_func: Callable[[str], Any] = str, valid_options: Optional[List[Any]] = None) -> Any:
-    """Prompt user for input with type validation. Args: prompt (str): Input prompt. type_func (Callable): Type conversion function. valid_options (Optional[List[Any]]): Allowed values. Returns: Any: User input."""
+def get_input(prompt: str, type_func: Callable[[str], T] = str, valid_options: Optional[List[T]] = None) -> T:
+    """Prompt user for input with type validation. Args: prompt (str): Input prompt. type_func (Callable[[str], T]): Type conversion function. valid_options (Optional[List[T]]): Allowed values. Returns: T: User input of the specified type."""
     while True:
         try:
             user_input = input(prompt).strip()
@@ -97,13 +99,7 @@ def select_model(console: Console, registry: ModelRegistry) -> str:
             console.print("[red]Please enter a number.[/red]")
 
 def get_ordinal_suffix(n: int) -> str:
-    if 11 <= (n % 100) <= 13:
-        suffix = 'th'
-    else:
-        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
-    return f"{n}{suffix}"
-
-def get_ordinal_suffix(n: int) -> str:
+    """Get ordinal suffix for a number. Args: n (int): Number. Returns: str: Number with ordinal suffix."""
     if 11 <= (n % 100) <= 13:
         suffix = 'th'
     else:

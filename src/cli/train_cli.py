@@ -111,7 +111,8 @@ def train_workflow(csv_path: str, config_path: str, output_path: str, console: A
             
         status_text.plain = "Status: Completed"
     
-def main():
+def main() -> None:
+    """Main entry point for training CLI. Returns: None."""
     setup_logging()
     console = Console()
     console.print("[bold green]Salary Forecasting Training CLI[/bold green]")

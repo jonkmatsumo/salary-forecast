@@ -3,29 +3,58 @@
 A comprehensive framework for **Multi-Target Quantile Regression** using **XGBoost**. It automates the complex lifecycle of probabilistic modeling—from feature engineering and monotonic constraint enforcement to hyperparameter tuning and model versioning.
 
 Key features include:
-- **Automated Versioning**: Automatically tracks and versions trained models using **MLFlow**.
+- **Automated Versioning**: Automatically tracks and versions trained models using **MLflow**.
 - **Auto-Tuning**: Integrated Hyperparameter Optimization using **Optuna** to automatically find the best model parameters.
-- **LLM-Assisted Feature Engineering**: Uses Generative AI to intelligently infer feature and target variables, along with encodings and monotonic constraints.
-- **Outlier Detection** (IQR) to filter extreme data points and improve model generalization.
-- **Proximity Matching**: Geo-spatial grouping of cities into cost zones.
+- **LLM-Assisted Feature Engineering**: Uses Generative AI (OpenAI GPT-4 or Google Gemini) to intelligently infer feature and target variables, along with encodings and monotonic constraints through a multi-step agentic workflow.
+- **Outlier Detection**: IQR-based outlier filtering to improve model generalization.
+- **Proximity Matching**: Geo-spatial grouping of cities into cost zones using distance calculations.
+- **Prompt Injection Detection**: Security validation to prevent malicious inputs in the AI workflow.
+- **Type Safety**: Comprehensive type annotations with mypy static type checking.
 
 ## Installation
 
+1. Create a virtual environment (recommended):
     ```bash
     python3 -m venv .venv
-    source .venv/bin/activate
+    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
     ```
-    
-2.  Upgrade pip (Required for pyproject.toml based installs):
+
+2. Upgrade pip (required for pyproject.toml based installs):
     ```bash
     pip install --upgrade pip
     ```
 
-3.  Install the package:
+3. Install the package:
+
+   **Option A: Using pyproject.toml (recommended for development):**
     ```bash
     pip install -e .
-    # Or for development (includes test dependencies):
+    # Or for development (includes test dependencies and type checking):
     pip install -e ".[dev]"
+    ```
+
+   **Option B: Using requirements files (recommended for production/reproducibility):**
+    ```bash
+    # Production dependencies only
+    pip install -r requirements.txt
+    
+    # Or with dev dependencies
+    pip install -r requirements-dev.txt
+    ```
+
+   **Note:** `requirements.txt` and `requirements-dev.txt` contain pinned versions for reproducibility. `pyproject.toml` uses flexible version constraints (`>=`) for development flexibility.
+
+4. Set up environment variables (for LLM features):
+    Create a `.env` file in the project root:
+    ```bash
+    OPENAI_API_KEY=your_openai_key_here
+    GEMINI_API_KEY=your_gemini_key_here  # Optional
+    ```
+
+   Or export them in your shell:
+    ```bash
+    export OPENAI_API_KEY=your_openai_key_here
+    export GEMINI_API_KEY=your_gemini_key_here  # Optional
     ```
 
 ## Usage
@@ -37,9 +66,21 @@ The easiest way to use the system is via the web interface:
 streamlit run src/app/app.py
 ```
 
-This launches a dashboard where you can:
-- **Train Models**: Upload a CSV, adjust configurations (like quantiles), and train new models interactively.
-- **Run Inference**: Select a trained model, enter candidate details, and visualize the predicted salary distribution.
+This launches a dashboard with two main sections:
+
+#### Training Page
+- **Upload Data**: Upload CSV files for training
+- **Data Analysis**: View dataset statistics and visualizations
+- **AI-Powered Configuration Wizard**: Use the multi-step agentic workflow to generate configurations
+- **Manual Configuration**: Edit configurations directly
+- **Train Models**: Train models with hyperparameter tuning and outlier removal options
+- **Model Management**: View training progress and access trained models via MLflow
+
+#### Inference Page
+- **Model Selection**: Browse and select trained models from MLflow
+- **Interactive Prediction**: Enter candidate details and get quantile predictions
+- **Visualizations**: View salary distributions across quantiles
+- **Model Analysis**: Explore feature importance and model metrics
 
 ### Training (CLI)
 To train the model via terminal:
@@ -49,7 +90,19 @@ salary-forecast-train
 # Or: python3 -m src.cli.train_cli
 ```
 
-You can specify the input CSV, config file, and output model path.
+**Available Options:**
+- `--csv`: Path to training CSV (default: `salaries-list.csv`)
+- `--config`: Path to config JSON file (default: `config.json`)
+- `--tune`: Enable Optuna hyperparameter tuning
+- `--num-trials`: Number of tuning trials (default: 20)
+- `--remove-outliers`: Remove outliers using IQR before training
+
+**Example:**
+```bash
+salary-forecast-train --csv data.csv --config config.json --tune --num-trials 50 --remove-outliers
+```
+
+**Note:** Models are automatically logged to MLflow. The `--output` flag is deprecated as models are now versioned through MLflow.
 
 ### Inference (CLI)
 You can run the CLI in two modes:
@@ -57,21 +110,42 @@ You can run the CLI in two modes:
 **1. Interactive Mode**:
 ```bash
 salary-forecast-infer
+# Or: python3 -m src.cli.inference_cli
 ```
-Follow the prompts to select a model and enter candidate details.
+Follow the prompts to select a model from MLflow and enter candidate details.
 
 **2. Non-Interactive (Automation) Mode**:
 Pass all required arguments via flags to skip prompts. Useful for scripts.
 
 ```bash
-salary-forecast-infer --model salary_model.pkl --level E5 --location "New York" --yoe 5 --yac 2
+salary-forecast-infer --run-id <mlflow-run-id> --level E5 --location "New York" --yoe 5 --yac 2
 ```
 
-**JSON Output**:
-Add the `--json` flag to output results as a machine-readable JSON object (suppresses charts and tables).
+**Available Options:**
+- `--run-id`: MLflow Run ID (if not provided, interactive selection is used)
+- `--level`: Candidate level (e.g., E3, E4, E5, E6, E7)
+- `--location`: Candidate location (e.g., "New York", "San Francisco")
+- `--yoe`: Years of Experience (integer)
+- `--yac`: Years at Company (integer)
+- `--json`: Output results as JSON (suppresses charts and tables)
+- `--verbose`: Enable verbose logging
 
+**JSON Output Example:**
 ```bash
-salary-forecast-infer ... --json
+salary-forecast-infer --run-id abc123 --level E5 --location "New York" --yoe 5 --yac 2 --json
+```
+
+Outputs machine-readable JSON:
+```json
+{
+  "BaseSalary": {
+    "p10": 150000.0,
+    "p25": 180000.0,
+    "p50": 200000.0,
+    "p75": 220000.0,
+    "p90": 250000.0
+  }
+}
 ```
 
 ## Testing
@@ -81,6 +155,43 @@ To run the unit tests:
 ```bash
 python3 -m pytest tests/
 ```
+
+## Type Checking
+
+AutoQuantile uses **mypy** for static type checking to catch type errors before runtime and improve code quality.
+
+### Setup
+
+Type checking is included in the dev dependencies:
+
+```bash
+pip install -e ".[dev]"
+```
+
+### Running Type Checks
+
+Check all source files:
+
+```bash
+mypy src/
+```
+
+Check a specific file or directory:
+
+```bash
+mypy src/agents/workflow.py
+mypy src/services/
+```
+
+### Configuration
+
+Type checking configuration is defined in `mypy.ini`. The configuration:
+- Warns on `Any` return types
+- Checks untyped definitions
+- Ignores missing imports for third-party libraries
+- Excludes test files from strict checking
+
+Type checking is also integrated into the CI/CD pipeline (see `.github/workflows/ci.yml`) and runs automatically on pushes and pull requests.
 
 ## AI-Powered Configuration Workflow
 
@@ -155,4 +266,21 @@ The system automatically detects available providers based on installed packages
 
 ### Manual Configuration
 
-You can also provide a configuration file directly (`config.json`) when using the CLI, or edit configurations manually in the web interface after generation.
+You can also generate configurations manually using the CLI:
+
+```bash
+salary-forecast-config data.csv -o config.json
+# Or: python3 -m src.cli.generate_config_cli data.csv -o config.json
+```
+
+**Options:**
+- `input_file`: Path to input CSV file (required)
+- `-o, --output`: Output JSON file path (default: stdout)
+- `--llm`: Use LLM to infer configuration (deprecated - use web interface workflow instead)
+- `--provider`: LLM provider (openai or gemini, default: openai)
+- `--preset`: LLM preset name (e.g., salary, none)
+- `-v, --verbose`: Enable verbose logging
+
+**Note:** The `--llm` flag is deprecated. For AI-powered configuration, use the web interface's Configuration Wizard which provides a more robust multi-step workflow with human-in-the-loop confirmation.
+
+You can also edit configurations manually in the web interface after generation, or provide a configuration file directly (`config.json`) when using the training CLI.

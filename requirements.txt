@@ -1,0 +1,40 @@
+# Production dependencies with pinned versions for reproducibility
+# Generated from pyproject.toml minimum versions
+# Update these versions after testing new releases
+
+# Core ML libraries
+xgboost>=2.0.0,<3.0.0
+pandas>=2.0.0,<3.0.0
+scikit-learn>=1.3.0,<2.0.0
+optuna>=3.0.0,<4.0.0
+
+# Web framework
+streamlit>=1.28.0,<2.0.0
+
+# Visualization
+matplotlib>=3.7.0,<4.0.0
+seaborn>=0.12.0,<1.0.0
+
+# MLflow for model versioning
+mlflow>=2.0.0,<3.0.0
+
+# Data validation
+pydantic>=2.0.0,<3.0.0
+
+# Geospatial
+geopy>=2.0.0,<3.0.0
+
+# LLM clients
+openai>=1.0.0,<2.0.0
+google-generativeai>=0.3.0,<1.0.0
+
+# Utilities
+python-dotenv>=1.0.0,<2.0.0
+urllib3<2.0.0
+
+# LangChain ecosystem
+langgraph>=0.2.0,<1.0.0
+langchain>=0.3.0,<1.0.0
+langchain-openai>=0.2.0,<1.0.0
+langchain-google-genai>=2.0.0,<3.0.0
+

@@ -15,8 +15,8 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
     original_str = json_str
     strategies = []
     
-    def _parse_once(s: str) -> Any:
-        """Tries all parsing strategies once."""
+    def _parse_once(s: str) -> Optional[Any]:
+        """Tries all parsing strategies once. Args: s (str): JSON string to parse. Returns: Optional[Any]: Parsed JSON object or None if all strategies fail."""
         try:
             return json.loads(s)
         except json.JSONDecodeError:

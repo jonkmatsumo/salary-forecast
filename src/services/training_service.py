@@ -84,11 +84,12 @@ class TrainingService:
         with self._lock:
             return self._jobs.get(job_id)
 
-    def _run_async_job(self, job_id: str, data: pd.DataFrame, remove_outliers: bool, do_tune: bool, n_trials: int, additional_tag: Optional[str], dataset_name: str):
-        """Internal worker method."""
+    def _run_async_job(self, job_id: str, data: pd.DataFrame, remove_outliers: bool, do_tune: bool, n_trials: int, additional_tag: Optional[str], dataset_name: str) -> None:
+        """Internal worker method. Args: job_id (str): Job identifier. data (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. do_tune (bool): Run tuning. n_trials (int): Tuning trials. additional_tag (Optional[str]): Additional tag. dataset_name (str): Dataset name. Returns: None."""
         
 
-        def _async_callback(msg: str, data: Optional[Dict[str, Any]] = None):
+        def _async_callback(msg: str, data: Optional[Dict[str, Any]] = None) -> None:
+            """Async callback for training progress. Args: msg (str): Message. data (Optional[Dict[str, Any]]): Optional data. Returns: None."""
             with self._lock:
                 if job_id in self._jobs:
                     self._jobs[job_id]["logs"].append(msg)

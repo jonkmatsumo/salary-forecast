@@ -1,12 +1,20 @@
 """LLM client module providing both legacy LLM clients and LangChain-compatible wrappers for use with the agentic workflow."""
 
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, TYPE_CHECKING, Union
 import os
 import google.generativeai as genai
 from openai import OpenAI
 from src.utils.env_loader import get_env_var
 from src.utils.logger import get_logger
+
+if TYPE_CHECKING:
+    from langchain_core.language_models import BaseChatModel
+else:
+    try:
+        from langchain_core.language_models import BaseChatModel
+    except ImportError:
+        BaseChatModel = Any
 
 logger = get_logger(__name__)
 
@@ -90,8 +98,8 @@ def get_langchain_llm(
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-) -> Any:
-    """Get a LangChain-compatible LLM instance. Args: provider (str): Provider name. model (Optional[str]): Model name override. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: LangChain BaseChatModel instance."""
+) -> BaseChatModel:
+    """Get a LangChain-compatible LLM instance. Args: provider (str): Provider name. model (Optional[str]): Model name override. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: LangChain BaseChatModel instance."""
     provider_lower = provider.lower()
     
     if provider_lower == "openai":
@@ -106,8 +114,8 @@ def _get_langchain_openai(
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-) -> Any:
-    """Get a LangChain ChatOpenAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: ChatOpenAI instance."""
+) -> "BaseChatModel":
+    """Get a LangChain ChatOpenAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatOpenAI instance."""
     try:
         from langchain_openai import ChatOpenAI
     except ImportError:
@@ -134,8 +142,8 @@ def _get_langchain_gemini(
     model: Optional[str] = None,
     temperature: float = 0.0,
     **kwargs
-) -> Any:
-    """Get a LangChain ChatGoogleGenerativeAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: Any: ChatGoogleGenerativeAI instance."""
+) -> "BaseChatModel":
+    """Get a LangChain ChatGoogleGenerativeAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatGoogleGenerativeAI instance."""
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
     except ImportError:

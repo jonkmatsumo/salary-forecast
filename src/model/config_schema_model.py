@@ -16,7 +16,8 @@ class ModelConfig(BaseModel):
     sample_weight_k: float = Field(default=1.0, ge=0.0)
     
     @model_validator(mode='after')
-    def validate_features_unique(self):
+    def validate_features_unique(self) -> "ModelConfig":
+        """Validate that feature names are unique. Returns: ModelConfig: Self for chaining."""
         names = [f.name for f in self.features]
         if len(names) != len(set(names)):
             raise ValueError("Feature names must be unique")

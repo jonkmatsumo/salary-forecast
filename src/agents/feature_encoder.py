@@ -1,9 +1,12 @@
 """Feature encoding agent that analyzes feature columns and determines the best encoding strategy (numeric, ordinal, onehot, proximity, or label)."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.language_models import BaseChatModel
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
 
 from src.agents.tools import (
     get_unique_value_counts,
@@ -22,8 +25,8 @@ from src.utils.observability import (
 logger = get_logger(__name__)
 
 
-def get_feature_encoder_tools() -> List[Any]:
-    """Return tools available to the feature encoder agent. Returns: List[Any]: List of tool functions."""
+def get_feature_encoder_tools() -> List["BaseTool"]:
+    """Return tools available to the feature encoder agent. Returns: List[BaseTool]: List of tool functions."""
     return [
         get_unique_value_counts,
         detect_ordinal_patterns,
@@ -32,7 +35,7 @@ def get_feature_encoder_tools() -> List[Any]:
 
 
 def create_feature_encoder_agent(llm: BaseChatModel) -> Any:
-    """Create a feature encoder agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model. Returns: Any: Agent with bound tools."""
+    """Create a feature encoder agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model. Returns: Any: Runnable with bound tools (exact type depends on LLM implementation)."""
     tools = get_feature_encoder_tools()
     return llm.bind_tools(tools)
 

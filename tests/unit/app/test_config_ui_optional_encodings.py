@@ -40,14 +40,11 @@ def test_optional_encodings_shown_for_location_columns(mock_workflow_service, sa
             "Date": pd.to_datetime(["2023-01-01", "2023-02-01"])
         })}
         
-        # Mock data editor to return encoding table
+        # Mock data editor to return encoding table with Optional Encoding column
         mock_enc_df = pd.DataFrame([
-            {"Column": "Location", "Encoding": "proximity", "Mapping": "", "Notes": ""}
+            {"Column": "Location", "Encoding": "proximity", "Mapping": "", "Notes": "", "Optional Encoding": "None"}
         ])
         mock_st.data_editor.return_value = mock_enc_df
-        
-        # Mock selectbox for optional encoding
-        mock_st.selectbox.return_value = "None"
         
         # Mock columns for action buttons
         mock_col1 = MagicMock()
@@ -58,10 +55,22 @@ def test_optional_encodings_shown_for_location_columns(mock_workflow_service, sa
         
         result = _render_encoding_phase(mock_workflow_service, sample_encoding_result)
         
-        # Verify that selectbox was called for location encoding
-        selectbox_calls = [call for call in mock_st.selectbox.call_args_list 
-                          if "Location" in str(call)]
-        assert len(selectbox_calls) > 0, "Optional encoding selectbox should be shown for location columns"
+        # Verify that data_editor was called
+        assert mock_st.data_editor.called, "data_editor should be called"
+        
+        # Check the dataframe passed to data_editor includes Optional Encoding column
+        call_args = mock_st.data_editor.call_args
+        assert call_args is not None, "data_editor should have been called with arguments"
+        
+        # First positional argument is the dataframe
+        assert call_args[0] is not None and len(call_args[0]) > 0, "data_editor should receive a dataframe as first argument"
+        input_df = call_args[0][0]
+        assert "Optional Encoding" in input_df.columns, "Optional Encoding column should be in the input dataframe"
+        
+        # Check column_config keyword argument
+        call_kwargs = call_args[1] if len(call_args) > 1 else {}
+        column_config = call_kwargs.get("column_config", {})
+        assert "Optional Encoding" in column_config, "Optional Encoding column should be in column_config"
 
 
 def test_optional_encodings_shown_for_date_columns(mock_workflow_service, sample_encoding_result):
@@ -72,14 +81,11 @@ def test_optional_encodings_shown_for_date_columns(mock_workflow_service, sample
             "Date": pd.to_datetime(["2023-01-01", "2023-02-01"])
         })}
         
-        # Mock data editor to return encoding table
+        # Mock data editor to return encoding table with Optional Encoding column
         mock_enc_df = pd.DataFrame([
-            {"Column": "Date", "Encoding": "numeric", "Mapping": "", "Notes": ""}
+            {"Column": "Date", "Encoding": "numeric", "Mapping": "", "Notes": "", "Optional Encoding": "None"}
         ])
         mock_st.data_editor.return_value = mock_enc_df
-        
-        # Mock selectbox for optional encoding
-        mock_st.selectbox.return_value = "None"
         
         # Mock columns for action buttons
         mock_col1 = MagicMock()
@@ -90,10 +96,22 @@ def test_optional_encodings_shown_for_date_columns(mock_workflow_service, sample
         
         result = _render_encoding_phase(mock_workflow_service, sample_encoding_result)
         
-        # Verify that selectbox was called for date encoding
-        selectbox_calls = [call for call in mock_st.selectbox.call_args_list 
-                          if "Date" in str(call) and "opt_enc_date" in str(call)]
-        assert len(selectbox_calls) > 0, "Optional encoding selectbox should be shown for date columns"
+        # Verify that data_editor was called
+        assert mock_st.data_editor.called, "data_editor should be called"
+        
+        # Check the dataframe passed to data_editor includes Optional Encoding column
+        call_args = mock_st.data_editor.call_args
+        assert call_args is not None, "data_editor should have been called with arguments"
+        
+        # First positional argument is the dataframe
+        assert call_args[0] is not None and len(call_args[0]) > 0, "data_editor should receive a dataframe as first argument"
+        input_df = call_args[0][0]
+        assert "Optional Encoding" in input_df.columns, "Optional Encoding column should be in the input dataframe"
+        
+        # Check column_config keyword argument
+        call_kwargs = call_args[1] if len(call_args) > 1 else {}
+        column_config = call_kwargs.get("column_config", {})
+        assert "Optional Encoding" in column_config, "Optional Encoding column should be in column_config"
 
 
 def test_optional_encodings_not_in_classification_phase():

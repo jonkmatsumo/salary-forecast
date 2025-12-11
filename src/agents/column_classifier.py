@@ -1,9 +1,12 @@
 """Column classification agent that analyzes datasets and classifies columns as targets, features, or ignore."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 from langchain_core.language_models import BaseChatModel
+
+if TYPE_CHECKING:
+    from langchain_core.tools import BaseTool
 
 from src.agents.tools import (
     compute_correlation_matrix,
@@ -22,8 +25,8 @@ from src.utils.observability import (
 logger = get_logger(__name__)
 
 
-def get_column_classifier_tools() -> List[Any]:
-    """Return tools available to the column classifier agent. Returns: List[Any]: List of tool functions."""
+def get_column_classifier_tools() -> List["BaseTool"]:
+    """Return tools available to the column classifier agent. Returns: List[BaseTool]: List of tool functions."""
     return [
         compute_correlation_matrix,
         get_column_statistics,
@@ -32,7 +35,7 @@ def get_column_classifier_tools() -> List[Any]:
 
 
 def create_column_classifier_agent(llm: BaseChatModel) -> Any:
-    """Create a column classifier agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model with tool calling. Returns: Any: Agent with bound tools."""
+    """Create a column classifier agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model with tool calling. Returns: Any: Runnable with bound tools (exact type depends on LLM implementation)."""
     tools = get_column_classifier_tools()
     return llm.bind_tools(tools)
 
