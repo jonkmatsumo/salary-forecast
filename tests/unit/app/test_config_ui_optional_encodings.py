@@ -1,7 +1,10 @@
 """Tests for optional encodings in phase 2 of the workflow."""
-import pytest
+
 from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
+
 from src.app.config_ui import _render_encoding_phase
 from src.services.workflow_service import WorkflowService
 
@@ -13,7 +16,7 @@ def mock_workflow_service():
     service.workflow = MagicMock()
     service.workflow.current_state = {
         "optional_encodings": {},
-        "column_types": {"Location": "location", "Date": "datetime"}
+        "column_types": {"Location": "location", "Date": "datetime"},
     }
     return service
 
@@ -25,93 +28,131 @@ def sample_encoding_result():
         "data": {
             "encodings": {
                 "Location": {"type": "proximity", "reasoning": "Location column"},
-                "Date": {"type": "numeric", "reasoning": "Date column"}
+                "Date": {"type": "numeric", "reasoning": "Date column"},
             },
-            "summary": "Encoding summary"
+            "summary": "Encoding summary",
         }
     }
 
 
-def test_optional_encodings_shown_for_location_columns(mock_workflow_service, sample_encoding_result):
+def test_optional_encodings_shown_for_location_columns(
+    mock_workflow_service, sample_encoding_result
+):
     """Test that optional encodings are shown for location columns in phase 2."""
     with patch("src.app.config_ui.st") as mock_st:
-        mock_st.session_state = {"training_data": pd.DataFrame({
-            "Location": ["New York", "Austin"],
-            "Date": pd.to_datetime(["2023-01-01", "2023-02-01"])
-        })}
-        
+        mock_st.session_state = {
+            "training_data": pd.DataFrame(
+                {
+                    "Location": ["New York", "Austin"],
+                    "Date": pd.to_datetime(["2023-01-01", "2023-02-01"]),
+                }
+            )
+        }
+
         # Mock data editor to return encoding table with Optional Encoding column
-        mock_enc_df = pd.DataFrame([
-            {"Column": "Location", "Encoding": "proximity", "Mapping": "", "Notes": "", "Optional Encoding": "None"}
-        ])
+        mock_enc_df = pd.DataFrame(
+            [
+                {
+                    "Column": "Location",
+                    "Encoding": "proximity",
+                    "Mapping": "",
+                    "Notes": "",
+                    "Optional Encoding": "None",
+                }
+            ]
+        )
         mock_st.data_editor.return_value = mock_enc_df
-        
+
         # Mock columns for action buttons
         mock_col1 = MagicMock()
         mock_col2 = MagicMock()
         mock_col3 = MagicMock()
         mock_st.columns.return_value = (mock_col1, mock_col2, mock_col3)
         mock_st.button.return_value = False
-        
+
         result = _render_encoding_phase(mock_workflow_service, sample_encoding_result)
-        
+
         # Verify that data_editor was called
         assert mock_st.data_editor.called, "data_editor should be called"
-        
+
         # Check the dataframe passed to data_editor includes Optional Encoding column
         call_args = mock_st.data_editor.call_args
         assert call_args is not None, "data_editor should have been called with arguments"
-        
+
         # First positional argument is the dataframe
-        assert call_args[0] is not None and len(call_args[0]) > 0, "data_editor should receive a dataframe as first argument"
+        assert (
+            call_args[0] is not None and len(call_args[0]) > 0
+        ), "data_editor should receive a dataframe as first argument"
         input_df = call_args[0][0]
-        assert "Optional Encoding" in input_df.columns, "Optional Encoding column should be in the input dataframe"
-        
+        assert (
+            "Optional Encoding" in input_df.columns
+        ), "Optional Encoding column should be in the input dataframe"
+
         # Check column_config keyword argument
         call_kwargs = call_args[1] if len(call_args) > 1 else {}
         column_config = call_kwargs.get("column_config", {})
-        assert "Optional Encoding" in column_config, "Optional Encoding column should be in column_config"
+        assert (
+            "Optional Encoding" in column_config
+        ), "Optional Encoding column should be in column_config"
 
 
 def test_optional_encodings_shown_for_date_columns(mock_workflow_service, sample_encoding_result):
     """Test that optional encodings are shown for date columns in phase 2."""
     with patch("src.app.config_ui.st") as mock_st:
-        mock_st.session_state = {"training_data": pd.DataFrame({
-            "Location": ["New York", "Austin"],
-            "Date": pd.to_datetime(["2023-01-01", "2023-02-01"])
-        })}
-        
+        mock_st.session_state = {
+            "training_data": pd.DataFrame(
+                {
+                    "Location": ["New York", "Austin"],
+                    "Date": pd.to_datetime(["2023-01-01", "2023-02-01"]),
+                }
+            )
+        }
+
         # Mock data editor to return encoding table with Optional Encoding column
-        mock_enc_df = pd.DataFrame([
-            {"Column": "Date", "Encoding": "numeric", "Mapping": "", "Notes": "", "Optional Encoding": "None"}
-        ])
+        mock_enc_df = pd.DataFrame(
+            [
+                {
+                    "Column": "Date",
+                    "Encoding": "numeric",
+                    "Mapping": "",
+                    "Notes": "",
+                    "Optional Encoding": "None",
+                }
+            ]
+        )
         mock_st.data_editor.return_value = mock_enc_df
-        
+
         # Mock columns for action buttons
         mock_col1 = MagicMock()
         mock_col2 = MagicMock()
         mock_col3 = MagicMock()
         mock_st.columns.return_value = (mock_col1, mock_col2, mock_col3)
         mock_st.button.return_value = False
-        
+
         result = _render_encoding_phase(mock_workflow_service, sample_encoding_result)
-        
+
         # Verify that data_editor was called
         assert mock_st.data_editor.called, "data_editor should be called"
-        
+
         # Check the dataframe passed to data_editor includes Optional Encoding column
         call_args = mock_st.data_editor.call_args
         assert call_args is not None, "data_editor should have been called with arguments"
-        
+
         # First positional argument is the dataframe
-        assert call_args[0] is not None and len(call_args[0]) > 0, "data_editor should receive a dataframe as first argument"
+        assert (
+            call_args[0] is not None and len(call_args[0]) > 0
+        ), "data_editor should receive a dataframe as first argument"
         input_df = call_args[0][0]
-        assert "Optional Encoding" in input_df.columns, "Optional Encoding column should be in the input dataframe"
-        
+        assert (
+            "Optional Encoding" in input_df.columns
+        ), "Optional Encoding column should be in the input dataframe"
+
         # Check column_config keyword argument
         call_kwargs = call_args[1] if len(call_args) > 1 else {}
         column_config = call_kwargs.get("column_config", {})
-        assert "Optional Encoding" in column_config, "Optional Encoding column should be in column_config"
+        assert (
+            "Optional Encoding" in column_config
+        ), "Optional Encoding column should be in column_config"
 
 
 def test_optional_encodings_not_in_classification_phase():
@@ -120,46 +161,37 @@ def test_optional_encodings_not_in_classification_phase():
     # The actual implementation should have removed the optional encodings section
     # We can verify this by checking that the classification phase UI doesn't include
     # the optional encodings expanders
-    
+
     # Import the classification phase function
     from src.app.config_ui import _render_classification_phase
-    
+
     with patch("src.app.config_ui.st") as mock_st:
         mock_service = MagicMock()
         mock_service.workflow = MagicMock()
-        mock_service.workflow.current_state = {
-            "column_types": {"Location": "location"}
-        }
-        
-        result = {
-            "data": {
-                "targets": ["Salary"],
-                "features": ["Level"],
-                "ignore": []
-            }
-        }
-        
-        df = pd.DataFrame({
-            "Location": ["New York"],
-            "Salary": [100000]
-        })
-        
+        mock_service.workflow.current_state = {"column_types": {"Location": "location"}}
+
+        result = {"data": {"targets": ["Salary"], "features": ["Level"], "ignore": []}}
+
+        df = pd.DataFrame({"Location": ["New York"], "Salary": [100000]})
+
         # Mock data editor
-        mock_st.data_editor.return_value = pd.DataFrame([
-            {"Column": "Location", "Role": "Feature", "Dtype": "string (location)"}
-        ])
-        
+        mock_st.data_editor.return_value = pd.DataFrame(
+            [{"Column": "Location", "Role": "Feature", "Dtype": "string (location)"}]
+        )
+
         # Mock columns for action buttons
         mock_col1 = MagicMock()
         mock_col2 = MagicMock()
         mock_col3 = MagicMock()
         mock_st.columns.return_value = (mock_col1, mock_col2, mock_col3)
         mock_st.button.return_value = False
-        
-        _render_classification_phase(mock_service, result, df)
-        
-        # Verify that no optional encoding expanders were created
-        expander_calls = [call for call in mock_st.expander.call_args_list 
-                         if "Encodings" in str(call)]
-        assert len(expander_calls) == 0, "Optional encodings should not appear in classification phase"
 
+        _render_classification_phase(mock_service, result, df)
+
+        # Verify that no optional encoding expanders were created
+        expander_calls = [
+            call for call in mock_st.expander.call_args_list if "Encodings" in str(call)
+        ]
+        assert (
+            len(expander_calls) == 0
+        ), "Optional encodings should not appear in classification phase"

@@ -1,12 +1,13 @@
 """LLM client module providing both legacy LLM clients and LangChain-compatible wrappers for use with the agentic workflow."""
 
-from abc import ABC, abstractmethod
-from typing import Optional, Any, List, TYPE_CHECKING
-import time
 import asyncio
+import time
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, List, Optional
+
 import google.generativeai as genai
-from openai import OpenAI, AsyncOpenAI
-from openai import RateLimitError, APIError
+from openai import APIError, AsyncOpenAI, OpenAI, RateLimitError
+
 from src.utils.env_loader import get_env_var
 from src.utils.logger import get_logger
 
@@ -32,7 +33,7 @@ class LLMClient(ABC):
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Generate text from the LLM. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
         pass
-    
+
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Async generate text from the LLM. Default implementation uses sync method in executor. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
         loop = asyncio.get_event_loop()
@@ -47,7 +48,7 @@ class OpenAIClient(LLMClient):
         self.client = OpenAI(api_key=self.api_key)
         self.async_client: Optional[AsyncOpenAI] = None
         self.model = model
-    
+
     def _get_async_client(self) -> AsyncOpenAI:
         """Get or create async OpenAI client. Returns: AsyncOpenAI: Async client instance."""
         if self.async_client is None:
@@ -63,13 +64,11 @@ class OpenAIClient(LLMClient):
 
         backoff = INITIAL_BACKOFF
         last_exception = None
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=0.0
+                    model=self.model, messages=messages, temperature=0.0
                 )
                 if attempt > 0:
                     logger.info(f"OpenAI request succeeded on attempt {attempt + 1}")
@@ -92,11 +91,11 @@ class OpenAIClient(LLMClient):
             except Exception as e:
                 logger.error(f"OpenAI generation failed with unexpected error: {e}")
                 raise
-        
+
         if last_exception:
             raise last_exception
         raise RuntimeError("OpenAI generation failed: unknown error")
-    
+
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Async generate text from OpenAI with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
         messages = []
@@ -107,13 +106,11 @@ class OpenAIClient(LLMClient):
         backoff = INITIAL_BACKOFF
         last_exception = None
         async_client = self._get_async_client()
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 response = await async_client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=0.0
+                    model=self.model, messages=messages, temperature=0.0
                 )
                 if attempt > 0:
                     logger.info(f"OpenAI async request succeeded on attempt {attempt + 1}")
@@ -132,11 +129,13 @@ class OpenAIClient(LLMClient):
                     await asyncio.sleep(wait_time)
                     backoff *= BACKOFF_MULTIPLIER
                 else:
-                    logger.error(f"OpenAI async generation failed after {MAX_RETRIES} attempts: {e}")
+                    logger.error(
+                        f"OpenAI async generation failed after {MAX_RETRIES} attempts: {e}"
+                    )
             except Exception as e:
                 logger.error(f"OpenAI async generation failed with unexpected error: {e}")
                 raise
-        
+
         if last_exception:
             raise last_exception
         raise RuntimeError("OpenAI async generation failed: unknown error")
@@ -155,10 +154,10 @@ class GeminiClient(LLMClient):
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
-        
+
         backoff = INITIAL_BACKOFF
         last_exception = None
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 response = self.model.generate_content(full_prompt)
@@ -183,27 +182,26 @@ class GeminiClient(LLMClient):
                 else:
                     logger.error(f"Gemini generation failed with non-retryable error: {e}")
                     raise
-        
+
         if last_exception:
             raise last_exception
         raise RuntimeError("Gemini generation failed: unknown error")
-    
+
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Async generate text using Gemini with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
-        
+
         backoff = INITIAL_BACKOFF
         last_exception = None
-        
+
         for attempt in range(MAX_RETRIES):
             try:
                 # Run synchronous Gemini call in executor
                 loop = asyncio.get_event_loop()
                 response = await loop.run_in_executor(
-                    None, 
-                    lambda: self.model.generate_content(full_prompt)
+                    None, lambda: self.model.generate_content(full_prompt)
                 )
                 if attempt > 0:
                     logger.info(f"Gemini async request succeeded on attempt {attempt + 1}")
@@ -222,11 +220,13 @@ class GeminiClient(LLMClient):
                         await asyncio.sleep(wait_time)
                         backoff *= BACKOFF_MULTIPLIER
                     else:
-                        logger.error(f"Gemini async generation failed after {MAX_RETRIES} attempts: {e}")
+                        logger.error(
+                            f"Gemini async generation failed after {MAX_RETRIES} attempts: {e}"
+                        )
                 else:
                     logger.error(f"Gemini async generation failed with non-retryable error: {e}")
                     raise
-        
+
         if last_exception:
             raise last_exception
         raise RuntimeError("Gemini async generation failed: unknown error")
@@ -252,14 +252,11 @@ def get_llm_client(provider: str = "openai") -> LLMClient:
 
 
 def get_langchain_llm(
-    provider: str = "openai",
-    model: Optional[str] = None,
-    temperature: float = 0.0,
-    **kwargs
+    provider: str = "openai", model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> BaseChatModel:
     """Get a LangChain-compatible LLM instance. Args: provider (str): Provider name. model (Optional[str]): Model name override. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: LangChain BaseChatModel instance."""
     provider_lower = provider.lower()
-    
+
     if provider_lower == "openai":
         return _get_langchain_openai(model, temperature, **kwargs)
     elif provider_lower == "gemini":
@@ -269,9 +266,7 @@ def get_langchain_llm(
 
 
 def _get_langchain_openai(
-    model: Optional[str] = None,
-    temperature: float = 0.0,
-    **kwargs
+    model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> "BaseChatModel":
     """Get a LangChain ChatOpenAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatOpenAI instance."""
     try:
@@ -281,25 +276,18 @@ def _get_langchain_openai(
             "langchain-openai is required for OpenAI LangChain support. "
             "Install with: pip install langchain-openai"
         )
-    
+
     api_key = get_env_var("OPENAI_API_KEY")
     if not api_key:
         raise ValueError("OPENAI_API_KEY not found in environment.")
-    
+
     model_name = model or "gpt-4-turbo-preview"
-    
-    return ChatOpenAI(
-        model=model_name,
-        temperature=temperature,
-        api_key=api_key,
-        **kwargs
-    )
+
+    return ChatOpenAI(model=model_name, temperature=temperature, api_key=api_key, **kwargs)
 
 
 def _get_langchain_gemini(
-    model: Optional[str] = None,
-    temperature: float = 0.0,
-    **kwargs
+    model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> "BaseChatModel":
     """Get a LangChain ChatGoogleGenerativeAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatGoogleGenerativeAI instance."""
     try:
@@ -309,39 +297,38 @@ def _get_langchain_gemini(
             "langchain-google-genai is required for Gemini LangChain support. "
             "Install with: pip install langchain-google-genai"
         )
-    
+
     api_key = get_env_var("GEMINI_API_KEY")
     if not api_key:
         raise ValueError("GEMINI_API_KEY not found in environment.")
-    
+
     model_name = model or "gemini-1.5-pro"
-    
+
     return ChatGoogleGenerativeAI(
-        model=model_name,
-        temperature=temperature,
-        google_api_key=api_key,
-        **kwargs
+        model=model_name, temperature=temperature, google_api_key=api_key, **kwargs
     )
 
 
 def get_available_providers() -> List[str]:
     """Get list of available LLM providers. Returns: List[str]: Available provider names."""
     available = []
-    
+
     try:
         from langchain_openai import ChatOpenAI  # noqa: F401
+
         if get_env_var("OPENAI_API_KEY"):
             available.append("openai")
     except ImportError:
         pass
-    
+
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI  # noqa: F401
+
         if get_env_var("GEMINI_API_KEY"):
             available.append("gemini")
     except ImportError:
         pass
-    
+
     return available
 
 

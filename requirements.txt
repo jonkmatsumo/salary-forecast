@@ -38,3 +38,6 @@ langchain>=0.3.0,<1.0.0
 langchain-openai>=0.2.0,<1.0.0
 langchain-google-genai>=2.0.0,<3.0.0
 
+# Structured logging
+python-json-logger>=2.0.0,<3.0.0
+

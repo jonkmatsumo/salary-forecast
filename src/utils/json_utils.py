@@ -2,6 +2,7 @@
 
 import json
 from typing import Any, Dict, Optional
+
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -11,48 +12,49 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
     """Normalizes and parses a JSON string that may be escaped or double-encoded using multiple parsing strategies. Args: json_str (str): JSON string that may be escaped or encoded. max_depth (int): Maximum recursion depth to prevent infinite loops. Returns: Any: Parsed JSON object (dict, list, or primitive type). Raises: ValueError: If all parsing attempts fail."""
     if not json_str or not isinstance(json_str, str):
         raise ValueError(f"Invalid input: expected non-empty string, got {type(json_str)}")
-    
+
     original_str = json_str
     strategies = []
-    
+
     def _parse_once(s: str) -> Optional[Any]:
         """Tries all parsing strategies once. Args: s (str): JSON string to parse. Returns: Optional[Any]: Parsed JSON object or None if all strategies fail."""
         try:
             return json.loads(s)
         except json.JSONDecodeError:
             pass
-        
+
         stripped = s.strip()
-        if (stripped.startswith('"') and stripped.endswith('"')) or \
-           (stripped.startswith("'") and stripped.endswith("'")):
+        if (stripped.startswith('"') and stripped.endswith('"')) or (
+            stripped.startswith("'") and stripped.endswith("'")
+        ):
             try:
                 unquoted = stripped[1:-1]
                 return json.loads(unquoted)
             except json.JSONDecodeError:
                 pass
-        
+
         try:
-            unescaped = s.encode().decode('unicode_escape')
+            unescaped = s.encode().decode("unicode_escape")
             return json.loads(unescaped)
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass
-        
+
         try:
-            manual_unescaped = s.replace('\\"', '"').replace('\\\\', '\\')
+            manual_unescaped = s.replace('\\"', '"').replace("\\\\", "\\")
             return json.loads(manual_unescaped)
         except json.JSONDecodeError:
             pass
-        
-        if (stripped.startswith('"') and stripped.endswith('"')):
+
+        if stripped.startswith('"') and stripped.endswith('"'):
             try:
                 unquoted = stripped[1:-1]
-                unescaped = unquoted.replace('\\"', '"').replace('\\\\', '\\')
+                unescaped = unquoted.replace('\\"', '"').replace("\\\\", "\\")
                 return json.loads(unescaped)
             except json.JSONDecodeError:
                 pass
-        
+
         return None
-    
+
     result = _parse_once(json_str)
     if result is None:
         preview = original_str[:200] if len(original_str) > 200 else original_str
@@ -63,7 +65,7 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
         )
         logger.error(error_msg)
         raise ValueError(error_msg)
-    
+
     depth = 0
     while isinstance(result, str) and depth < max_depth:
         try:
@@ -73,10 +75,10 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
             logger.debug(f"Recursively parsed JSON string (depth: {depth})")
         except (json.JSONDecodeError, TypeError):
             break
-    
+
     if isinstance(result, str) and depth >= max_depth:
         logger.warning(f"Reached max recursion depth ({max_depth}), returning string result")
-    
+
     return result
 
 
@@ -94,8 +96,7 @@ def parse_df_json_safely(df_json: str) -> Dict[str, Any]:
             "error_type": "json_parse_error",
             "df_json_preview": preview,
             "df_json_length": len(df_json),
-            "suggestion": "Ensure df_json is passed as a valid JSON string without extra escaping"
+            "suggestion": "Ensure df_json is passed as a valid JSON string without extra escaping",
         }
         logger.error(f"Failed to parse df_json: {error_detail}")
         raise ValueError(json.dumps(error_detail)) from e
-

@@ -1,9 +1,11 @@
-import streamlit as st
-import pandas as pd
-from typing import Union
 from io import BytesIO
+from typing import Union
+
+import pandas as pd
+import streamlit as st
 
 from src.utils.data_utils import load_data as original_load_data
+
 
 @st.cache_data(show_spinner="Loading data...", ttl="1h")
 def load_data_cached(file: Union[str, BytesIO]) -> pd.DataFrame:

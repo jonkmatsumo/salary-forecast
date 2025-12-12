@@ -1,9 +1,11 @@
-import unittest
 import sys
-from unittest.mock import patch, MagicMock
-from src.utils.compatibility import apply_backward_compatibility
+import unittest
+from unittest.mock import MagicMock, patch
+
 import src.xgboost
 import src.xgboost.model
+from src.utils.compatibility import apply_backward_compatibility
+
 
 class TestCompatibility(unittest.TestCase):
     def setUp(self):
@@ -14,7 +16,7 @@ class TestCompatibility(unittest.TestCase):
         self._remove_modules()
 
     def _remove_modules(self):
-        for mod in ['src.model', 'src.model.model', 'src.model.preprocessing']:
+        for mod in ["src.model", "src.model.model", "src.model.preprocessing"]:
             if mod in sys.modules:
                 del sys.modules[mod]
 
@@ -29,4 +31,3 @@ class TestCompatibility(unittest.TestCase):
         # It should handle being called twice safely
         apply_backward_compatibility()
         apply_backward_compatibility()
-

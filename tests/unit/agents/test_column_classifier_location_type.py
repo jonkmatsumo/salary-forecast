@@ -1,7 +1,10 @@
 """Tests for location type detection and assignment."""
-import pytest
-from unittest.mock import MagicMock, patch
+
 import json
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from src.agents.column_classifier import parse_classification_response
 
 
@@ -16,9 +19,9 @@ def test_parse_classification_with_column_types():
         },
         "reasoning": "Test reasoning"
     }"""
-    
+
     result = parse_classification_response(response)
-    
+
     assert "targets" in result
     assert "features" in result
     assert "Location" in result["features"]
@@ -36,9 +39,9 @@ def test_parse_classification_backward_compatibility():
         "ignore": [],
         "reasoning": "Test reasoning"
     }"""
-    
+
     result = parse_classification_response(response)
-    
+
     assert "column_types" in result
     assert result["column_types"]["Location"] == "location"
     # locations key should be removed after migration
@@ -56,9 +59,9 @@ def test_location_can_be_target():
         },
         "reasoning": "Location is a target"
     }"""
-    
+
     result = parse_classification_response(response)
-    
+
     assert "Location" in result["targets"]
     assert result["column_types"]["Location"] == "location"
 
@@ -74,9 +77,9 @@ def test_location_can_be_feature():
         },
         "reasoning": "Location is a feature"
     }"""
-    
+
     result = parse_classification_response(response)
-    
+
     assert "Location" in result["features"]
     assert result["column_types"]["Location"] == "location"
 
@@ -93,11 +96,10 @@ def test_multiple_location_types():
         },
         "reasoning": "Multiple location columns"
     }"""
-    
+
     result = parse_classification_response(response)
-    
+
     assert result["column_types"]["City"] == "location"
     assert result["column_types"]["Region"] == "location"
     assert "City" in result["features"]
     assert "Region" in result["features"]
-

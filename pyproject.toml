@@ -38,6 +38,7 @@ dependencies = [
     "langchain>=0.3.0",
     "langchain-openai>=0.2.0",
     "langchain-google-genai>=2.0.0",
+    "python-json-logger>=2.0.0",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +49,10 @@ dev = [
     "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "bandit>=1.7.0",
+    "pip-audit>=2.6.0",
 ]
 
 [project.scripts]
@@ -63,3 +68,35 @@ include = ["src*"]
 testpaths = ["tests"]
 pythonpath = "."
 addopts = "-v --cov=src --cov-report=term-missing --cov-report=html"
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | mlruns
+  | salary_forecast.egg-info
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["src"]
+skip_glob = ["mlruns/**", "salary_forecast.egg-info/**"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "mlruns", "salary_forecast.egg-info", ".venv", "venv", "build", "dist"]
+skips = ["B101"]  # Skip assert_used test (common in test files)
+test_files = ["test_*.py", "*_test.py"]

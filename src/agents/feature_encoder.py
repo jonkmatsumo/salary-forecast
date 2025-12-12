@@ -1,26 +1,27 @@
 """Feature encoding agent that analyzes feature columns and determines the best encoding strategy (numeric, ordinal, onehot, proximity, or label)."""
 
 import json
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
-from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
 from src.agents.tools import (
-    get_unique_value_counts,
     detect_ordinal_patterns,
     get_column_statistics,
+    get_unique_value_counts,
 )
-from src.utils.prompt_loader import load_prompt
 from src.utils.logger import get_logger
 from src.utils.observability import (
+    log_agent_interaction,
+    log_llm_follow_up,
     log_llm_tool_call,
     log_tool_result,
-    log_llm_follow_up,
-    log_agent_interaction,
 )
+from src.utils.prompt_loader import load_prompt
 
 logger = get_logger(__name__)
 
@@ -43,7 +44,7 @@ def create_feature_encoder_agent(llm: BaseChatModel) -> Any:
 def build_encoding_prompt(df_json: str, features: List[str], dtypes: Dict[str, str]) -> str:
     """Build the user prompt for feature encoding analysis. Args: df_json (str): JSON DataFrame sample. features (List[str]): Feature column names. dtypes (Dict[str, str]): Column to dtype mapping. Returns: str: Formatted prompt."""
     feature_info = "\n".join([f"- {col}: {dtypes.get(col, 'unknown')}" for col in features])
-    
+
     return f"""Please analyze these feature columns and determine the best encoding strategy for each.
 
 ## Feature Columns to Encode
@@ -78,22 +79,22 @@ def parse_encoding_response(response_content: str) -> Dict[str, Any]:
             json_str = response_content.split("```")[1].split("```")[0].strip()
         else:
             json_str = response_content.strip()
-        
+
         result = json.loads(json_str)
-        
+
         if "encodings" not in result:
             result = {"encodings": result, "summary": "Extracted from response"}
         if "summary" not in result:
             result["summary"] = "No summary provided"
-            
+
         return result
-        
+
     except json.JSONDecodeError as e:
         logger.warning(f"Failed to parse encoding JSON: {e}")
         return {
             "encodings": {},
             "summary": f"Failed to parse response: {response_content[:200]}",
-            "raw_response": response_content
+            "raw_response": response_content,
         }
 
 
@@ -102,48 +103,41 @@ async def run_feature_encoder(
     df_json: str,
     features: List[str],
     dtypes: Dict[str, str],
-    max_iterations: int = 15
+    max_iterations: int = 15,
 ) -> Dict[str, Any]:
     """Runs the feature encoding agent. Args: llm (BaseChatModel): LangChain chat model with tool-calling support. df_json (str): JSON representation of DataFrame sample. features (List[str]): List of feature column names. dtypes (Dict[str, str]): Dict mapping column names to dtypes. max_iterations (int): Maximum tool-calling iterations. Returns: Dict[str, Any]: Encoding recommendations with encodings dict and summary."""
     if not features:
-        return {
-            "encodings": {},
-            "summary": "No features to encode"
-        }
-    
+        return {"encodings": {}, "summary": "No features to encode"}
+
     system_prompt = load_prompt("agents/feature_encoder_system")
     user_prompt = build_encoding_prompt(df_json, features, dtypes)
-    
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
-    
+
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+
     agent = create_feature_encoder_agent(llm)
     tools = {tool.name: tool for tool in get_feature_encoder_tools()}
-    
+
     for iteration in range(max_iterations):
         response = await agent.ainvoke(messages)
         messages.append(response)
-        
+
         if response.tool_calls:
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
                 tool_args = tool_call["args"]
-                
+
                 logger.info(f"Feature encoder calling tool: {tool_name}")
-                
+
                 if tool_name in tools:
                     tool_result = tools[tool_name].invoke(tool_args)
-                    messages.append(ToolMessage(
-                        content=str(tool_result),
-                        tool_call_id=tool_call["id"]
-                    ))
+                    messages.append(
+                        ToolMessage(content=str(tool_result), tool_call_id=tool_call["id"])
+                    )
                 else:
                     logger.warning(f"Unknown tool requested: {tool_name}")
         else:
             return parse_encoding_response(response.content)
-    
+
     logger.warning("Max iterations reached in feature encoder")
     return parse_encoding_response(messages[-1].content if messages else "")
 
@@ -154,53 +148,46 @@ def run_feature_encoder_sync(
     features: List[str],
     dtypes: Dict[str, str],
     max_iterations: int = 15,
-    preset: Optional[str] = None
+    preset: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Synchronous feature encoder. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. features (List[str]): Feature column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max iterations. preset (Optional[str]): Optional preset prompt name. Returns: Dict[str, Any]: Encoding recommendations."""
     if not features:
-        return {
-            "encodings": {},
-            "summary": "No features to encode"
-        }
-    
+        return {"encodings": {}, "summary": "No features to encode"}
+
     system_prompt = load_prompt("agents/feature_encoder_system")
-    
+
     if preset and preset.lower() != "none":
         try:
             preset_content = load_prompt(f"presets/{preset}")
             system_prompt += f"\n\n{preset_content}"
         except Exception as e:
             logger.warning(f"Failed to load preset '{preset}': {e}")
-    
+
     user_prompt = build_encoding_prompt(df_json, features, dtypes)
-    
-    messages = [
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt)
-    ]
-    
+
+    messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+
     agent = create_feature_encoder_agent(llm)
     tools = {tool.name: tool for tool in get_feature_encoder_tools()}
-    
+
     for iteration in range(max_iterations):
         response = agent.invoke(messages)
         messages.append(response)
-        
+
         if response.tool_calls:
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
                 tool_args = tool_call["args"]
-                
+
                 logger.info(f"Feature encoder calling tool: {tool_name}")
                 log_llm_tool_call("feature_encoder", tool_name, tool_args, iteration + 1)
-                
+
                 if tool_name in tools:
                     tool_result = tools[tool_name].invoke(tool_args)
                     log_tool_result("feature_encoder", tool_name, tool_result, iteration + 1)
-                    messages.append(ToolMessage(
-                        content=str(tool_result),
-                        tool_call_id=tool_call["id"]
-                    ))
+                    messages.append(
+                        ToolMessage(content=str(tool_result), tool_call_id=tool_call["id"])
+                    )
                     log_llm_follow_up("feature_encoder", messages, iteration + 1)
                 else:
                     logger.warning(f"Unknown tool requested: {tool_name}")
@@ -210,18 +197,12 @@ def run_feature_encoder_sync(
                 "feature_encoder",
                 system_prompt,
                 user_prompt,
-                response.content if response.content else ""
+                response.content if response.content else "",
             )
             return result
-    
+
     logger.warning("Max iterations reached in feature encoder")
     final_content = messages[-1].content if messages else ""
     result = parse_encoding_response(final_content)
-    log_agent_interaction(
-        "feature_encoder",
-        system_prompt,
-        user_prompt,
-        final_content
-    )
+    log_agent_interaction("feature_encoder", system_prompt, user_prompt, final_content)
     return result
-

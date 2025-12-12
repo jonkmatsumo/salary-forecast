@@ -9,9 +9,13 @@ Provides:
 - TrainingService: Model training orchestration
 """
 
-from src.services.config_generator import ConfigGenerator
-from src.services.workflow_service import WorkflowService, create_workflow_service, get_workflow_providers
 from src.services.analytics_service import AnalyticsService
+from src.services.config_generator import ConfigGenerator
+from src.services.workflow_service import (
+    WorkflowService,
+    create_workflow_service,
+    get_workflow_providers,
+)
 
 __all__ = [
     "ConfigGenerator",
@@ -20,4 +24,3 @@ __all__ = [
     "get_workflow_providers",
     "AnalyticsService",
 ]
-

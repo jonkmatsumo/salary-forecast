@@ -26,6 +26,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
     
+    - name: Check code formatting (black)
+      run: |
+        black --check src tests
+      continue-on-error: true
+    
+    - name: Check import sorting (isort)
+      run: |
+        isort --check-only src tests
+      continue-on-error: true
+    
     - name: Run linting
       run: |
         ruff check --select F401 src/
@@ -34,6 +44,17 @@ jobs:
     - name: Run type checking
       run: |
         mypy src/
+      continue-on-error: true
+    
+    - name: Run security scanning (bandit)
+      run: |
+        bandit -r src/ -x tests/ -s B101 -f json -o bandit-report.json || true
+        bandit -r src/ -x tests/ -s B101 -ll
+      continue-on-error: true
+    
+    - name: Check dependency vulnerabilities (pip-audit)
+      run: |
+        pip-audit --desc
       continue-on-error: true
     
     - name: Run tests with coverage

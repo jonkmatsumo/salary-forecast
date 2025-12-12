@@ -1,11 +1,12 @@
+from typing import Union
+
 import pandas as pd
 
-from typing import Union
 
 def load_data(filepath: str) -> pd.DataFrame:
     """Load and clean salary data from CSV. Args: filepath (str): CSV file path. Returns: pd.DataFrame: Cleaned DataFrame."""
     df = pd.read_csv(filepath)
-    
+
     def clean_years(val: Union[int, float, str]) -> float:
         """Parse year strings like '11+' or '5-10' into floats. Args: val (Union[int, float, str]): Year value. Returns: float: Parsed year."""
         if isinstance(val, (int, float)):
@@ -20,14 +21,14 @@ def load_data(filepath: str) -> pd.DataFrame:
 
     df["YearsOfExperience"] = df["YearsOfExperience"].apply(clean_years)
     df["YearsAtCompany"] = df["YearsAtCompany"].apply(clean_years)
-    
+
     try:
-        df["Date"] = pd.to_datetime(df["Date"], errors='coerce', format='mixed')
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce", format="mixed")
     except ValueError:
-        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-    
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+
     targets = ["BaseSalary", "Stock", "Bonus", "TotalComp"]
     for col in targets:
-        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+
     return df

@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
+
 from src.utils.env_loader import get_env_var
+
 
 class TestEnvLoader(unittest.TestCase):
     @patch("src.utils.env_loader.os.getenv")
@@ -14,10 +16,11 @@ class TestEnvLoader(unittest.TestCase):
     def test_get_env_var_default(self, mock_getenv):
         # Simulator os.getenv behavior when key missing: it returns default
         def side_effect(key, default=None):
-             if key == "MISSING": return default
-             return "val"
-             
+            if key == "MISSING":
+                return default
+            return "val"
+
         mock_getenv.side_effect = side_effect
-        
+
         val = get_env_var("MISSING", default="default_val")
         self.assertEqual(val, "default_val")
