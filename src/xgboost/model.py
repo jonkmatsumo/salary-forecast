@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import optuna
 import pandas as pd
@@ -141,13 +141,54 @@ class QuantileForecaster:
 
         return df_clean, removed_count
 
+    def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Clean and normalize raw data columns. Args: df (pd.DataFrame): Raw data. Returns: pd.DataFrame: Cleaned data."""
+        df_clean = df.copy()
+
+        def clean_years(val: Union[int, float, str]) -> float:
+            """Parse year strings like '11+' or '5-10' into floats. Args: val (Union[int, float, str]): Year value. Returns: float: Parsed year."""
+            if isinstance(val, (int, float)):
+                return float(val)
+            val = str(val).strip()
+            if "+" in val:
+                return float(val.replace("+", ""))
+            if "-" in val:
+                parts = val.split("-")
+                return (float(parts[0]) + float(parts[1])) / 2
+            return float(val)
+
+        if "YearsOfExperience" in df_clean.columns:
+            df_clean["YearsOfExperience"] = df_clean["YearsOfExperience"].apply(clean_years)
+        if "YearsAtCompany" in df_clean.columns:
+            df_clean["YearsAtCompany"] = df_clean["YearsAtCompany"].apply(clean_years)
+
+        if "Date" in df_clean.columns:
+            try:
+                df_clean["Date"] = pd.to_datetime(df_clean["Date"], errors="coerce", format="mixed")
+            except ValueError:
+                df_clean["Date"] = pd.to_datetime(df_clean["Date"], errors="coerce")
+
+        targets = ["BaseSalary", "Stock", "Bonus", "TotalComp"]
+        for col in targets:
+            if col in df_clean.columns:
+                df_clean[col] = pd.to_numeric(df_clean[col], errors="coerce").fillna(0)
+
+        return df_clean
+
     def _prepare_training_data(
         self,
         df: pd.DataFrame,
         remove_outliers: bool,
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]],
     ) -> pd.DataFrame:
-        """Prepare training data with optional outlier removal. Args: df (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. callback (Optional[Callable]): Progress callback. Returns: pd.DataFrame: Prepared DataFrame."""
+        """Prepare training data with data cleaning and optional outlier removal. Args: df (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. callback (Optional[Callable]): Progress callback. Returns: pd.DataFrame: Prepared DataFrame."""
+        if callback:
+            callback("Preprocessing: Cleaning data...", {"stage": "preprocess"})
+        else:
+            self.logger.info("Preprocessing: Cleaning data...")
+
+        df = self._clean_data(df)
+
         if remove_outliers:
             if callback:
                 callback("Preprocessing: Removing outliers...", {"stage": "preprocess"})
