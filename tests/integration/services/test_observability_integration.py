@@ -119,11 +119,14 @@ class TestPromptInjectionIntegration(unittest.TestCase):
         mock_llm = MagicMock(spec=BaseChatModel)
         mock_get_llm.return_value = mock_llm
 
-        mock_workflow = MagicMock()
-        mock_workflow.start.return_value = {
+        workflow_state = {
             "column_classification": {"targets": ["col1"], "features": ["col2"]},
             "current_phase": "classification",
         }
+        mock_workflow = MagicMock()
+        mock_workflow.start.return_value = workflow_state
+        mock_workflow.current_state = workflow_state
+        mock_workflow.get_current_phase.return_value = "classification"
         mock_workflow_class.return_value = mock_workflow
 
         service = WorkflowService(provider="openai")

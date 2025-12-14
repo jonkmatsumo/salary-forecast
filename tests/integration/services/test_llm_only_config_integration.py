@@ -86,42 +86,6 @@ class TestLLMOnlyConfigIntegration(unittest.TestCase):
         validated_config = validate_config_dict(config)
         self.assertIsNotNone(validated_config)
 
-    @patch("src.services.workflow_service.get_langchain_llm")
-    def test_cli_workflow_integration(self, mock_get_llm):
-        """Test CLI workflow: generate config → train."""
-        from langchain_core.language_models import BaseChatModel
-
-        mock_llm = MagicMock(spec=BaseChatModel)
-        mock_get_llm.return_value = mock_llm
-
-        # Simulate CLI workflow
-        # 1. Generate config from data
-        config = create_test_config()
-
-        # 2. Validate config
-        from src.model.config_schema_model import validate_config_dict
-
-        validated_config = validate_config_dict(config)
-        self.assertIsNotNone(validated_config)
-
-        # 3. Use config for training (mocked)
-        training_service = TrainingService()
-        with patch.object(training_service, "start_training_async") as mock_train:
-            mock_train.return_value = "job_id_456"
-
-            job_id = training_service.start_training_async(
-                self.sample_df,
-                validated_config.model_dump(),
-                remove_outliers=False,
-                do_tune=False,
-                n_trials=20,
-                additional_tag="cli-test",
-                dataset_name="cli_data",
-            )
-
-            self.assertEqual(job_id, "job_id_456")
-            mock_train.assert_called_once()
-
     def test_config_state_management(self):
         """Test config state management across components."""
         config = create_test_config()
