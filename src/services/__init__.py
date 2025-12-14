@@ -11,6 +11,7 @@ Provides:
 
 from src.services.analytics_service import AnalyticsService
 from src.services.config_generator import ConfigGenerator
+from src.services.inference_service import InferenceService
 from src.services.workflow_service import (
     WorkflowService,
     create_workflow_service,
@@ -23,4 +24,5 @@ __all__ = [
     "create_workflow_service",
     "get_workflow_providers",
     "AnalyticsService",
+    "InferenceService",
 ]

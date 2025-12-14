@@ -1,14 +1,16 @@
 import asyncio
+import io
 import threading
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import mlflow
 import numpy as np
 import pandas as pd
 
 from src.services.model_registry import SalaryForecasterWrapper, get_experiment_name
+from src.utils.csv_validator import validate_csv
 from src.utils.logger import get_logger
 from src.xgboost.model import SalaryForecaster
 
@@ -153,9 +155,61 @@ class TrainingService:
         return job_id
 
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
-        """Returns the current status dictionary of a job."""
+        """Get the current status dictionary of a job. Args: job_id (str): Job identifier. Returns: Optional[Dict[str, Any]]: Job status dictionary or None if not found."""
         with self._lock:
             return self._jobs.get(job_id)
+
+    def validate_csv_file(
+        self, file_content: bytes, filename: str
+    ) -> Tuple[bool, Optional[str], Optional[pd.DataFrame]]:
+        """Validate and parse a CSV file. Args: file_content (bytes): CSV file content. filename (str): Original filename. Returns: Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe)."""
+        try:
+            file_buffer = io.BytesIO(file_content)
+            is_valid, error_msg, df = validate_csv(file_buffer)
+
+            if not is_valid:
+                return False, error_msg, None
+
+            return True, None, df
+        except Exception as e:
+            self.logger.error(f"CSV validation failed for {filename}: {e}", exc_info=True)
+            return False, f"Failed to validate CSV file: {str(e)}", None
+
+    def parse_csv_data(self, file_content: bytes) -> pd.DataFrame:
+        """Parse CSV file content into a DataFrame. Args: file_content (bytes): CSV file content. Returns: pd.DataFrame: Parsed DataFrame. Raises: ValueError: If CSV cannot be parsed."""
+        file_buffer = io.BytesIO(file_content)
+        is_valid, error_msg, df = validate_csv(file_buffer)
+
+        if not is_valid:
+            raise ValueError(error_msg or "Invalid CSV file")
+
+        if df is None:
+            raise ValueError("Failed to parse CSV file")
+
+        return df
+
+    def get_training_job_summary(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get a summary of a training job suitable for API responses. Args: job_id (str): Job identifier. Returns: Optional[Dict[str, Any]]: Job summary or None if not found."""
+        job_status = self.get_job_status(job_id)
+        if job_status is None:
+            return None
+
+        summary = {
+            "job_id": job_id,
+            "status": job_status.get("status"),
+            "submitted_at": job_status.get("submitted_at"),
+            "completed_at": job_status.get("completed_at"),
+            "run_id": job_status.get("run_id"),
+        }
+
+        if job_status.get("status") == "COMPLETED":
+            summary["result"] = "Model trained successfully"
+            if "run_id" in job_status:
+                summary["run_id"] = job_status["run_id"]
+        elif job_status.get("status") == "FAILED":
+            summary["error"] = job_status.get("error")
+
+        return summary
 
     async def _run_async_job(
         self,

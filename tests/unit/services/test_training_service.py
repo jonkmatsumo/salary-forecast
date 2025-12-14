@@ -288,3 +288,114 @@ class TestTrainingServiceConfigValidation(unittest.TestCase):
 
             # Verify SalaryForecaster was called with config
             MockForecaster.assert_called_with(config=self.config)
+
+
+class TestTrainingServiceCSVValidation(unittest.TestCase):
+    """Tests for CSV validation methods in TrainingService."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.service = TrainingService()
+
+    def test_validate_csv_file_valid(self):
+        """Test validation of a valid CSV file."""
+        csv_content = b"col1,col2\n1,2\n3,4\n"
+        is_valid, error_msg, df = self.service.validate_csv_file(csv_content, "test.csv")
+
+        self.assertTrue(is_valid)
+        self.assertIsNone(error_msg)
+        self.assertIsNotNone(df)
+        self.assertEqual(len(df), 2)
+        self.assertEqual(list(df.columns), ["col1", "col2"])
+
+    def test_validate_csv_file_empty(self):
+        """Test validation fails for empty file."""
+        csv_content = b""
+        is_valid, error_msg, df = self.service.validate_csv_file(csv_content, "test.csv")
+
+        self.assertFalse(is_valid)
+        self.assertIsNotNone(error_msg)
+        self.assertIsNone(df)
+        self.assertIn("empty", error_msg.lower())
+
+    def test_validate_csv_file_no_data_rows(self):
+        """Test validation fails for CSV with no data rows."""
+        csv_content = b"col1,col2\n"
+        is_valid, error_msg, df = self.service.validate_csv_file(csv_content, "test.csv")
+
+        self.assertFalse(is_valid)
+        self.assertIsNotNone(error_msg)
+        self.assertIsNone(df)
+
+    def test_validate_csv_file_insufficient_columns(self):
+        """Test validation fails for CSV with less than 2 columns."""
+        csv_content = b"col1\n1\n2\n"
+        is_valid, error_msg, df = self.service.validate_csv_file(csv_content, "test.csv")
+
+        self.assertFalse(is_valid)
+        self.assertIsNotNone(error_msg)
+        self.assertIsNone(df)
+        self.assertIn("2 columns", error_msg.lower())
+
+    def test_validate_csv_file_invalid_format(self):
+        """Test validation fails for invalid CSV format."""
+        csv_content = b"not,a,valid,csv\nwith\nbad\nformatting"
+        is_valid, error_msg, df = self.service.validate_csv_file(csv_content, "test.csv")
+
+        self.assertTrue(is_valid)
+        self.assertIsNone(error_msg)
+        self.assertIsNotNone(df)
+
+    def test_parse_csv_data_valid(self):
+        """Test parsing a valid CSV file."""
+        csv_content = b"col1,col2\n1,2\n3,4\n"
+        df = self.service.parse_csv_data(csv_content)
+
+        self.assertIsNotNone(df)
+        self.assertEqual(len(df), 2)
+        self.assertEqual(list(df.columns), ["col1", "col2"])
+
+    def test_parse_csv_data_invalid(self):
+        """Test parsing an invalid CSV file raises ValueError."""
+        csv_content = b""
+        with self.assertRaises(ValueError):
+            self.service.parse_csv_data(csv_content)
+
+    def test_get_training_job_summary_existing_job(self):
+        """Test getting summary for an existing job."""
+        job_id = "test_job_123"
+        self.service._jobs[job_id] = {
+            "status": "COMPLETED",
+            "submitted_at": "2024-01-01T00:00:00",
+            "completed_at": "2024-01-01T01:00:00",
+            "run_id": "run_123",
+            "result": "Model trained successfully",
+        }
+
+        summary = self.service.get_training_job_summary(job_id)
+
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary["job_id"], job_id)
+        self.assertEqual(summary["status"], "COMPLETED")
+        self.assertEqual(summary["run_id"], "run_123")
+
+    def test_get_training_job_summary_failed_job(self):
+        """Test getting summary for a failed job."""
+        job_id = "test_job_456"
+        self.service._jobs[job_id] = {
+            "status": "FAILED",
+            "submitted_at": "2024-01-01T00:00:00",
+            "completed_at": "2024-01-01T01:00:00",
+            "error": "Training failed: Out of memory",
+        }
+
+        summary = self.service.get_training_job_summary(job_id)
+
+        self.assertIsNotNone(summary)
+        self.assertEqual(summary["status"], "FAILED")
+        self.assertEqual(summary["error"], "Training failed: Out of memory")
+
+    def test_get_training_job_summary_nonexistent_job(self):
+        """Test getting summary for a non-existent job returns None."""
+        summary = self.service.get_training_job_summary("nonexistent_job")
+        self.assertIsNone(summary)
