@@ -4,6 +4,7 @@ from typing import Any, Dict, Optional, Union
 import pandas as pd
 
 from src.utils.geo_utils import GeoMapper
+from src.utils.performance import PerformanceMetrics
 
 
 class RankedCategoryEncoder:
@@ -34,9 +35,10 @@ class RankedCategoryEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series, list]) -> pd.Series:
         """Transforms categories to their integer representation. Args: X (Union[pd.DataFrame, pd.Series, list]): Input categories. Returns: pd.Series: Integer encoded categories. Unknown categories mapped to -1."""
-        if isinstance(X, pd.DataFrame):
-            X = X.iloc[:, 0]
-        return pd.Series(X).map(self.mapping).fillna(-1).astype(int)
+        with PerformanceMetrics("preprocessing_ranked_encoder_time"):
+            if isinstance(X, pd.DataFrame):
+                X = X.iloc[:, 0]
+            return pd.Series(X).map(self.mapping).fillna(-1).astype(int)
 
 
 class ProximityEncoder:
@@ -52,15 +54,16 @@ class ProximityEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """Transforms location names to their cost zone integers. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Cost zones (1-4)."""
-        if isinstance(X, pd.DataFrame):
-            X = X.iloc[:, 0]
+        with PerformanceMetrics("preprocessing_proximity_encoder_time"):
+            if isinstance(X, pd.DataFrame):
+                X = X.iloc[:, 0]
 
-        def map_loc(loc: Any) -> int:
-            if not isinstance(loc, str):
-                return 4
-            return self.mapper.get_zone(loc)
+            def map_loc(loc: Any) -> int:
+                if not isinstance(loc, str):
+                    return 4
+                return self.mapper.get_zone(loc)
 
-        return X.apply(map_loc)
+            return X.apply(map_loc)
 
 
 class SampleWeighter:
@@ -119,15 +122,16 @@ class CostOfLivingEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """Transforms location names to their cost of living tier integers. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Cost of living tiers (1-4, where 1 is highest cost)."""
-        if isinstance(X, pd.DataFrame):
-            X = X.iloc[:, 0]
+        with PerformanceMetrics("preprocessing_cost_of_living_encoder_time"):
+            if isinstance(X, pd.DataFrame):
+                X = X.iloc[:, 0]
 
-        def map_loc(loc: Any) -> int:
-            if not isinstance(loc, str):
-                return 4
-            return self.mapper.get_zone(loc)
+            def map_loc(loc: Any) -> int:
+                if not isinstance(loc, str):
+                    return 4
+                return self.mapper.get_zone(loc)
 
-        return X.apply(map_loc)
+            return X.apply(map_loc)
 
 
 class MetroPopulationEncoder:
@@ -144,16 +148,17 @@ class MetroPopulationEncoder:
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
         """Transforms location names to approximate population values. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Approximate population values."""
-        if isinstance(X, pd.DataFrame):
-            X = X.iloc[:, 0]
+        with PerformanceMetrics("preprocessing_metro_population_encoder_time"):
+            if isinstance(X, pd.DataFrame):
+                X = X.iloc[:, 0]
 
-        def map_loc(loc: Any) -> int:
-            if not isinstance(loc, str):
-                return self.population_map[4]
-            zone = self.mapper.get_zone(loc)
-            return self.population_map.get(zone, self.population_map[4])
+            def map_loc(loc: Any) -> int:
+                if not isinstance(loc, str):
+                    return self.population_map[4]
+                zone = self.mapper.get_zone(loc)
+                return self.population_map.get(zone, self.population_map[4])
 
-        return X.apply(map_loc)
+            return X.apply(map_loc)
 
 
 class DateNormalizer:
@@ -187,25 +192,26 @@ class DateNormalizer:
         if self.min_date is None or self.max_date is None:
             raise ValueError("DateNormalizer must be fitted before transform")
 
-        if isinstance(X, pd.DataFrame):
-            X = X.iloc[:, 0]
+        with PerformanceMetrics("preprocessing_date_normalizer_time"):
+            if isinstance(X, pd.DataFrame):
+                X = X.iloc[:, 0]
 
-        X = pd.to_datetime(X, errors="coerce")
+            X = pd.to_datetime(X, errors="coerce")
 
-        date_range = (self.max_date - self.min_date).total_seconds()
+            date_range = (self.max_date - self.min_date).total_seconds()
 
-        if date_range == 0:
-            return pd.Series([1.0] * len(X), index=X.index)
+            if date_range == 0:
+                return pd.Series([1.0] * len(X), index=X.index)
 
-        if self.mode == "normalize_recent":
-            normalized = (X - self.min_date).dt.total_seconds() / date_range
-        else:
-            normalized = (X - self.min_date).dt.total_seconds() / date_range
+            if self.mode == "normalize_recent":
+                normalized = (X - self.min_date).dt.total_seconds() / date_range
+            else:
+                normalized = (X - self.min_date).dt.total_seconds() / date_range
 
-        normalized = normalized.fillna(0.0)
-        normalized = normalized.clip(0.0, 1.0)
+            normalized = normalized.fillna(0.0)
+            normalized = normalized.clip(0.0, 1.0)
 
-        return normalized
+            return normalized
 
 
 # Backward Compatibility Aliases

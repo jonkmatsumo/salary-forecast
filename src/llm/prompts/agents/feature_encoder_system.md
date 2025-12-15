@@ -51,4 +51,3 @@ After your analysis, provide your encoding recommendations as a JSON object:
 ```
 
 For ordinal encodings, always provide a suggested mapping based on the detected order. Use the tools to analyze each feature column and determine the best encoding strategy.
-

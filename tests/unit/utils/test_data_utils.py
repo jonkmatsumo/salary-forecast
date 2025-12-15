@@ -1,8 +1,3 @@
-import os
-
-import pandas as pd
-import pytest
-
 from src.utils.data_utils import load_data
 
 

@@ -1,10 +1,10 @@
 import json
 import unittest
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage
 
 from src.agents.column_classifier import (
     build_classification_prompt,
@@ -13,7 +13,6 @@ from src.agents.column_classifier import (
     parse_classification_response,
     run_column_classifier_sync,
 )
-from src.utils.prompt_loader import load_prompt
 
 
 class TestGetColumnClassifierTools(unittest.TestCase):
@@ -34,7 +33,7 @@ class TestCreateColumnClassifierAgent(unittest.TestCase):
         mock_bound = MagicMock()
         mock_llm.bind_tools = MagicMock(return_value=mock_bound)
 
-        agent = create_column_classifier_agent(mock_llm)
+        create_column_classifier_agent(mock_llm)
 
         mock_llm.bind_tools.assert_called_once()
         tools_arg = mock_llm.bind_tools.call_args[0][0]
@@ -454,7 +453,7 @@ class TestColumnClassifierPreset(unittest.TestCase):
         mock_llm.bind_tools.return_value = mock_agent
 
         df = pd.DataFrame({"Salary": [100000]})
-        result = run_column_classifier_sync(
+        run_column_classifier_sync(
             mock_llm, df.to_json(), ["Salary"], {"Salary": "int64"}, preset="salary"
         )
 
@@ -479,9 +478,7 @@ class TestColumnClassifierPreset(unittest.TestCase):
         mock_llm.bind_tools.return_value = mock_agent
 
         df = pd.DataFrame({"A": [1]})
-        result = run_column_classifier_sync(
-            mock_llm, df.to_json(), ["A"], {"A": "int64"}, preset=None
-        )
+        run_column_classifier_sync(mock_llm, df.to_json(), ["A"], {"A": "int64"}, preset=None)
 
         # Should only load system prompt, not preset
         mock_load_prompt.assert_called_once_with("agents/column_classifier_system")

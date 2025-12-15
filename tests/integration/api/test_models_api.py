@@ -4,10 +4,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
 
 
 def test_list_models_works_without_auth_when_key_not_set(client_no_auth):
@@ -59,7 +56,6 @@ def test_list_models_with_data(mock_registry_class, client, api_key):
 @patch("src.api.routers.models.InferenceService")
 def test_get_model_details_not_found(mock_service_class, client, api_key):
     """Test getting model details when model not found. Args: mock_service_class: Mock service. client: Test client. api_key: API key."""
-    from src.api.exceptions import ModelNotFoundError as ServiceModelNotFoundError
     from src.services.inference_service import ModelNotFoundError
 
     mock_service = MagicMock()

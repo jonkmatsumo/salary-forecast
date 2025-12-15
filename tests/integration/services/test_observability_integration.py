@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage
 
 from src.agents.workflow import PromptInjectionError
 from src.services.workflow_service import WorkflowService
@@ -35,7 +34,7 @@ class TestObservabilityIntegration(unittest.TestCase):
         mock_workflow_class.return_value = mock_workflow
 
         # Patch observability logger to capture calls
-        with patch("src.utils.observability.logger") as mock_obs_logger:
+        with patch("src.utils.observability.logger"):
             service = WorkflowService(provider="openai")
             service.workflow = mock_workflow
 

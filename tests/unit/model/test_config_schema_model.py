@@ -3,7 +3,7 @@ import unittest
 import pytest
 from pydantic import ValidationError
 
-from src.model.config_schema_model import Config, FeatureConfig, ModelConfig
+from src.model.config_schema_model import Config
 
 
 def test_valid_config():

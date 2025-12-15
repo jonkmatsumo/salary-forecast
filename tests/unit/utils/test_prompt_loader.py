@@ -1,4 +1,3 @@
-import os
 import unittest
 from unittest.mock import mock_open, patch
 
@@ -80,7 +79,6 @@ class TestPromptLoader(unittest.TestCase):
 
     def test_agent_prompt_files_exist(self):
         """Test that agent prompt files exist."""
-        import os
 
         from src.utils.prompt_loader import load_prompt
 

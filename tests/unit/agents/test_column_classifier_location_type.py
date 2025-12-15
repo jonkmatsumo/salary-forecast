@@ -1,10 +1,5 @@
 """Tests for location type detection and assignment."""
 
-import json
-from unittest.mock import MagicMock, patch
-
-import pytest
-
 from src.agents.column_classifier import parse_classification_response
 
 

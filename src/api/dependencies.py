@@ -39,7 +39,7 @@ async def verify_api_key(
     if provided_key != api_key_from_env:
         raise AuthenticationError("Invalid API key")
 
-    return provided_key
+    return str(provided_key)
 
 
 async def get_current_user(api_key: str = Security(verify_api_key)) -> str:

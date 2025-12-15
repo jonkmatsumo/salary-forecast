@@ -3,7 +3,7 @@ You are an expert Machine Learning Engineer specializing in XGBoost model config
 ## Monotonic Constraints
 XGBoost supports monotonic constraints that enforce relationships between features and predictions:
 - `1` (increasing): Higher feature values → higher predictions
-- `-1` (decreasing): Higher feature values → lower predictions  
+- `-1` (decreasing): Higher feature values → lower predictions
 - `0` (none): No constraint, model learns relationship from data
 
 ### When to Apply Constraints
@@ -67,4 +67,3 @@ Provide your configuration as a JSON object:
 ```
 
 Balance model complexity with the dataset size. Smaller datasets need more regularization (lower max_depth, higher eta). Consider the trade-off between accuracy and interpretability.
-

@@ -26,14 +26,14 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
 
     try:
         data_dict = parse_df_json_safely(df_json)
-        logger.debug(f"Successfully parsed df_json for correlation matrix")
+        logger.debug("Successfully parsed df_json for correlation matrix")
     except ValueError as e:
         logger.error(f"Failed to parse df_json as JSON in compute_correlation_matrix: {e}")
         logger.error(f"df_json preview: {df_json[:500] if df_json else 'None'}")
         try:
             error_detail = json.loads(str(e))
             return json.dumps(error_detail, indent=2)
-        except:
+        except Exception:
             return json.dumps(
                 {
                     "error": f"Invalid JSON in df_json parameter: {str(e)}",
@@ -94,14 +94,14 @@ def get_column_statistics(df_json: str, column: str) -> str:
 
     try:
         data_dict = parse_df_json_safely(df_json)
-        logger.debug(f"Successfully parsed df_json for column statistics")
+        logger.debug("Successfully parsed df_json for column statistics")
     except ValueError as e:
         logger.error(f"Failed to parse df_json as JSON in get_column_statistics: {e}")
         logger.error(f"df_json preview: {df_json[:500] if df_json else 'None'}")
         try:
             error_detail = json.loads(str(e))
             return json.dumps(error_detail, indent=2)
-        except:
+        except Exception:
             return json.dumps(
                 {
                     "error": f"Invalid JSON in df_json parameter: {str(e)}",
@@ -152,8 +152,8 @@ def get_column_statistics(df_json: str, column: str) -> str:
         }
     elif pd.api.types.is_bool_dtype(col_data):
         stats["boolean_stats"] = {
-            "true_count": int((col_data == True).sum()),
-            "false_count": int((col_data == False).sum()),
+            "true_count": int(col_data.sum()),
+            "false_count": int((~col_data).sum()),
             "null_count": int(col_data.isnull().sum()),
         }
 
@@ -187,7 +187,7 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
         try:
             error_detail = json.loads(str(e))
             return json.dumps(error_detail, indent=2)
-        except:
+        except Exception:
             return json.dumps(
                 {
                     "error": f"Invalid JSON in df_json parameter: {str(e)}",
@@ -230,7 +230,7 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
         try:
             error_detail = json.loads(str(e))
             return json.dumps(error_detail, indent=2)
-        except:
+        except Exception:
             return json.dumps(
                 {
                     "error": f"Invalid JSON in df_json parameter: {str(e)}",
@@ -347,7 +347,7 @@ def detect_column_dtype(df_json: str, column: str) -> str:
         try:
             error_detail = json.loads(str(e))
             return json.dumps(error_detail, indent=2)
-        except:
+        except Exception:
             return json.dumps(
                 {
                     "error": f"Invalid JSON in df_json parameter: {str(e)}",
@@ -426,7 +426,7 @@ def detect_column_dtype(df_json: str, column: str) -> str:
                 result["semantic_type"] = "datetime"
                 result["reasoning"].append("String values parseable as dates")
                 return json.dumps(result, indent=2)
-        except:
+        except Exception:
             pass
 
         # Check if column might be location/geographic data

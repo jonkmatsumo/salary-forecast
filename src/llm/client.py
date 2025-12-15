@@ -10,6 +10,7 @@ from openai import APIError, AsyncOpenAI, OpenAI, RateLimitError
 
 from src.utils.env_loader import get_env_var
 from src.utils.logger import get_logger
+from src.utils.performance import LLMCallTracker
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -57,25 +58,56 @@ class OpenAIClient(LLMClient):
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Generate text from OpenAI with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
-        messages = []
+        from openai.types.chat import (
+            ChatCompletionSystemMessageParam,
+            ChatCompletionUserMessageParam,
+        )
+
+        messages: List[ChatCompletionSystemMessageParam | ChatCompletionUserMessageParam] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            messages.append(ChatCompletionSystemMessageParam(role="system", content=system_prompt))
+        messages.append(ChatCompletionUserMessageParam(role="user", content=prompt))
 
         backoff = INITIAL_BACKOFF
         last_exception = None
 
         for attempt in range(MAX_RETRIES):
             try:
+                start_time = time.time()
                 response = self.client.chat.completions.create(
                     model=self.model, messages=messages, temperature=0.0
                 )
+                latency = time.time() - start_time
+
                 if attempt > 0:
                     logger.info(f"OpenAI request succeeded on attempt {attempt + 1}")
+
+                usage = getattr(response, "usage", None)
+                if usage:
+                    from src.utils.performance import get_global_llm_tracker
+
+                    tracker = LLMCallTracker(
+                        model=self.model, provider="openai", global_tracking=True
+                    )
+                    tracker.record(
+                        prompt_tokens=getattr(usage, "prompt_tokens", 0),
+                        completion_tokens=getattr(usage, "completion_tokens", 0),
+                        total_tokens=getattr(usage, "total_tokens", 0),
+                        latency=latency,
+                    )
+                    global_tracker = get_global_llm_tracker()
+                    if global_tracker:
+                        with global_tracker.lock:
+                            global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+                    logger.debug(
+                        f"[PERF] OpenAI call: {getattr(usage, 'total_tokens', 0)} tokens, "
+                        f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
+                    )
+
                 content = response.choices[0].message.content
                 if content is None:
                     raise ValueError("OpenAI returned empty response content")
-                return content
+                return str(content)
             except (RateLimitError, APIError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES - 1:
@@ -98,10 +130,15 @@ class OpenAIClient(LLMClient):
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """Async generate text from OpenAI with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
-        messages = []
+        from openai.types.chat import (
+            ChatCompletionSystemMessageParam,
+            ChatCompletionUserMessageParam,
+        )
+
+        messages: List[ChatCompletionSystemMessageParam | ChatCompletionUserMessageParam] = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            messages.append(ChatCompletionSystemMessageParam(role="system", content=system_prompt))
+        messages.append(ChatCompletionUserMessageParam(role="user", content=prompt))
 
         backoff = INITIAL_BACKOFF
         last_exception = None
@@ -109,15 +146,41 @@ class OpenAIClient(LLMClient):
 
         for attempt in range(MAX_RETRIES):
             try:
+                start_time = time.time()
                 response = await async_client.chat.completions.create(
                     model=self.model, messages=messages, temperature=0.0
                 )
+                latency = time.time() - start_time
+
                 if attempt > 0:
                     logger.info(f"OpenAI async request succeeded on attempt {attempt + 1}")
+
+                usage = getattr(response, "usage", None)
+                if usage:
+                    from src.utils.performance import get_global_llm_tracker
+
+                    tracker = LLMCallTracker(
+                        model=self.model, provider="openai", global_tracking=True
+                    )
+                    tracker.record(
+                        prompt_tokens=getattr(usage, "prompt_tokens", 0),
+                        completion_tokens=getattr(usage, "completion_tokens", 0),
+                        total_tokens=getattr(usage, "total_tokens", 0),
+                        latency=latency,
+                    )
+                    global_tracker = get_global_llm_tracker()
+                    if global_tracker:
+                        with global_tracker.lock:
+                            global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+                    logger.debug(
+                        f"[PERF] OpenAI async call: {getattr(usage, 'total_tokens', 0)} tokens, "
+                        f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
+                    )
+
                 content = response.choices[0].message.content
                 if content is None:
                     raise ValueError("OpenAI returned empty response content")
-                return content
+                return str(content)
             except (RateLimitError, APIError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES - 1:
@@ -147,6 +210,7 @@ class GeminiClient(LLMClient):
         if not self.api_key:
             raise ValueError("GEMINI_API_KEY not found.")
         genai.configure(api_key=self.api_key)
+        self.model_name = model
         self.model = genai.GenerativeModel(model)
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
@@ -160,10 +224,40 @@ class GeminiClient(LLMClient):
 
         for attempt in range(MAX_RETRIES):
             try:
+                start_time = time.time()
                 response = self.model.generate_content(full_prompt)
+                latency = time.time() - start_time
+
                 if attempt > 0:
                     logger.info(f"Gemini request succeeded on attempt {attempt + 1}")
-                return response.text
+
+                usage_metadata = getattr(response, "usage_metadata", None)
+                if usage_metadata:
+                    from src.utils.performance import get_global_llm_tracker
+
+                    prompt_tokens = getattr(usage_metadata, "prompt_token_count", 0)
+                    completion_tokens = getattr(usage_metadata, "candidates_token_count", 0)
+                    total_tokens = getattr(usage_metadata, "total_token_count", 0)
+
+                    tracker = LLMCallTracker(
+                        model=self.model_name, provider="gemini", global_tracking=True
+                    )
+                    tracker.record(
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        latency=latency,
+                    )
+                    global_tracker = get_global_llm_tracker()
+                    if global_tracker:
+                        with global_tracker.lock:
+                            global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+                    logger.debug(
+                        f"[PERF] Gemini call: {total_tokens} tokens, "
+                        f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
+                    )
+
+                return str(response.text)
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
@@ -198,14 +292,44 @@ class GeminiClient(LLMClient):
 
         for attempt in range(MAX_RETRIES):
             try:
+                start_time = time.time()
                 # Run synchronous Gemini call in executor
                 loop = asyncio.get_event_loop()
                 response = await loop.run_in_executor(
                     None, lambda: self.model.generate_content(full_prompt)
                 )
+                latency = time.time() - start_time
+
                 if attempt > 0:
                     logger.info(f"Gemini async request succeeded on attempt {attempt + 1}")
-                return response.text
+
+                usage_metadata = getattr(response, "usage_metadata", None)
+                if usage_metadata:
+                    from src.utils.performance import get_global_llm_tracker
+
+                    prompt_tokens = getattr(usage_metadata, "prompt_token_count", 0)
+                    completion_tokens = getattr(usage_metadata, "candidates_token_count", 0)
+                    total_tokens = getattr(usage_metadata, "total_token_count", 0)
+
+                    tracker = LLMCallTracker(
+                        model=self.model_name, provider="gemini", global_tracking=True
+                    )
+                    tracker.record(
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        total_tokens=total_tokens,
+                        latency=latency,
+                    )
+                    global_tracker = get_global_llm_tracker()
+                    if global_tracker:
+                        with global_tracker.lock:
+                            global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+                    logger.debug(
+                        f"[PERF] Gemini async call: {total_tokens} tokens, "
+                        f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
+                    )
+
+                return str(response.text)
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
@@ -283,7 +407,11 @@ def _get_langchain_openai(
 
     model_name = model or "gpt-4-turbo-preview"
 
-    return ChatOpenAI(model=model_name, temperature=temperature, api_key=api_key, **kwargs)
+    from pydantic import SecretStr
+
+    return ChatOpenAI(
+        model=model_name, temperature=temperature, api_key=SecretStr(api_key), **kwargs
+    )
 
 
 def _get_langchain_gemini(

@@ -1,10 +1,8 @@
 import logging
 import os
-import sys
 import tempfile
 import unittest
 from logging.handlers import RotatingFileHandler
-from unittest.mock import MagicMock, patch
 
 from src.utils.logger import (
     RequestTracingContext,
@@ -63,7 +61,7 @@ class TestSetupLogging(unittest.TestCase):
     def test_setup_logging_force_reconfigure(self):
         """Verify logging can be reconfigured when application settings change."""
         setup_logging(level=logging.INFO)
-        initial_handlers_count = len(logging.root.handlers)
+        len(logging.root.handlers)
 
         setup_logging(level=logging.DEBUG)
 

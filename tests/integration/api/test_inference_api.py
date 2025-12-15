@@ -4,11 +4,7 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
 
 
 def test_predict_works_without_auth_when_key_not_set(client_no_auth):

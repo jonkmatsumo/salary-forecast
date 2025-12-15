@@ -1,17 +1,15 @@
+# Import conftest function directly (pytest will handle the path)
+import sys
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
 from src.services.training_service import TrainingService
-from src.xgboost.model import SalaryForecaster
-
-# Import conftest function directly (pytest will handle the path)
-import sys
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
+from conftest import create_test_config  # noqa: E402
 
 
 class TestTrainingService(unittest.TestCase):
@@ -55,6 +53,7 @@ class TestTrainingService(unittest.TestCase):
 
     def test_run_async_job_logs_tags(self):
         import asyncio
+
         import src.services.training_service as ts
 
         with (
@@ -127,7 +126,7 @@ class TestTrainingService(unittest.TestCase):
 
         df = pd.DataFrame({"Location": ["New York", "San Francisco"], "Salary": [100000, 150000]})
 
-        model = self.service.train_model(df, config)
+        self.service.train_model(df, config)
 
         # Verify Forecaster was instantiated with config
         MockForecaster.assert_called_once()
@@ -159,7 +158,7 @@ class TestTrainingService(unittest.TestCase):
 
         df = pd.DataFrame({"Level": ["L3", "L4"], "Salary": [100000, 150000]})
 
-        model = self.service.train_model(df, config)
+        self.service.train_model(df, config)
 
         # Should still work
         MockForecaster.assert_called_once()
@@ -226,7 +225,7 @@ class TestTrainingServiceConfigValidation(unittest.TestCase):
     @patch("src.services.training_service.SalaryForecaster")
     def test_train_model_passes_config_to_forecaster(self, MockForecaster):
         """Test that config is properly passed to SalaryForecaster."""
-        mock_instance = MockForecaster.return_value
+        MockForecaster.return_value
 
         self.service.train_model(self.df, self.config)
 

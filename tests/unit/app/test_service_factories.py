@@ -12,7 +12,6 @@ from src.app.service_factories import (
 from src.services.analytics_service import AnalyticsService
 from src.services.inference_service import InferenceService
 from src.services.training_service import TrainingService
-from src.services.workflow_service import WorkflowService
 
 
 class TestServiceFactories(unittest.TestCase):

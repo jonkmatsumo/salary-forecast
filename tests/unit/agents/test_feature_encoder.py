@@ -15,7 +15,6 @@ from src.agents.feature_encoder import (
     parse_encoding_response,
     run_feature_encoder_sync,
 )
-from src.utils.prompt_loader import load_prompt
 
 
 class TestGetFeatureEncoderTools(unittest.TestCase):
@@ -42,7 +41,7 @@ class TestCreateFeatureEncoderAgent(unittest.TestCase):
         mock_bound = MagicMock()
         mock_llm.bind_tools = MagicMock(return_value=mock_bound)
 
-        agent = create_feature_encoder_agent(mock_llm)
+        create_feature_encoder_agent(mock_llm)
 
         mock_llm.bind_tools.assert_called_once()
         tools_arg = mock_llm.bind_tools.call_args[0][0]
@@ -470,7 +469,7 @@ class TestFeatureEncoderPreset(unittest.TestCase):
         mock_llm.bind_tools.return_value = mock_agent
 
         df = pd.DataFrame({"Location": ["NY"]})
-        result = run_feature_encoder_sync(
+        run_feature_encoder_sync(
             mock_llm, df.to_json(), ["Location"], {"Location": "object"}, preset="salary"
         )
 
@@ -493,9 +492,7 @@ class TestFeatureEncoderPreset(unittest.TestCase):
         mock_llm.bind_tools.return_value = mock_agent
 
         df = pd.DataFrame({"A": [1]})
-        result = run_feature_encoder_sync(
-            mock_llm, df.to_json(), ["A"], {"A": "int64"}, preset=None
-        )
+        run_feature_encoder_sync(mock_llm, df.to_json(), ["A"], {"A": "int64"}, preset=None)
 
         # Should only load system prompt, not preset
         mock_load_prompt.assert_called_once_with("agents/feature_encoder_system")

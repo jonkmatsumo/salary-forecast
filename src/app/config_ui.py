@@ -13,11 +13,12 @@ from src.app.caching import load_data_cached
 from src.app.service_factories import get_workflow_service
 from src.services.workflow_service import WorkflowService, get_workflow_providers
 from src.utils.csv_validator import validate_csv
+from src.utils.performance import PerformanceMetrics
 
 
 def _get_progress_message(service: Optional[WorkflowService]) -> str:
     """Get progress message based on current node. Args: service (Optional[WorkflowService]): Workflow service. Returns: str: Progress message."""
-    if not service or not service.workflow:
+    if not service or not service.workflow or not service.workflow.current_state:
         return "Processing..."
 
     current_node = service.workflow.current_state.get("current_node")
@@ -37,6 +38,20 @@ def _get_progress_message(service: Optional[WorkflowService]) -> str:
 
 def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Optional[Dict[str, Any]]:
     """Render the multi-step agentic workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
+    import os
+
+    enable_ui_perf = os.getenv("ENABLE_UI_PERFORMANCE_TRACKING", "false").lower() == "true"
+    if enable_ui_perf:
+        with PerformanceMetrics("ui_workflow_wizard_render_time"):
+            return _render_workflow_wizard_impl(df, provider)
+    else:
+        return _render_workflow_wizard_impl(df, provider)
+
+
+def _render_workflow_wizard_impl(
+    df: pd.DataFrame, provider: str = "openai"
+) -> Optional[Dict[str, Any]]:
+    """Internal implementation of workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
     if "workflow_service" not in st.session_state:
         st.session_state["workflow_service"] = None
     if "workflow_phase" not in st.session_state:
@@ -90,23 +105,23 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
             try:
                 with st.status("Initializing workflow...", expanded=False) as status:
                     status.update(label="Validating input...", state="running")
-                    if use_api:
+                    if use_api and api_client is not None:
                         start_response = api_client.start_workflow(df, provider, preset_value)
                         workflow_id = start_response.workflow_id
                         st.session_state["workflow_id"] = workflow_id
                         st.session_state["workflow_phase"] = start_response.phase
                         state_response = api_client.get_workflow_state(workflow_id)
-                        result = {
+                        workflow_result = {
                             "status": "success",
                             "data": state_response.current_result,
                         }
                     else:
-                        service = get_workflow_service(provider=provider)
-                        st.session_state["workflow_service"] = service
-                        result = service.start_workflow(df, preset=preset_value)
+                        workflow_service = get_workflow_service(provider=provider)
+                        st.session_state["workflow_service"] = workflow_service
+                        workflow_result = workflow_service.start_workflow(df, preset=preset_value)
                         st.session_state["workflow_phase"] = "classification"
                     status.update(label="Workflow initialized", state="complete")
-                st.session_state["workflow_result"] = result
+                st.session_state["workflow_result"] = workflow_result
                 st.rerun()
             except APIError as e:
                 st.error(f"Failed to start workflow: {e.message}")
@@ -117,24 +132,27 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
     api_client = get_api_client()
     use_api = api_client is not None
 
-    if use_api:
+    result: Optional[Dict[str, Any]] = None
+    if api_client is not None:
         workflow_id = st.session_state.get("workflow_id")
         if not workflow_id:
             st.error("Workflow ID not found. Please restart the workflow.")
             return None
         try:
             state_response = api_client.get_workflow_state(workflow_id)
+            state_dict = state_response.state if state_response.state else {}
+            error_value = state_dict.get("error")
             result = {
-                "status": "success" if state_response.state.get("status") != "error" else "error",
+                "status": "success" if state_dict.get("status") != "error" else "error",
                 "data": state_response.current_result,
-                "error": state_response.state.get("error"),
+                "error": error_value,
             }
             st.session_state["workflow_phase"] = state_response.phase
         except APIError as e:
             st.error(f"Failed to get workflow state: {e.message}")
             return None
     else:
-        service: WorkflowService = st.session_state.get("workflow_service")
+        workflow_service = st.session_state.get("workflow_service")
         result = st.session_state.get("workflow_result")
 
     if result is None:
@@ -142,19 +160,20 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
 
     if result.get("status") == "error":
         error_message = result.get("error", "Unknown error occurred")
-        st.error(f"**Workflow Error**")
+        st.error("**Workflow Error**")
         st.error(f"An error occurred during the configuration workflow: {error_message}")
 
         # Provide helpful context based on error type
-        if "API" in error_message or "key" in error_message.lower():
+        error_lower = str(error_message).lower()
+        if "API" in error_message or "key" in error_lower:
             st.info(
                 "💡 **Tip**: Check that your LLM API keys are set correctly in your environment variables."
             )
-        elif "JSON" in error_message or "serialize" in error_message.lower():
+        elif "JSON" in error_message or "serialize" in error_lower:
             st.info(
                 "💡 **Tip**: There may be an issue with your data format. Try uploading a different CSV file."
             )
-        elif "validation" in error_message.lower() or "validate" in error_message.lower():
+        elif "validation" in error_lower or "validate" in error_lower:
             st.info(
                 "💡 **Tip**: Check that your data contains the expected columns and data types."
             )
@@ -164,14 +183,34 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
             st.rerun()
         return None
 
+    import os
+
+    enable_ui_perf = os.getenv("ENABLE_UI_PERFORMANCE_TRACKING", "false").lower() == "true"
+
     if st.session_state["workflow_phase"] == "classification":
-        return _render_classification_phase(api_client, use_api, result, df)
+        if enable_ui_perf:
+            with PerformanceMetrics("ui_classification_phase_time"):
+                return _render_classification_phase(api_client, use_api, result, df)
+        else:
+            return _render_classification_phase(api_client, use_api, result, df)
     elif st.session_state["workflow_phase"] == "encoding":
-        return _render_encoding_phase(api_client, use_api, result)
+        if enable_ui_perf:
+            with PerformanceMetrics("ui_encoding_phase_time"):
+                return _render_encoding_phase(api_client, use_api, result)
+        else:
+            return _render_encoding_phase(api_client, use_api, result)
     elif st.session_state["workflow_phase"] == "configuration":
-        return _render_configuration_phase(api_client, use_api, result)
+        if enable_ui_perf:
+            with PerformanceMetrics("ui_configuration_phase_time"):
+                return _render_configuration_phase(api_client, use_api, result)
+        else:
+            return _render_configuration_phase(api_client, use_api, result)
     elif st.session_state["workflow_phase"] == "complete":
-        return _render_complete_phase(result)
+        if enable_ui_perf:
+            with PerformanceMetrics("ui_complete_phase_time"):
+                return _render_complete_phase(result)
+        else:
+            return _render_complete_phase(result)
 
     return None
 
@@ -194,9 +233,15 @@ def _render_classification_phase(
         and not data.get("features")
         and not data.get("ignore")
     ):
-        service: WorkflowService = st.session_state.get("workflow_service")
-        if service and service.workflow and service.workflow.current_state:
-            classification = service.workflow.current_state.get("column_classification", {})
+        workflow_service: Optional[WorkflowService] = st.session_state.get("workflow_service")
+        if (
+            workflow_service
+            and workflow_service.workflow
+            and workflow_service.workflow.current_state
+        ):
+            classification = workflow_service.workflow.current_state.get(
+                "column_classification", {}
+            )
             if classification:
                 data = {
                     "targets": classification.get("targets", []),
@@ -237,7 +282,7 @@ def _render_classification_phase(
         # Try case-insensitive match
         normalized_lower = normalized.lower()
         if normalized_lower in column_name_map:
-            return column_name_map[normalized_lower]
+            return str(column_name_map[normalized_lower])
         # Return original if no match (will show as unmatched)
         return normalized
 
@@ -272,10 +317,12 @@ def _render_classification_phase(
     if use_api:
         column_types = result.get("data", {}).get("column_types", {})
     else:
-        service: WorkflowService = st.session_state.get("workflow_service")
+        workflow_service = st.session_state.get("workflow_service")
         column_types = (
-            service.workflow.current_state.get("column_types", {})
-            if service and service.workflow
+            workflow_service.workflow.current_state.get("column_types", {})
+            if workflow_service
+            and workflow_service.workflow
+            and workflow_service.workflow.current_state
             else {}
         )
 
@@ -296,7 +343,7 @@ def _render_classification_phase(
         if col in column_types:
             semantic_type = column_types[col]
             if semantic_type == "location":
-                dtype_display = f"string (location)"
+                dtype_display = "string (location)"
             elif semantic_type == "datetime":
                 dtype_display = f"{dtype_display} (datetime)"
 
@@ -344,6 +391,9 @@ def _render_classification_phase(
 
             try:
                 if use_api:
+                    if api_client is None:
+                        st.error("API client not available")
+                        return None
                     workflow_id = st.session_state.get("workflow_id")
                     if not workflow_id:
                         st.error("Workflow ID not found")
@@ -360,17 +410,20 @@ def _render_classification_phase(
                     }
                     st.session_state["workflow_phase"] = progress_response.phase
                 else:
-                    service: WorkflowService = st.session_state.get("workflow_service")
-                    progress_msg = _get_progress_message(service)
+                    workflow_service = st.session_state.get("workflow_service")
+                    if workflow_service is None:
+                        st.error("Workflow service not available")
+                        return None
+                    progress_msg = _get_progress_message(workflow_service)
                     with st.status(progress_msg, expanded=False) as status:
                         status.update(label="Evaluating features...", state="running")
-                        result = service.confirm_classification(modifications)
+                        result = workflow_service.confirm_classification(modifications)
                         status.update(label="Feature encoding complete", state="complete")
                     st.session_state["workflow_phase"] = "encoding"
 
                     if result.get("status") == "error":
                         error_msg = result.get("error", "Classification confirmation failed")
-                        st.error(f"**Classification Error**")
+                        st.error("**Classification Error**")
                         st.error(f"Classification confirmation failed: {error_msg}")
                         return None
 
@@ -419,15 +472,19 @@ def _render_encoding_phase(
         current_optional_encodings = result.get("data", {}).get("optional_encodings", {})
         column_types = result.get("data", {}).get("column_types", {})
     else:
-        service: WorkflowService = st.session_state.get("workflow_service")
+        workflow_service = st.session_state.get("workflow_service")
         current_optional_encodings = (
-            service.workflow.current_state.get("optional_encodings", {})
-            if service and service.workflow
+            workflow_service.workflow.current_state.get("optional_encodings", {})
+            if workflow_service
+            and workflow_service.workflow
+            and workflow_service.workflow.current_state
             else {}
         )
         column_types = (
-            service.workflow.current_state.get("column_types", {})
-            if service and service.workflow
+            workflow_service.workflow.current_state.get("column_types", {})
+            if workflow_service
+            and workflow_service.workflow
+            and workflow_service.workflow.current_state
             else {}
         )
 
@@ -548,7 +605,7 @@ def _render_encoding_phase(
                     if row["Column"] == col and row["Mapping"]:
                         try:
                             current_mapping = json.loads(row["Mapping"])
-                        except:
+                        except (ValueError, json.JSONDecodeError):
                             pass
 
                 map_data = [{"Value": k, "Rank": v} for k, v in current_mapping.items()]
@@ -599,7 +656,7 @@ def _render_encoding_phase(
                 if not mapping and row["Mapping"]:
                     try:
                         mapping = json.loads(row["Mapping"])
-                    except:
+                    except (ValueError, json.JSONDecodeError):
                         pass
 
                 new_encodings[col_name] = {
@@ -661,6 +718,9 @@ def _render_encoding_phase(
 
             try:
                 if use_api:
+                    if api_client is None:
+                        st.error("API client not available")
+                        return None
                     workflow_id = st.session_state.get("workflow_id")
                     if not workflow_id:
                         st.error("Workflow ID not found")
@@ -675,17 +735,20 @@ def _render_encoding_phase(
                     }
                     st.session_state["workflow_phase"] = progress_response.phase
                 else:
-                    service: WorkflowService = st.session_state.get("workflow_service")
-                    progress_msg = _get_progress_message(service)
+                    workflow_service = st.session_state.get("workflow_service")
+                    if workflow_service is None:
+                        st.error("Workflow service not available")
+                        return None
+                    progress_msg = _get_progress_message(workflow_service)
                     with st.status(progress_msg, expanded=False) as status:
                         status.update(label="Configuring model...", state="running")
-                        result = service.confirm_encoding(modifications)
+                        result = workflow_service.confirm_encoding(modifications)
                         status.update(label="Model configuration complete", state="complete")
                     st.session_state["workflow_phase"] = "configuration"
 
                     if result.get("status") == "error":
                         error_msg = result.get("error", "Encoding confirmation failed")
-                        st.error(f"**Encoding Error**")
+                        st.error("**Encoding Error**")
                         st.error(f"Encoding confirmation failed: {error_msg}")
                         return None
 
@@ -788,10 +851,12 @@ def _render_configuration_phase(
     if use_api:
         location_columns = result.get("data", {}).get("location_columns", [])
     else:
-        service: WorkflowService = st.session_state.get("workflow_service")
+        workflow_service = st.session_state.get("workflow_service")
         location_columns = (
-            service.workflow.current_state.get("location_columns", [])
-            if service and service.workflow
+            workflow_service.workflow.current_state.get("location_columns", [])
+            if workflow_service
+            and workflow_service.workflow
+            and workflow_service.workflow.current_state
             else []
         )
     if location_columns:
@@ -802,10 +867,12 @@ def _render_configuration_phase(
         if use_api:
             current_location_settings = result.get("data", {}).get("location_settings", {})
         else:
-            service: WorkflowService = st.session_state.get("workflow_service")
+            workflow_service = st.session_state.get("workflow_service")
             current_location_settings = (
-                service.workflow.current_state.get("location_settings", {})
-                if service and service.workflow
+                workflow_service.workflow.current_state.get("location_settings", {})
+                if workflow_service
+                and workflow_service.workflow
+                and workflow_service.workflow.current_state
                 else {}
             )
         current_max_dist = current_location_settings.get("max_distance_km", 50)
@@ -873,7 +940,7 @@ def _render_configuration_phase(
 
     # Action buttons
     action_cols = st.columns([1, 1, 2])
-    col1, col2, col3 = action_cols[0], action_cols[1], action_cols[2]
+    col1, col2 = action_cols[0], action_cols[1]
 
     with col1:
         if st.button("Finalize Configuration", type="primary", key="finalize_config"):
@@ -921,6 +988,9 @@ def _render_configuration_phase(
                             "workflow_location_settings"
                         ]
 
+                    if api_client is None:
+                        st.error("API client not available")
+                        return None
                     complete_response = api_client.finalize_configuration(
                         workflow_id, config_updates
                     )
@@ -932,8 +1002,11 @@ def _render_configuration_phase(
                     st.session_state["workflow_phase"] = "complete"
                     st.rerun()
                 else:
-                    service: WorkflowService = st.session_state.get("workflow_service")
-                    final_config = service.get_final_config()
+                    workflow_service = st.session_state.get("workflow_service")
+                    if workflow_service is None:
+                        st.error("Workflow service not available")
+                        return None
+                    final_config = workflow_service.get_final_config()
 
                     if not final_config:
                         st.error("**Configuration Error**")
@@ -966,10 +1039,15 @@ def _render_configuration_phase(
                         final_config["location_settings"] = st.session_state[
                             "workflow_location_settings"
                         ]
-                        if service and service.workflow:
-                            service.workflow.current_state["location_settings"] = st.session_state[
-                                "workflow_location_settings"
-                            ]
+                        workflow_service = st.session_state.get("workflow_service")
+                        if (
+                            workflow_service
+                            and workflow_service.workflow
+                            and workflow_service.workflow.current_state
+                        ):
+                            workflow_service.workflow.current_state["location_settings"] = (
+                                st.session_state["workflow_location_settings"]
+                            )
 
                     st.session_state["workflow_result"]["final_config"] = final_config
                     st.session_state["workflow_phase"] = "complete"
@@ -1032,7 +1110,9 @@ def _render_complete_phase(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 _reset_workflow_state()
                 st.rerun()
 
-        return final_config
+        from typing import cast
+
+        return cast(Dict[str, Any], final_config)
 
     return None
 

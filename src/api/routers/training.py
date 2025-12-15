@@ -2,8 +2,9 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 
+from src.api.dependencies import get_current_user
 from src.api.dto.common import BaseResponse, PaginationResponse
 from src.api.dto.training import (
     DataUploadResponse,
@@ -12,7 +13,6 @@ from src.api.dto.training import (
     TrainingJobStatusResponse,
     TrainingJobSummary,
 )
-from src.api.dependencies import get_current_user
 from src.api.exceptions import InvalidInputError, TrainingJobNotFoundError
 from src.api.storage import get_dataset_storage
 from src.services.analytics_service import AnalyticsService
@@ -97,12 +97,15 @@ async def start_training(
         raise InvalidInputError(f"Dataset {dataset_id} not found")
 
     try:
+        n_trials_value = (
+            request.n_trials if (request.do_tune and request.n_trials is not None) else 20
+        )
         job_id = training_service.start_training_async(
             data=df,
             config=request.config,
             remove_outliers=request.remove_outliers,
             do_tune=request.do_tune,
-            n_trials=request.n_trials if request.do_tune else 20,
+            n_trials=n_trials_value,
             additional_tag=request.additional_tag,
             dataset_name=request.dataset_name or "Unknown",
         )
@@ -128,10 +131,12 @@ async def get_training_job_status(
 
     result = None
     if job_status.get("status") == "COMPLETED" and job_status.get("run_id"):
+        scores = job_status.get("scores")
+        cv_mean_score = scores[0] if scores and len(scores) > 0 else None
         result = TrainingResult(
             run_id=job_status["run_id"],
             model_type="XGBoost",
-            cv_mean_score=job_status.get("scores")[0] if job_status.get("scores") else None,
+            cv_mean_score=cv_mean_score,
         )
 
     return TrainingJobStatusResponse(

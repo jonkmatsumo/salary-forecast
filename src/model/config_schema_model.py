@@ -61,4 +61,6 @@ class Config(BaseModel):
 
 def validate_config_dict(config: Dict[str, Any]) -> Config:
     """Validate a configuration dictionary using Pydantic. Args: config (Dict[str, Any]): Configuration dictionary. Returns: Config: Validated Config object. Raises: ValidationError: If config is invalid."""
-    return Config.model_validate(config)
+    from typing import cast
+
+    return cast(Config, Config.model_validate(config))

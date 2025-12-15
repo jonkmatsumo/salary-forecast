@@ -4,7 +4,6 @@ import threading
 from unittest.mock import patch
 
 import pandas as pd
-import pytest
 
 from src.api.storage import DatasetStorage, get_dataset_storage
 

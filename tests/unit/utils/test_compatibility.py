@@ -1,9 +1,6 @@
 import sys
 import unittest
-from unittest.mock import MagicMock, patch
 
-import src.xgboost
-import src.xgboost.model
 from src.utils.compatibility import apply_backward_compatibility
 
 

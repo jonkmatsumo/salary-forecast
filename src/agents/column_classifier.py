@@ -10,11 +10,9 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
-from src.agents.tools import (
-    compute_correlation_matrix,
-    detect_column_dtype,
-    get_column_statistics,
-)
+import time
+
+from src.agents.tools import compute_correlation_matrix, detect_column_dtype, get_column_statistics
 from src.utils.logger import get_logger
 from src.utils.observability import (
     log_agent_interaction,
@@ -22,6 +20,7 @@ from src.utils.observability import (
     log_llm_tool_call,
     log_tool_result,
 )
+from src.utils.performance import LLMCallTracker, extract_tokens_from_langchain_response
 from src.utils.prompt_loader import load_prompt
 
 logger = get_logger(__name__)
@@ -268,7 +267,30 @@ async def run_column_classifier(
     tools = {tool.name: tool for tool in get_column_classifier_tools()}
 
     for iteration in range(max_iterations):
+        start_time = time.time()
         response = await agent.ainvoke(messages)
+        latency = time.time() - start_time
+
+        prompt_tokens, completion_tokens, total_tokens = extract_tokens_from_langchain_response(
+            response
+        )
+        model_name = getattr(llm, "model_name", "unknown")
+        provider = "openai" if "gpt" in model_name.lower() else "gemini"
+
+        from src.utils.performance import get_global_llm_tracker
+
+        tracker = LLMCallTracker(model=model_name, provider=provider, global_tracking=True)
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency=latency,
+        )
+        global_tracker = get_global_llm_tracker()
+        if global_tracker:
+            with global_tracker.lock:
+                global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+
         messages.append(response)
 
         if response.tool_calls:
@@ -332,7 +354,30 @@ def run_column_classifier_sync(
     tools = {tool.name: tool for tool in get_column_classifier_tools()}
 
     for iteration in range(max_iterations):
+        start_time = time.time()
         response = agent.invoke(messages)
+        latency = time.time() - start_time
+
+        prompt_tokens, completion_tokens, total_tokens = extract_tokens_from_langchain_response(
+            response
+        )
+        model_name = getattr(llm, "model_name", "unknown")
+        provider = "openai" if "gpt" in model_name.lower() else "gemini"
+
+        from src.utils.performance import get_global_llm_tracker
+
+        tracker = LLMCallTracker(model=model_name, provider=provider, global_tracking=True)
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency=latency,
+        )
+        global_tracker = get_global_llm_tracker()
+        if global_tracker:
+            with global_tracker.lock:
+                global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+
         messages.append(response)
 
         if response.tool_calls:
@@ -415,7 +460,12 @@ def run_column_classifier_sync(
                 raise
 
     logger.warning("Max iterations reached in column classifier")
-    final_content = messages[-1].content if messages else ""
+    final_content_raw = messages[-1].content if messages else ""
+    final_content = (
+        final_content_raw
+        if isinstance(final_content_raw, str)
+        else str(final_content_raw) if final_content_raw else ""
+    )
     result = parse_classification_response(final_content)
     log_agent_interaction("column_classifier", system_prompt, user_prompt, final_content)
     return result

@@ -9,6 +9,8 @@ pytest-cov>=4.0.0,<5.0.0
 
 # Type checking
 mypy>=1.0.0,<2.0.0
+types-requests>=2.31.0,<3.0.0
+types-python-json-logger>=2.0.0,<3.0.0
 
 # Linting
 ruff>=0.1.0,<1.0.0
@@ -21,3 +23,5 @@ isort>=5.12.0,<6.0.0
 bandit>=1.7.0,<2.0.0
 pip-audit>=2.6.0,<3.0.0
 
+# Pre-commit hooks
+pre-commit>=3.0.0,<4.0.0

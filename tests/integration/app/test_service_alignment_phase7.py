@@ -8,11 +8,10 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
-import pytest
 
+from src.app.config_ui import render_workflow_wizard
 from src.app.inference_ui import render_inference_ui
 from src.app.train_ui import render_training_ui
-from src.app.config_ui import render_workflow_wizard
 
 
 class TestAPIModeServiceUsage:
@@ -207,7 +206,7 @@ class TestDirectModeServiceUsage:
         mock_inference_service.get_model_schema.return_value = mock_schema
 
         # Generate the label format that matches the code
-        label = f"2024-01-01 12:00 | XGBoost | Test Data | CV:0.9000 | ID:test123"
+        label = "2024-01-01 12:00 | XGBoost | Test Data | CV:0.9000 | ID:test123"
 
         mock_st.session_state = {}
         mock_st.selectbox.side_effect = [
@@ -300,7 +299,7 @@ class TestErrorHandlingAlignment:
         mock_inference_service.load_model.side_effect = ModelNotFoundError("test123")
 
         # Generate the label format that matches the code
-        label = f"2024-01-01 12:00 | XGBoost | Test Data | CV:0.9000 | ID:test123"
+        label = "2024-01-01 12:00 | XGBoost | Test Data | CV:0.9000 | ID:test123"
 
         mock_st.session_state = {}
         mock_st.selectbox.return_value = label

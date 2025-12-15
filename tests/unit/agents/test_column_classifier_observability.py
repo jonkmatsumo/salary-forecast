@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage
 
 from src.agents.column_classifier import run_column_classifier_sync
 

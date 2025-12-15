@@ -7,6 +7,7 @@ from pydantic import ValidationError
 import xgboost as xgb
 from src.model.config_schema_model import Config
 from src.utils.logger import get_logger
+from src.utils.performance import PerformanceMetrics
 from src.xgboost.preprocessing import (
     CostOfLivingEncoder,
     DateNormalizer,
@@ -95,26 +96,29 @@ class QuantileForecaster:
             if col in X_proc.columns:
                 X_proc[f"{col}_Enc"] = encoder.transform(X_proc[col])
 
-        for col, encoder in self.proximity_encoders.items():
+        for col, proximity_encoder in self.proximity_encoders.items():
             if col in X_proc.columns:
-                X_proc[f"{col}_Enc"] = encoder.transform(X_proc[col])
+                X_proc[f"{col}_Enc"] = proximity_encoder.transform(X_proc[col])
 
         optional_feature_names = []
-        for col, encoder in self.optional_encoders.items():
+        for col, optional_encoder in self.optional_encoders.items():
             if col in X_proc.columns:
-                if isinstance(encoder, DateNormalizer) and encoder.min_date is None:
-                    encoder.fit(X_proc[col])
+                if (
+                    isinstance(optional_encoder, DateNormalizer)
+                    and optional_encoder.min_date is None
+                ):
+                    optional_encoder.fit(X_proc[col])
 
-                if isinstance(encoder, CostOfLivingEncoder):
+                if isinstance(optional_encoder, CostOfLivingEncoder):
                     feature_name = f"{col}_CostOfLiving"
-                elif isinstance(encoder, MetroPopulationEncoder):
+                elif isinstance(optional_encoder, MetroPopulationEncoder):
                     feature_name = f"{col}_MetroPopulation"
-                elif isinstance(encoder, DateNormalizer):
+                elif isinstance(optional_encoder, DateNormalizer):
                     feature_name = f"{col}_Normalized"
                 else:
                     feature_name = f"{col}_Optional"
 
-                X_proc[feature_name] = encoder.transform(X_proc[col])
+                X_proc[feature_name] = optional_encoder.transform(X_proc[col])
                 optional_feature_names.append(feature_name)
 
         missing_feats = [f for f in self.feature_names if f not in X_proc.columns]
@@ -203,7 +207,8 @@ class QuantileForecaster:
         else:
             self.logger.info("Preprocessing: Cleaning data...")
 
-        df = self._clean_data(df)
+        with PerformanceMetrics("preprocessing_data_cleaning_time"):
+            df = self._clean_data(df)
 
         if remove_outliers:
             if callback:
@@ -211,7 +216,8 @@ class QuantileForecaster:
             else:
                 self.logger.info("Preprocessing: Removing outliers...")
 
-            df, removed = self.remove_outliers(df)
+            with PerformanceMetrics("preprocessing_outlier_removal_time"):
+                df, removed = self.remove_outliers(df)
             msg = f"Removed {removed} outlier rows."
             if callback:
                 callback(msg, {"stage": "preprocess_result", "removed": removed})
@@ -226,7 +232,9 @@ class QuantileForecaster:
             "training", {"objective": "reg:quantileerror", "tree_method": "hist", "verbosity": 0}
         )
 
-        params = train_params_config.copy()
+        params: Dict[str, Any] = (
+            dict(train_params_config) if isinstance(train_params_config, dict) else {}
+        )
         params.update(
             {
                 "quantile_alpha": quantile,
@@ -237,8 +245,10 @@ class QuantileForecaster:
 
     def _get_cv_params(self) -> Dict[str, Any]:
         """Get cross-validation parameters. Returns: Dict[str, Any]: CV parameters."""
+        from typing import cast
+
         hyperparams = self.model_config.get("hyperparameters", {})
-        return hyperparams.get(
+        result = hyperparams.get(
             "cv",
             {
                 "num_boost_round": 100,
@@ -247,6 +257,7 @@ class QuantileForecaster:
                 "verbose_eval": False,
             },
         )
+        return cast(Dict[str, Any], result)
 
     def _train_single_model(
         self,
@@ -263,7 +274,7 @@ class QuantileForecaster:
             self.logger.info(f"Training {model_name}...")
 
         if callback:
-            callback(f"Running Cross-Validation...", {"stage": "cv_start"})
+            callback("Running Cross-Validation...", {"stage": "cv_start"})
         else:
             self.logger.debug(f"Running Cross-Validation for {model_name}...")
 
@@ -307,13 +318,15 @@ class QuantileForecaster:
         """Trains the XGBoost models. Args: df (pd.DataFrame): Training data. callback (Optional[Callable]): Optional callback for status updates. remove_outliers (bool): If True, applies IQR outlier removal before training. Returns: None."""
         df = self._prepare_training_data(df, remove_outliers, callback)
 
-        X = self._preprocess(df)
-        weights = self.weighter.transform(df)
+        with PerformanceMetrics("preprocessing_feature_encoding_time"):
+            X = self._preprocess(df)
+            weights = self.weighter.transform(df)
 
         constraints = [f["monotone_constraint"] for f in self.features_config]
         monotone_constraints = str(tuple(constraints))
 
         cv_params = self._get_cv_params()
+        quantile_times: Dict[str, float] = {}
 
         for target in self.targets:
             y = df[target]
@@ -322,13 +335,18 @@ class QuantileForecaster:
             for q in self.quantiles:
                 model_name = f"{target}_p{int(q*100)}"
                 params = self._get_training_params(q, monotone_constraints)
-                model = self._train_single_model(model_name, dtrain, params, cv_params, callback)
-                self.models[model_name] = model
+
+                with PerformanceMetrics(f"training_quantile_{model_name}_time") as quantile_metric:
+                    model = self._train_single_model(
+                        model_name, dtrain, params, cv_params, callback
+                    )
+                    self.models[model_name] = model
+                    quantile_times[model_name] = quantile_metric.elapsed
 
                 dtrain = xgb.DMatrix(X, label=y, weight=weights)
 
                 if callback:
-                    callback(f"Running Cross-Validation...", {"stage": "cv_start"})
+                    callback("Running Cross-Validation...", {"stage": "cv_start"})
                 else:
                     self.logger.debug(f"Running Cross-Validation for {model_name}...")
 
@@ -407,7 +425,9 @@ class QuantileForecaster:
             )
 
             score = cv_results["test-quantile-mean"].min()
-            return score
+            from typing import cast
+
+            return cast(float, score)
 
         study = optuna.create_study(direction="minimize")
         study.optimize(objective, n_trials=n_trials, timeout=timeout)
@@ -418,7 +438,9 @@ class QuantileForecaster:
         train_params = hyperparams.setdefault("training", {})
         train_params.update(best_params)
 
-        return best_params
+        from typing import cast
+
+        return cast(Dict[str, Any], best_params)
 
     def predict(self, X_input: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
         """Generates predictions for input data. Args: X_input (pd.DataFrame): Input data with features matching training columns. Returns: Dict[str, Dict[str, Any]]: A nested dictionary: {target: {quantile_key: predictions}}."""

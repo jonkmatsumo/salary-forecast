@@ -1,6 +1,6 @@
 """API client for Streamlit UI to interact with REST API."""
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import pandas as pd
 import requests
@@ -108,17 +108,17 @@ class APIClient:
 
         response = self._request("GET", "/api/v1/models", params=params)
         models_data = response.get("data", {}).get("models", [])
-        return [ModelMetadata.model_validate(m) for m in models_data]
+        return [cast(ModelMetadata, ModelMetadata.model_validate(m)) for m in models_data]
 
     def get_model_details(self, run_id: str) -> ModelDetailsResponse:
         """Get model details. Args: run_id (str): MLflow run ID. Returns: ModelDetailsResponse: Model details."""
         response = self._request("GET", f"/api/v1/models/{run_id}")
-        return ModelDetailsResponse.model_validate(response)
+        return cast(ModelDetailsResponse, ModelDetailsResponse.model_validate(response))
 
     def get_model_schema(self, run_id: str) -> ModelSchemaResponse:
         """Get model schema. Args: run_id (str): MLflow run ID. Returns: ModelSchemaResponse: Model schema."""
         response = self._request("GET", f"/api/v1/models/{run_id}/schema")
-        return ModelSchemaResponse.model_validate(response)
+        return cast(ModelSchemaResponse, ModelSchemaResponse.model_validate(response))
 
     def predict(self, run_id: str, features: Dict[str, Any]) -> PredictionResponse:
         """Predict salary quantiles. Args: run_id (str): MLflow run ID. features (Dict[str, Any]): Input features. Returns: PredictionResponse: Prediction results."""
@@ -127,7 +127,7 @@ class APIClient:
             f"/api/v1/models/{run_id}/predict",
             json={"features": features},
         )
-        return PredictionResponse.model_validate(response)
+        return cast(PredictionResponse, PredictionResponse.model_validate(response))
 
     def predict_batch(
         self, run_id: str, features_list: List[Dict[str, Any]]
@@ -138,7 +138,7 @@ class APIClient:
             f"/api/v1/models/{run_id}/predict/batch",
             json={"features": features_list},
         )
-        return BatchPredictionResponse.model_validate(response)
+        return cast(BatchPredictionResponse, BatchPredictionResponse.model_validate(response))
 
     def upload_training_data(
         self, file_content: bytes, filename: str, dataset_name: Optional[str] = None
@@ -150,7 +150,7 @@ class APIClient:
             data["dataset_name"] = dataset_name
 
         response = self._request("POST", "/api/v1/training/data/upload", files=files, data=data)
-        return DataUploadResponse.model_validate(response)
+        return cast(DataUploadResponse, DataUploadResponse.model_validate(response))
 
     def start_training(
         self,
@@ -177,12 +177,12 @@ class APIClient:
             request_data["dataset_name"] = dataset_name
 
         response = self._request("POST", "/api/v1/training/jobs", json=request_data)
-        return TrainingJobResponse.model_validate(response)
+        return cast(TrainingJobResponse, TrainingJobResponse.model_validate(response))
 
     def get_training_job_status(self, job_id: str) -> TrainingJobStatusResponse:
         """Get training job status. Args: job_id (str): Job ID. Returns: TrainingJobStatusResponse: Job status."""
         response = self._request("GET", f"/api/v1/training/jobs/{job_id}")
-        return TrainingJobStatusResponse.model_validate(response)
+        return cast(TrainingJobStatusResponse, TrainingJobStatusResponse.model_validate(response))
 
     def list_training_jobs(
         self, limit: int = 50, offset: int = 0, status: Optional[str] = None
@@ -194,7 +194,7 @@ class APIClient:
 
         response = self._request("GET", "/api/v1/training/jobs", params=params)
         jobs_data = response.get("data", {}).get("jobs", [])
-        return [TrainingJobSummary.model_validate(j) for j in jobs_data]
+        return [cast(TrainingJobSummary, TrainingJobSummary.model_validate(j)) for j in jobs_data]
 
     def start_workflow(
         self,
@@ -217,12 +217,12 @@ class APIClient:
             request_data["preset"] = preset
 
         response = self._request("POST", "/api/v1/workflow/start", json=request_data)
-        return WorkflowStartResponse.model_validate(response)
+        return cast(WorkflowStartResponse, WorkflowStartResponse.model_validate(response))
 
     def get_workflow_state(self, workflow_id: str) -> WorkflowStateResponse:
         """Get workflow state. Args: workflow_id (str): Workflow ID. Returns: WorkflowStateResponse: Workflow state."""
         response = self._request("GET", f"/api/v1/workflow/{workflow_id}")
-        return WorkflowStateResponse.model_validate(response)
+        return cast(WorkflowStateResponse, WorkflowStateResponse.model_validate(response))
 
     def confirm_classification(
         self, workflow_id: str, modifications: Dict[str, Any]
@@ -246,7 +246,7 @@ class APIClient:
             f"/api/v1/workflow/{workflow_id}/confirm/classification",
             json=request_data.model_dump(),
         )
-        return WorkflowProgressResponse.model_validate(response)
+        return cast(WorkflowProgressResponse, WorkflowProgressResponse.model_validate(response))
 
     def confirm_encoding(
         self, workflow_id: str, modifications: Dict[str, Any]
@@ -285,7 +285,7 @@ class APIClient:
             f"/api/v1/workflow/{workflow_id}/confirm/encoding",
             json=request_data.model_dump(),
         )
-        return WorkflowProgressResponse.model_validate(response)
+        return cast(WorkflowProgressResponse, WorkflowProgressResponse.model_validate(response))
 
     def finalize_configuration(
         self, workflow_id: str, config_updates: Dict[str, Any]
@@ -317,13 +317,13 @@ class APIClient:
             f"/api/v1/workflow/{workflow_id}/finalize",
             json=request_data.model_dump(),
         )
-        return WorkflowCompleteResponse.model_validate(response)
+        return cast(WorkflowCompleteResponse, WorkflowCompleteResponse.model_validate(response))
 
     def get_data_summary(self, df: pd.DataFrame) -> DataSummaryResponse:
         """Get data summary. Args: df (pd.DataFrame): Input data. Returns: DataSummaryResponse: Data summary."""
         df_json = df.to_json(orient="records", date_format="iso")
         response = self._request("POST", "/api/v1/analytics/data-summary", json={"data": df_json})
-        return DataSummaryResponse.model_validate(response)
+        return cast(DataSummaryResponse, DataSummaryResponse.model_validate(response))
 
     def get_feature_importance(
         self, run_id: str, target: str, quantile: float
@@ -335,7 +335,7 @@ class APIClient:
             f"/api/v1/models/{run_id}/analytics/feature-importance",
             params=params,
         )
-        return FeatureImportanceResponse.model_validate(response)
+        return cast(FeatureImportanceResponse, FeatureImportanceResponse.model_validate(response))
 
 
 def get_api_client() -> Optional[APIClient]:

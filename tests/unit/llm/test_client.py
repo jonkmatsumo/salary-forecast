@@ -87,7 +87,7 @@ def test_get_langchain_openai_custom_model(mock_get_env):
     with patch("langchain_openai.ChatOpenAI", return_value=mock_llm) as mock_chat_openai:
         from src.llm.client import _get_langchain_openai
 
-        result = _get_langchain_openai(model="gpt-4", temperature=0.5)
+        _get_langchain_openai(model="gpt-4", temperature=0.5)
 
         assert mock_chat_openai.called
         call_kwargs = mock_chat_openai.call_args[1] if mock_chat_openai.call_args else {}
@@ -143,7 +143,7 @@ def test_get_langchain_gemini_custom_model(mock_get_env):
     ) as mock_chat_gemini:
         from src.llm.client import _get_langchain_gemini
 
-        result = _get_langchain_gemini(model="gemini-1.5-flash", temperature=0.3)
+        _get_langchain_gemini(model="gemini-1.5-flash", temperature=0.3)
 
         assert mock_chat_gemini.called
         call_kwargs = mock_chat_gemini.call_args[1] if mock_chat_gemini.call_args else {}
@@ -197,7 +197,7 @@ def test_get_langchain_llm_kwargs_passthrough(mock_get_openai):
     mock_llm = MagicMock()
     mock_get_openai.return_value = mock_llm
 
-    result = get_langchain_llm("openai", model="gpt-4", temperature=0.5, max_tokens=100)
+    get_langchain_llm("openai", model="gpt-4", temperature=0.5, max_tokens=100)
 
     mock_get_openai.assert_called_once()
     call_kwargs = mock_get_openai.call_args[1] if mock_get_openai.call_args else {}
@@ -229,7 +229,7 @@ def test_get_available_providers_both_installed(mock_get_env):
 def test_get_available_providers_only_openai(mock_get_env):
     mock_get_env.side_effect = lambda key: "key" if key == "OPENAI_API_KEY" else None
 
-    with patch("src.llm.client.ChatOpenAI", create=True) as mock_openai:
+    with patch("src.llm.client.ChatOpenAI", create=True):
         import sys
 
         mock_openai_module = MagicMock()

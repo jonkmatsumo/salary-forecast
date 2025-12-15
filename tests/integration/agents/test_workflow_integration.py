@@ -7,9 +7,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 
 from src.agents.column_classifier import run_column_classifier_sync
-from src.agents.feature_encoder import run_feature_encoder_sync
-from src.agents.model_configurator import run_model_configurator_sync
-from src.agents.tools import compute_correlation_matrix, detect_ordinal_patterns
+from src.agents.tools import detect_ordinal_patterns
 from src.services.workflow_service import WorkflowService
 
 
@@ -528,7 +526,7 @@ class TestWorkflowWithOptionalEncodings(unittest.TestCase):
                 "Date": {"type": "normalize_recent", "params": {}},
             },
         }
-        result = service.confirm_classification(modifications)
+        service.confirm_classification(modifications)
 
         # Verify optional_encodings were passed
         call_args = mock_workflow.confirm_classification.call_args[0][0]

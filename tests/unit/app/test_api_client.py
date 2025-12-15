@@ -1,16 +1,14 @@
 """Unit tests for API client."""
 
-from datetime import datetime
 from io import StringIO
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 import requests
 from requests.exceptions import HTTPError, RequestException
 
-from src.app.api_client import APIError, APIClient, get_api_client
+from src.app.api_client import APIClient, APIError, get_api_client
 
 
 class TestAPIError:

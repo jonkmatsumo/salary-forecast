@@ -1,20 +1,12 @@
 import unittest
-from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pandas as pd
 import pytest
-from pydantic import ValidationError
+from conftest import create_test_config
 
 from src.xgboost.model import QuantileForecaster, SalaryForecaster
-
-# Import conftest function directly (pytest will handle the path)
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
 
 
 @pytest.fixture(scope="module")

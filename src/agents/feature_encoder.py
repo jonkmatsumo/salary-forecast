@@ -9,11 +9,9 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
-from src.agents.tools import (
-    detect_ordinal_patterns,
-    get_column_statistics,
-    get_unique_value_counts,
-)
+import time
+
+from src.agents.tools import detect_ordinal_patterns, get_column_statistics, get_unique_value_counts
 from src.utils.logger import get_logger
 from src.utils.observability import (
     log_agent_interaction,
@@ -21,6 +19,7 @@ from src.utils.observability import (
     log_llm_tool_call,
     log_tool_result,
 )
+from src.utils.performance import LLMCallTracker, extract_tokens_from_langchain_response
 from src.utils.prompt_loader import load_prompt
 
 logger = get_logger(__name__)
@@ -121,7 +120,30 @@ async def run_feature_encoder(
     tools = {tool.name: tool for tool in get_feature_encoder_tools()}
 
     for iteration in range(max_iterations):
+        start_time = time.time()
         response = await agent.ainvoke(messages)
+        latency = time.time() - start_time
+
+        prompt_tokens, completion_tokens, total_tokens = extract_tokens_from_langchain_response(
+            response
+        )
+        model_name = getattr(llm, "model_name", "unknown")
+        provider = "openai" if "gpt" in model_name.lower() else "gemini"
+
+        from src.utils.performance import get_global_llm_tracker
+
+        tracker = LLMCallTracker(model=model_name, provider=provider, global_tracking=True)
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency=latency,
+        )
+        global_tracker = get_global_llm_tracker()
+        if global_tracker:
+            with global_tracker.lock:
+                global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+
         messages.append(response)
 
         if response.tool_calls:
@@ -182,7 +204,30 @@ def run_feature_encoder_sync(
     tools = {tool.name: tool for tool in get_feature_encoder_tools()}
 
     for iteration in range(max_iterations):
+        start_time = time.time()
         response = agent.invoke(messages)
+        latency = time.time() - start_time
+
+        prompt_tokens, completion_tokens, total_tokens = extract_tokens_from_langchain_response(
+            response
+        )
+        model_name = getattr(llm, "model_name", "unknown")
+        provider = "openai" if "gpt" in model_name.lower() else "gemini"
+
+        from src.utils.performance import get_global_llm_tracker
+
+        tracker = LLMCallTracker(model=model_name, provider=provider, global_tracking=True)
+        tracker.record(
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            total_tokens=total_tokens,
+            latency=latency,
+        )
+        global_tracker = get_global_llm_tracker()
+        if global_tracker:
+            with global_tracker.lock:
+                global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+
         messages.append(response)
 
         if response.tool_calls:

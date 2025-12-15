@@ -1,9 +1,7 @@
-from datetime import datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from src.xgboost.preprocessing import (
     CostOfLivingEncoder,
@@ -341,7 +339,7 @@ def test_metro_population_encoder_different_zones():
 
 def test_metro_population_encoder_non_string():
     with patch("src.xgboost.preprocessing.GeoMapper") as MockGeoMapper:
-        mock_mapper = MockGeoMapper.return_value
+        MockGeoMapper.return_value
 
         encoder = MetroPopulationEncoder()
 

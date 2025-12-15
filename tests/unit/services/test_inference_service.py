@@ -3,14 +3,14 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
+from conftest import create_test_config  # noqa: E402
 
-from src.services.inference_service import (
+from src.services.inference_service import (  # noqa: E402
     InferenceService,
     InvalidInputError,
     ModelNotFoundError,

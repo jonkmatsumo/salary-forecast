@@ -12,6 +12,14 @@ import pandas as pd
 from src.services.model_registry import SalaryForecasterWrapper, get_experiment_name
 from src.utils.csv_validator import validate_csv
 from src.utils.logger import get_logger
+from src.utils.performance import (
+    LLMCallTracker,
+    PerformanceMetrics,
+    get_llm_metrics_summary,
+    get_metric_stats,
+    set_global_llm_tracker,
+    timing_decorator,
+)
 from src.xgboost.model import SalaryForecaster
 
 
@@ -25,6 +33,7 @@ class TrainingService:
         self._background_tasks: set = set()
         self.logger.debug("Initialized TrainingService")
 
+    @timing_decorator(metric_name="training_total_time")
     def train_model(
         self,
         data: pd.DataFrame,
@@ -44,6 +53,7 @@ class TrainingService:
         forecaster.train(data, callback=callback, remove_outliers=remove_outliers)
         return forecaster
 
+    @timing_decorator(metric_name="tuning_total_time")
     def tune_model(
         self,
         data: pd.DataFrame,
@@ -256,6 +266,11 @@ class TrainingService:
             if additional_tag:
                 run_name = additional_tag
 
+            global_tracker = LLMCallTracker(
+                model="aggregate", provider="mixed", global_tracking=False
+            )
+            set_global_llm_tracker(global_tracker)
+
             with mlflow.start_run(run_name=run_name) as run:
 
                 mlflow.set_tags(
@@ -280,20 +295,55 @@ class TrainingService:
                 if do_tune:
                     self.logger.info(f"Starting tuning for job {job_id}")
                     _async_callback(f"Starting tuning with {n_trials} trials...")
-                    # Run CPU-bound tuning in executor
-                    best_params = await loop.run_in_executor(
-                        None, lambda: forecaster.tune(data, n_trials=n_trials)
-                    )
+                    with PerformanceMetrics("tuning_total_time"):
+                        # Run CPU-bound tuning in executor
+                        best_params = await loop.run_in_executor(
+                            None, lambda: forecaster.tune(data, n_trials=n_trials)
+                        )
                     mlflow.log_params(best_params)
+                    tuning_stats = get_metric_stats("tuning_total_time")
+                    if tuning_stats:
+                        mlflow.log_metric("tuning_total_time", tuning_stats["total"])
+                        mlflow.log_metric("tuning_trials_count", n_trials)
+                        if n_trials > 0:
+                            mlflow.log_metric(
+                                "tuning_avg_trial_time", tuning_stats["total"] / n_trials
+                            )
 
                 _async_callback("Starting training...")
-                # Run CPU-bound training in executor
-                await loop.run_in_executor(
-                    None,
-                    lambda: forecaster.train(
-                        data, callback=_async_callback, remove_outliers=remove_outliers
-                    ),
-                )
+                with PerformanceMetrics("training_total_time"):
+                    # Run CPU-bound training in executor
+                    await loop.run_in_executor(
+                        None,
+                        lambda: forecaster.train(
+                            data, callback=_async_callback, remove_outliers=remove_outliers
+                        ),
+                    )
+                training_stats = get_metric_stats("training_total_time")
+                if training_stats:
+                    mlflow.log_metric("training_total_time", training_stats["total"])
+
+                preprocessing_stats = get_metric_stats("preprocessing_feature_encoding_time")
+                if preprocessing_stats:
+                    mlflow.log_metric("preprocessing_total_time", preprocessing_stats["total"])
+
+                preprocessing_cleaning = get_metric_stats("preprocessing_data_cleaning_time")
+                preprocessing_outlier = get_metric_stats("preprocessing_outlier_removal_time")
+                if preprocessing_cleaning:
+                    mlflow.log_metric(
+                        "preprocessing_data_cleaning_time", preprocessing_cleaning["total"]
+                    )
+                if preprocessing_outlier:
+                    mlflow.log_metric(
+                        "preprocessing_outlier_removal_time", preprocessing_outlier["total"]
+                    )
+
+                llm_summary = get_llm_metrics_summary()
+                if llm_summary:
+                    mlflow.log_metric("llm_total_tokens", llm_summary["total_tokens"])
+                    mlflow.log_metric("llm_total_cost", llm_summary["total_cost"])
+                    mlflow.log_metric("llm_avg_latency", llm_summary["avg_latency"])
+                    mlflow.log_metric("llm_call_count", llm_summary["call_count"])
 
                 wrapper = SalaryForecasterWrapper(forecaster)
                 mlflow.pyfunc.log_model(

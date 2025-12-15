@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-import streamlit as st
 
 from src.app.model_analysis import render_model_analysis_ui
 
@@ -60,7 +59,7 @@ def test_load_valid_model(
     mock_registry.list_models.return_value = [run_data]
 
     # Construct expected label
-    expected_label = f"2023-01-01 12:00 | CV:0.9900 | ID:run123"
+    expected_label = "2023-01-01 12:00 | CV:0.9900 | ID:run123"
 
     # User selects the label
     mock_streamlit.selectbox.side_effect = [expected_label, "BaseSalary", 0.5]
@@ -102,7 +101,7 @@ def test_empty_importance(
     mock_registry.list_models.return_value = [run_data]
 
     mock_streamlit.selectbox.side_effect = [
-        f"2023-01-01 12:00 | CV:0.9900 | ID:run123",
+        "2023-01-01 12:00 | CV:0.9900 | ID:run123",
         "BaseSalary",
         0.5,
     ]
@@ -138,7 +137,6 @@ def test_fmt_score_value_error(mock_streamlit, mock_registry):
 
     render_model_analysis_ui()
 
-    expected_label_part = "CV:invalid"
     assert mock_streamlit.selectbox.called
 
 
@@ -155,7 +153,6 @@ def test_fmt_score_type_error(mock_streamlit, mock_registry):
 
     render_model_analysis_ui()
 
-    expected_label_part = "CV:None"
     assert mock_streamlit.selectbox.called
 
 
@@ -189,7 +186,7 @@ def test_no_targets_shows_error(
     }
     mock_registry.list_models.return_value = [run_data]
 
-    expected_label = f"2023-01-01 12:00 | CV:0.9900 | ID:run123"
+    expected_label = "2023-01-01 12:00 | CV:0.9900 | ID:run123"
     mock_streamlit.selectbox.return_value = expected_label
 
     mock_forecaster = MagicMock()
@@ -219,7 +216,7 @@ def test_exception_handling_displays_traceback(
     }
     mock_registry.list_models.return_value = [run_data]
 
-    expected_label = f"2023-01-01 12:00 | CV:0.9900 | ID:run123"
+    expected_label = "2023-01-01 12:00 | CV:0.9900 | ID:run123"
     mock_streamlit.selectbox.return_value = expected_label
 
     mock_inference_service = mock_get_inference_service.return_value

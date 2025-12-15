@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from src.agents.workflow import (
-    WorkflowState,
     build_final_config_node,
     classify_columns_node,
     configure_model_node,

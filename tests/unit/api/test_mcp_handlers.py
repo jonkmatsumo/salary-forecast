@@ -2,15 +2,13 @@
 
 import asyncio
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
 
-from src.api.exceptions import (
-    InvalidInputError as APIInvalidInputError,
-    ModelNotFoundError as APIModelNotFoundError,
-)
+from src.api.exceptions import InvalidInputError as APIInvalidInputError
+from src.api.exceptions import ModelNotFoundError as APIModelNotFoundError
 from src.api.mcp.handlers import MCPToolHandler
 from src.services.inference_service import InvalidInputError, ModelNotFoundError
 
@@ -272,7 +270,7 @@ def test_handle_start_configuration_workflow_with_preset(handler):
             state=WorkflowState(phase="classification", status="success", current_result={}),
         )
 
-        result = asyncio.run(
+        asyncio.run(
             handler._handle_start_configuration_workflow(
                 {
                     "data": df_json,
@@ -350,7 +348,7 @@ def test_handle_confirm_encoding_with_optional(handler):
             workflow_id="workflow123", phase="configuration", result={}
         )
 
-        result = asyncio.run(
+        asyncio.run(
             handler._handle_confirm_encoding(
                 {
                     "workflow_id": "workflow123",
@@ -403,7 +401,7 @@ def test_handle_finalize_configuration_with_location_settings(handler):
             workflow_id="workflow123", phase="complete", final_config={}
         )
 
-        result = asyncio.run(
+        asyncio.run(
             handler._handle_finalize_configuration(
                 {
                     "workflow_id": "workflow123",
@@ -425,7 +423,7 @@ def test_handle_finalize_configuration_with_location_settings(handler):
 def test_handle_get_feature_importance(handler):
     """Test _handle_get_feature_importance."""
     with patch("src.api.routers.analytics.get_feature_importance") as mock_get_importance:
-        from src.api.dto.analytics import FeatureImportanceResponse, FeatureImportance
+        from src.api.dto.analytics import FeatureImportance, FeatureImportanceResponse
 
         mock_get_importance.return_value = FeatureImportanceResponse(
             features=[
@@ -452,71 +450,43 @@ def test_handle_tool_call_unknown_tool(handler):
 
 def test_handle_start_training_dataset_not_found(handler):
     """Test _handle_start_training with non-existent dataset."""
-    import src.api.routers.training as training_module
+    with patch("src.api.storage.DatasetStorage") as MockStorage:
+        mock_storage = MagicMock()
+        mock_storage.get.return_value = None
+        MockStorage.return_value = mock_storage
 
-    original_import = getattr(training_module, "start_training_job", None)
-
-    async def dummy_function(*args, **kwargs):
-        pass
-
-    training_module.start_training_job = dummy_function
-
-    try:
-        with patch("src.api.storage.DatasetStorage") as MockStorage:
-            mock_storage = MagicMock()
-            mock_storage.get_dataset.return_value = None
-            MockStorage.return_value = mock_storage
-
-            with pytest.raises(ValueError, match="Dataset.*not found"):
-                asyncio.run(
-                    handler._handle_start_training({"dataset_id": "nonexistent", "config": {}})
-                )
-    finally:
-        if original_import is None:
-            if hasattr(training_module, "start_training_job"):
-                delattr(training_module, "start_training_job")
-        else:
-            training_module.start_training_job = original_import
+        with pytest.raises(ValueError, match="Dataset.*not found"):
+            asyncio.run(handler._handle_start_training({"dataset_id": "nonexistent", "config": {}}))
 
 
 def test_handle_start_training(handler):
     """Test _handle_start_training."""
     from src.api.dto.training import TrainingJobResponse
 
-    with (patch("src.api.storage.DatasetStorage") as MockStorage,):
-        import src.api.routers.training as training_module
+    with (
+        patch("src.api.storage.DatasetStorage") as MockStorage,
+        patch("src.api.routers.training.start_training") as mock_start_training,
+    ):
+        mock_start_training.return_value = TrainingJobResponse(job_id="job123", status="QUEUED")
 
-        original_import = getattr(training_module, "start_training_job", None)
+        mock_dataset = MagicMock()
+        mock_storage = MagicMock()
+        mock_storage.get.return_value = mock_dataset
+        MockStorage.return_value = mock_storage
 
-        async def mock_start_training_job(request_body, user, training_service, storage):
-            return TrainingJobResponse(job_id="job123", status="QUEUED")
-
-        training_module.start_training_job = mock_start_training_job
-
-        try:
-            mock_dataset = MagicMock()
-            mock_storage = MagicMock()
-            mock_storage.get_dataset.return_value = mock_dataset
-            MockStorage.return_value = mock_storage
-
-            result = asyncio.run(
-                handler._handle_start_training(
-                    {
-                        "dataset_id": "dataset123",
-                        "config": {"model": {"targets": ["Salary"]}},
-                        "remove_outliers": True,
-                        "do_tune": False,
-                    }
-                )
+        result = asyncio.run(
+            handler._handle_start_training(
+                {
+                    "dataset_id": "dataset123",
+                    "config": {"model": {"targets": ["Salary"]}},
+                    "remove_outliers": True,
+                    "do_tune": False,
+                }
             )
+        )
 
-            assert "job_id" in result
-            assert result["job_id"] == "job123"
-        finally:
-            if original_import is None:
-                delattr(training_module, "start_training_job")
-            else:
-                training_module.start_training_job = original_import
+        assert "job_id" in result
+        assert result["job_id"] == "job123"
 
 
 def test_handle_start_training_with_all_options(handler):
@@ -525,44 +495,38 @@ def test_handle_start_training_with_all_options(handler):
 
     call_args_capture = []
 
-    with patch("src.api.storage.DatasetStorage") as MockStorage:
-        import src.api.routers.training as training_module
+    with (
+        patch("src.api.storage.DatasetStorage") as MockStorage,
+        patch("src.api.routers.training.start_training") as mock_start_training,
+    ):
 
-        original_import = getattr(training_module, "start_training_job", None)
-
-        async def mock_start_training_job(request_body, user, training_service, storage):
-            call_args_capture.append(request_body)
+        async def capture_and_return(request, user, training_service):
+            call_args_capture.append(request)
             return TrainingJobResponse(job_id="job123", status="QUEUED")
 
-        training_module.start_training_job = mock_start_training_job
+        mock_start_training.side_effect = capture_and_return
 
-        try:
-            mock_dataset = MagicMock()
-            mock_storage = MagicMock()
-            mock_storage.get_dataset.return_value = mock_dataset
-            MockStorage.return_value = mock_storage
+        mock_dataset = MagicMock()
+        mock_storage = MagicMock()
+        mock_storage.get.return_value = mock_dataset
+        MockStorage.return_value = mock_storage
 
-            result = asyncio.run(
-                handler._handle_start_training(
-                    {
-                        "dataset_id": "dataset123",
-                        "config": {"model": {"targets": ["Salary"]}},
-                        "remove_outliers": False,
-                        "do_tune": True,
-                        "n_trials": 50,
-                        "additional_tag": "test_tag",
-                        "dataset_name": "test_dataset",
-                    }
-                )
+        asyncio.run(
+            handler._handle_start_training(
+                {
+                    "dataset_id": "dataset123",
+                    "config": {"model": {"targets": ["Salary"]}},
+                    "remove_outliers": False,
+                    "do_tune": True,
+                    "n_trials": 50,
+                    "additional_tag": "test_tag",
+                    "dataset_name": "test_dataset",
+                }
             )
+        )
 
-            assert len(call_args_capture) == 1
-            call_args = call_args_capture[0]
-            assert call_args["n_trials"] == 50
-            assert call_args["additional_tag"] == "test_tag"
-            assert call_args["dataset_name"] == "test_dataset"
-        finally:
-            if original_import is None:
-                delattr(training_module, "start_training_job")
-            else:
-                training_module.start_training_job = original_import
+        assert len(call_args_capture) == 1
+        request = call_args_capture[0]
+        assert request.n_trials == 50
+        assert request.additional_tag == "test_tag"
+        assert request.dataset_name == "test_dataset"

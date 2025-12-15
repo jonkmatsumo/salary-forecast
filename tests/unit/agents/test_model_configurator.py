@@ -13,7 +13,6 @@ from src.agents.model_configurator import (
     parse_configuration_response,
     run_model_configurator_sync,
 )
-from src.utils.prompt_loader import load_prompt
 
 
 class TestBuildConfigurationPrompt(unittest.TestCase):
@@ -410,9 +409,7 @@ class TestModelConfiguratorPreset(unittest.TestCase):
 
         mock_llm.invoke.return_value = mock_response
 
-        result = run_model_configurator_sync(
-            mock_llm, ["Salary"], {"encodings": {}}, preset="salary"
-        )
+        run_model_configurator_sync(mock_llm, ["Salary"], {"encodings": {}}, preset="salary")
 
         # Verify both system prompt and preset were loaded
         self.assertEqual(mock_load_prompt.call_count, 2)
@@ -433,7 +430,7 @@ class TestModelConfiguratorPreset(unittest.TestCase):
 
         mock_llm.invoke.return_value = mock_response
 
-        result = run_model_configurator_sync(mock_llm, ["Price"], {"encodings": {}}, preset=None)
+        run_model_configurator_sync(mock_llm, ["Price"], {"encodings": {}}, preset=None)
 
         # Should only load system prompt, not preset
         mock_load_prompt.assert_called_once_with("agents/model_configurator_system")

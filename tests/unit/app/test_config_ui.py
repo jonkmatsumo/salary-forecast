@@ -1,4 +1,3 @@
-import json
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
@@ -149,8 +148,8 @@ def test_render_config_ui_generator_section(sample_config):
 
     with (
         patch("src.app.config_ui.st") as mock_st,
-        patch("src.app.config_ui.WorkflowService") as MockWorkflowService,
-        patch("src.app.config_ui.validate_csv") as mock_validate,
+        patch("src.app.config_ui.WorkflowService"),
+        patch("src.app.config_ui.validate_csv"),
         patch("src.app.config_ui.render_workflow_wizard") as mock_wizard,
         patch("src.app.config_ui.render_ranked_mappings_section"),
         patch("src.app.config_ui.render_location_targets_editor"),
@@ -303,7 +302,7 @@ def test_render_save_load_controls_save():
 
     with (
         patch("src.app.config_ui.st") as mock_st,
-        patch("json.dumps", return_value='{"a": 1}') as mock_json_dumps,
+        patch("json.dumps", return_value='{"a": 1}'),
     ):
 
         mock_st.file_uploader.return_value = None
@@ -360,7 +359,7 @@ def test_render_config_ui_uses_override(sample_config):
         patch("src.app.config_ui.render_location_targets_editor") as mock_loc,
         patch("src.app.config_ui.render_location_settings_editor") as mock_settings,
         patch("src.app.config_ui.render_model_config_editor") as mock_model,
-        patch("src.app.config_ui.render_save_load_controls") as mock_save_load,
+        patch("src.app.config_ui.render_save_load_controls"),
         patch("src.app.config_ui.validate_csv"),
     ):
 
@@ -431,7 +430,7 @@ def test_workflow_wizard_start_button(mock_get_workflow_service):
         mock_st.status.return_value.__exit__ = MagicMock()
         mock_st.rerun = MagicMock()
 
-        result = render_workflow_wizard(df)
+        render_workflow_wizard(df)
 
         mock_get_workflow_service.assert_called_once()
         mock_service.start_workflow.assert_called_once()
@@ -849,7 +848,7 @@ def test_render_configuration_phase_confirmation():
         mock_service.workflow.current_state = {"location_columns": []}
         mock_st.session_state["workflow_service"] = mock_service
 
-        config = _render_configuration_phase(None, False, result)
+        _render_configuration_phase(None, False, result)
 
         # Should get final config when button is clicked
         mock_service.get_final_config.assert_called_once()

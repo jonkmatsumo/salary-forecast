@@ -1,8 +1,5 @@
 import io
 
-import pandas as pd
-import pytest
-
 from src.utils.csv_validator import validate_csv
 
 

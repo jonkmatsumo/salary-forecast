@@ -12,7 +12,7 @@ from src.xgboost.model import SalaryForecaster
 def get_experiment_name() -> str:
     """Get MLflow experiment name from environment variable or default. Returns: str: Experiment name."""
     experiment_name = get_env_var("MLFLOW_EXPERIMENT_NAME", "AutoQuantile")
-    return experiment_name
+    return experiment_name or "AutoQuantile"
 
 
 class SalaryForecasterWrapper(PythonModel):
@@ -91,7 +91,9 @@ class ModelRegistry:
 
         cols_to_keep = [c for c in cols_to_keep if c in runs.columns]
 
-        return runs[cols_to_keep].to_dict("records")
+        from typing import Any, cast
+
+        return cast(list[Any], runs[cols_to_keep].to_dict("records"))
 
     def _list_models_fallback(self) -> Any:
         """Fallback method to list models by manually iterating runs across all experiments. Returns: Any: DataFrame of runs."""
@@ -189,9 +191,14 @@ class ModelRegistry:
 
     def load_model(self, run_id: str) -> SalaryForecaster:
         """Load the 'model' artifact from the specified run. Args: run_id (str): MLflow run ID. Returns: SalaryForecaster: Loaded model."""
+        from typing import cast
+
         model_uri = f"runs:/{run_id}/model"
         self.logger.info(f"Loading model from run: {run_id}")
-        return mlflow.pyfunc.load_model(model_uri).unwrap_python_model().unwrap_python_model()
+        return cast(
+            SalaryForecaster,
+            mlflow.pyfunc.load_model(model_uri).unwrap_python_model().unwrap_python_model(),
+        )
 
     def save_model(self, model: SalaryForecaster, run_name: Optional[str] = None) -> None:
         """Save model to MLflow. Args: model (SalaryForecaster): Model to save. run_name (Optional[str]): Run name. Returns: None."""

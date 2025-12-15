@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from src.agents.workflow import ConfigWorkflow
 from src.services.workflow_service import WorkflowService
 
 
@@ -41,7 +40,7 @@ def test_location_type_detected_in_classification(sample_df_with_location):
                 mock_corr.invoke.return_value = "correlation_data"
 
                 service = WorkflowService(provider="openai")
-                result = service.start_workflow(sample_df_with_location)
+                service.start_workflow(sample_df_with_location)
 
                 # Verify location was detected
                 assert (
@@ -71,7 +70,7 @@ def test_location_can_be_target_or_feature(sample_df_with_location):
                 mock_corr.invoke.return_value = "correlation_data"
 
                 service = WorkflowService(provider="openai")
-                result = service.start_workflow(sample_df_with_location)
+                service.start_workflow(sample_df_with_location)
 
                 classification = service.workflow.current_state.get("column_classification", {})
                 assert "Location" in classification.get("features", [])
@@ -92,7 +91,7 @@ def test_location_can_be_target_or_feature(sample_df_with_location):
                 mock_corr.invoke.return_value = "correlation_data"
 
                 service = WorkflowService(provider="openai")
-                result = service.start_workflow(sample_df_with_location)
+                service.start_workflow(sample_df_with_location)
 
                 classification = service.workflow.current_state.get("column_classification", {})
                 assert "Location" in classification.get("targets", [])
@@ -119,7 +118,7 @@ def test_location_columns_extracted_from_column_types(sample_df_with_location):
                 mock_corr.invoke.return_value = "correlation_data"
 
                 service = WorkflowService(provider="openai")
-                result = service.start_workflow(sample_df_with_location)
+                service.start_workflow(sample_df_with_location)
 
                 location_columns = service.workflow.current_state.get("location_columns", [])
                 assert "Location" in location_columns

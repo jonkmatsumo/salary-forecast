@@ -3,15 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
+from conftest import create_test_config
 
 from src.app.train_ui import render_training_ui
-
-# Import conftest function directly (pytest will handle the path)
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
 
 
 @pytest.fixture
@@ -147,7 +141,7 @@ def test_render_training_ui_requires_wizard(mock_streamlit, mock_load_data, mock
 
     # Should NOT show training controls (button should not be called with "Start Training")
     button_labels = [call[0][0] if call[0] else "" for call in mock_streamlit.button.call_args_list]
-    start_training_called = any("Start Training" in label for label in button_labels)
+    any("Start Training" in label for label in button_labels)
     # Actually, the button might exist but be disabled/hidden, so we check that training service is not called
     service_instance = mock_training_service.return_value
     service_instance.start_training_async.assert_not_called()
@@ -467,7 +461,7 @@ class TestConfigValidationInTrainUI(unittest.TestCase):
         self.mock_st.button.side_effect = button_side_effect
 
         with patch("src.app.train_ui.get_training_service") as mock_get_svc:
-            service_instance = mock_get_svc.return_value
+            mock_get_svc.return_value
 
             render_training_ui()
 

@@ -67,4 +67,3 @@ After your analysis, provide your classification as a JSON object:
 - The `column_types` dict helps identify which columns need special encoding (location → proximity, datetime → time-based encodings)
 
 Use the tools to gather information before making your final classification. Be thorough but efficient - you don't need to analyze every column in detail if the classification is obvious from the name and dtype.
-

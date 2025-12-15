@@ -10,7 +10,6 @@ from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import pytest
-import streamlit as st
 
 from src.app.data_analysis import render_data_analysis_ui
 

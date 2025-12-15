@@ -1,6 +1,7 @@
 """Model configuration agent that proposes monotonic constraints, quantiles, and XGBoost hyperparameters."""
 
 import json
+import time
 from typing import Any, Dict, List, Optional
 
 from langchain_core.language_models import BaseChatModel
@@ -8,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from src.utils.logger import get_logger
 from src.utils.observability import log_agent_interaction
+from src.utils.performance import LLMCallTracker, extract_tokens_from_langchain_response
 from src.utils.prompt_loader import load_prompt
 
 logger = get_logger(__name__)
@@ -149,7 +151,12 @@ async def run_model_configurator(
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
 
     response = await llm.ainvoke(messages)
-    return parse_configuration_response(response.content)
+    content = (
+        response.content
+        if isinstance(response.content, str)
+        else str(response.content) if response.content else ""
+    )
+    return parse_configuration_response(content)
 
 
 def run_model_configurator_sync(
@@ -177,7 +184,30 @@ def run_model_configurator_sync(
 
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
 
+    start_time = time.time()
     response = llm.invoke(messages)
+    latency = time.time() - start_time
+
+    prompt_tokens, completion_tokens, total_tokens = extract_tokens_from_langchain_response(
+        response
+    )
+    model_name = getattr(llm, "model_name", "unknown")
+    provider = "openai" if "gpt" in model_name.lower() else "gemini"
+
+    from src.utils.performance import get_global_llm_tracker
+
+    tracker = LLMCallTracker(model=model_name, provider=provider, global_tracking=True)
+    tracker.record(
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        latency=latency,
+    )
+    global_tracker = get_global_llm_tracker()
+    if global_tracker:
+        with global_tracker.lock:
+            global_tracker.calls.append(tracker.calls[-1] if tracker.calls else {})
+
     response_content_raw = response.content if response.content else ""
     if isinstance(response_content_raw, str):
         response_content = response_content_raw

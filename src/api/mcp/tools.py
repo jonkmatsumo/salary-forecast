@@ -1,6 +1,6 @@
 """MCP tool definitions with semantic enrichment."""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from src.utils.logger import get_logger
 
@@ -15,7 +15,7 @@ class MCPTool:
         name: str,
         description: str,
         input_schema: Dict[str, Any],
-        examples: List[Dict[str, Any]] = None,
+        examples: Optional[List[Dict[str, Any]]] = None,
     ):
         """Initialize MCP tool. Args: name (str): Tool name. description (str): Tool description. input_schema (Dict[str, Any]): JSON schema for inputs. examples (List[Dict[str, Any]]): Example inputs/outputs. Returns: None."""
         self.name = name
@@ -25,7 +25,7 @@ class MCPTool:
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert tool to dictionary. Returns: Dict[str, Any]: Tool definition."""
-        result = {
+        result: Dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "inputSchema": self.input_schema,

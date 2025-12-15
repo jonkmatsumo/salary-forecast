@@ -1,6 +1,6 @@
 """MCP tool handlers that map to service layer."""
 
-from typing import Any, Dict
+from typing import Any, Dict, cast
 
 from src.api.dto.models import ModelMetadata
 from src.services.analytics_service import AnalyticsService
@@ -139,7 +139,7 @@ class MCPToolHandler:
                 targets=schema.targets,
                 quantiles=schema.quantiles,
             )
-            return response.model_dump()
+            return cast(Dict[str, Any], response.model_dump())
         except ModelNotFoundError as e:
             raise APIModelNotFoundError(run_id) from e
 
@@ -181,7 +181,7 @@ class MCPToolHandler:
             )
 
             response = ModelSchemaResponse(run_id=run_id, model_schema=model_schema)
-            return response.model_dump()
+            return cast(Dict[str, Any], response.model_dump())
         except ModelNotFoundError as e:
             raise APIModelNotFoundError(run_id) from e
 
@@ -210,7 +210,7 @@ class MCPToolHandler:
                 predictions=result.predictions,
                 metadata=metadata_obj,
             )
-            return response.model_dump()
+            return cast(Dict[str, Any], response.model_dump())
         except ModelNotFoundError as e:
             from src.api.exceptions import ModelNotFoundError as APIModelNotFoundError
 
@@ -220,7 +220,8 @@ class MCPToolHandler:
 
     async def _handle_start_training(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle start_training tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
-        from src.api.routers.training import start_training_job
+        from src.api.dto.training import TrainingJobRequest
+        from src.api.routers.training import start_training
         from src.api.storage import DatasetStorage
 
         dataset_id = args["dataset_id"]
@@ -232,30 +233,26 @@ class MCPToolHandler:
         dataset_name = args.get("dataset_name")
 
         storage = DatasetStorage()
-        dataset = storage.get_dataset(dataset_id)
+        dataset = storage.get(dataset_id)
         if not dataset:
             raise ValueError(f"Dataset {dataset_id} not found")
 
-        request_body = {
-            "dataset_id": dataset_id,
-            "config": config,
-            "remove_outliers": remove_outliers,
-            "do_tune": do_tune,
-        }
-        if n_trials:
-            request_body["n_trials"] = n_trials
-        if additional_tag:
-            request_body["additional_tag"] = additional_tag
-        if dataset_name:
-            request_body["dataset_name"] = dataset_name
+        request = TrainingJobRequest(
+            dataset_id=dataset_id,
+            config=config,
+            remove_outliers=remove_outliers,
+            do_tune=do_tune,
+            n_trials=n_trials,
+            additional_tag=additional_tag,
+            dataset_name=dataset_name,
+        )
 
-        response = await start_training_job(
-            request_body,
+        response = await start_training(
+            request=request,
             user="mcp",
             training_service=self.training_service,
-            storage=storage,
         )
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_get_training_status(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get_training_status tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
@@ -265,12 +262,13 @@ class MCPToolHandler:
         response = await get_training_job_status(
             job_id, user="mcp", training_service=self.training_service
         )
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_start_configuration_workflow(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle start_configuration_workflow tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
-        import pandas as pd
         from io import StringIO
+
+        import pandas as pd
 
         from src.api.routers.workflow import start_workflow
 
@@ -281,7 +279,7 @@ class MCPToolHandler:
         provider = args.get("provider", "openai")
         preset = args.get("preset")
 
-        df = pd.read_json(StringIO(data), orient="records")
+        pd.read_json(StringIO(data), orient="records")
 
         request_body = {
             "data": data,
@@ -294,7 +292,7 @@ class MCPToolHandler:
             request_body["preset"] = preset
 
         response = await start_workflow(request_body, user="mcp")
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_confirm_classification(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle confirm_classification tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
@@ -317,7 +315,7 @@ class MCPToolHandler:
         )
 
         response = await confirm_classification(workflow_id, request_body, user="mcp")
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_confirm_encoding(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle confirm_encoding tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
@@ -355,7 +353,7 @@ class MCPToolHandler:
         )
 
         response = await confirm_encoding(workflow_id, request_body, user="mcp")
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_finalize_configuration(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle finalize_configuration tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
@@ -386,7 +384,7 @@ class MCPToolHandler:
         )
 
         response = await finalize_configuration(workflow_id, request_body, user="mcp")
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_get_feature_importance(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Handle get_feature_importance tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
@@ -404,4 +402,4 @@ class MCPToolHandler:
             inference_service=self.inference_service,
             analytics_service=self.analytics_service,
         )
-        return response.model_dump()
+        return cast(Dict[str, Any], response.model_dump())

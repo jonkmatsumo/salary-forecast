@@ -1,9 +1,7 @@
 """Unit tests for MCP server."""
 
-import pytest
 from fastapi import APIRouter
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch, AsyncMock
 
 from src.api.app import create_app
 from src.api.mcp.server import create_mcp_app, handle_tools_list

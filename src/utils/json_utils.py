@@ -1,7 +1,7 @@
 """JSON parsing utilities for handling escaped and normalized JSON strings that may be double-encoded or contain escape sequences from LLM tool calls."""
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from src.utils.logger import get_logger
 
@@ -14,7 +14,6 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
         raise ValueError(f"Invalid input: expected non-empty string, got {type(json_str)}")
 
     original_str = json_str
-    strategies: List[str] = []
 
     def _parse_once(s: str) -> Optional[Any]:
         """Tries all parsing strategies once. Args: s (str): JSON string to parse. Returns: Optional[Any]: Parsed JSON object or None if all strategies fail."""

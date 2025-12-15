@@ -4,16 +4,10 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 import pandas as pd
+from conftest import create_test_config
 
 from src.services.training_service import TrainingService
 from src.services.workflow_service import WorkflowService
-
-# Import conftest function directly (pytest will handle the path)
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-from conftest import create_test_config
 
 
 class TestLLMOnlyConfigIntegration(unittest.TestCase):
@@ -40,7 +34,7 @@ class TestLLMOnlyConfigIntegration(unittest.TestCase):
         mock_get_llm.return_value = mock_llm
 
         # Generate config using workflow
-        workflow_service = WorkflowService(provider="openai")
+        WorkflowService(provider="openai")
         config = create_test_config()
 
         # Verify config is valid

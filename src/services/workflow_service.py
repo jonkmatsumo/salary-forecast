@@ -67,17 +67,21 @@ class WorkflowService:
             logger.debug(f"Generated df_json (records) length: {len(df_json)} characters")
 
             # Validate JSON can be parsed
-            parsed = parse_df_json_safely(df_json)
-            logger.debug(f"df_json validated successfully")
-            return df_json
+            parse_df_json_safely(df_json)
+            logger.debug("df_json validated successfully")
+            from typing import cast
+
+            return cast(str, df_json)
         except ValueError as records_err:
             logger.warning(f"Records serialization failed, trying columns: {records_err}")
             try:
                 df_json = df.to_json(orient="columns", date_format="iso")
                 logger.debug(f"Generated df_json (columns) length: {len(df_json)} characters")
-                parsed = parse_df_json_safely(df_json)
-                logger.debug(f"df_json (columns) validated successfully")
-                return df_json
+                parse_df_json_safely(df_json)
+                logger.debug("df_json (columns) validated successfully")
+                from typing import cast
+
+                return cast(str, df_json)
             except Exception as columns_err:
                 error_msg = (
                     f"Failed to serialize DataFrame to JSON. "
@@ -243,13 +247,13 @@ class WorkflowService:
 
     def _format_phase_result(self, phase: str) -> Dict[str, Any]:
         """Format the current state for UI consumption. Args: phase (str): Current phase name. Returns: Dict[str, Any]: Formatted result dictionary."""
-        state = (
-            self.workflow.current_state
-            if self.workflow and self.workflow.current_state
-            else self.current_state
-        )
+        state: Dict[str, Any] = {}
+        if self.workflow and self.workflow.current_state:
+            state = self.workflow.current_state
+        else:
+            state = self.current_state
 
-        result = {
+        result: Dict[str, Any] = {
             "phase": phase,
             "status": "success" if not state.get("error") else "error",
         }

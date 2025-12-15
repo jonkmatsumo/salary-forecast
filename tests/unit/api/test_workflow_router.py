@@ -11,12 +11,12 @@ from src.api.dto.workflow import (
     ClassificationConfirmationRequest,
     ClassificationModifications,
     ConfigurationFinalizationRequest,
+    EncodingConfig,
     EncodingConfirmationRequest,
     EncodingModifications,
-    EncodingConfig,
-    OptionalEncodingConfig,
     FeatureConfig,
     Hyperparameters,
+    OptionalEncodingConfig,
 )
 from src.api.exceptions import InvalidInputError, WorkflowNotFoundError
 from src.api.routers.workflow import (
@@ -25,7 +25,6 @@ from src.api.routers.workflow import (
     confirm_encoding,
     finalize_configuration,
     get_workflow_state,
-    get_workflow_service,
     start_workflow,
 )
 from src.services.workflow_service import WorkflowService

@@ -71,7 +71,7 @@ def test_optional_encodings_shown_for_location_columns(
         mock_st.button.return_value = False
         mock_st.session_state["workflow_service"] = mock_workflow_service
 
-        result = _render_encoding_phase(None, False, sample_encoding_result)
+        _render_encoding_phase(None, False, sample_encoding_result)
 
         # Verify that data_editor was called
         assert mock_st.data_editor.called, "data_editor should be called"
@@ -131,7 +131,7 @@ def test_optional_encodings_shown_for_date_columns(mock_workflow_service, sample
         mock_st.button.return_value = False
         mock_st.session_state["workflow_service"] = mock_workflow_service
 
-        result = _render_encoding_phase(None, False, sample_encoding_result)
+        _render_encoding_phase(None, False, sample_encoding_result)
 
         # Verify that data_editor was called
         assert mock_st.data_editor.called, "data_editor should be called"

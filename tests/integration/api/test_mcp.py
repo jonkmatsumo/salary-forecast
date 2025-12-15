@@ -9,7 +9,6 @@ Tests cover:
 - Tool schema validation (required fields, proper structure)
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
