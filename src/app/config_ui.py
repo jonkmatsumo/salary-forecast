@@ -10,6 +10,7 @@ import streamlit as st
 
 from src.app.api_client import APIError, get_api_client
 from src.app.caching import load_data_cached
+from src.app.service_factories import get_workflow_service
 from src.services.workflow_service import WorkflowService, get_workflow_providers
 from src.utils.csv_validator import validate_csv
 
@@ -100,7 +101,7 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
                             "data": state_response.current_result,
                         }
                     else:
-                        service = WorkflowService(provider=provider)
+                        service = get_workflow_service(provider=provider)
                         st.session_state["workflow_service"] = service
                         result = service.start_workflow(df, preset=preset_value)
                         st.session_state["workflow_phase"] = "classification"
@@ -353,12 +354,25 @@ def _render_classification_phase(
                         result = service.confirm_classification(modifications)
                         status.update(label="Feature encoding complete", state="complete")
                     st.session_state["workflow_phase"] = "encoding"
+                    
+                    if result.get("status") == "error":
+                        error_msg = result.get("error", "Classification confirmation failed")
+                        st.error(f"**Classification Error**")
+                        st.error(f"Classification confirmation failed: {error_msg}")
+                        return None
+                    
                 st.session_state["workflow_result"] = result
                 st.rerun()
             except APIError as e:
                 st.error(f"Failed to confirm classification: {e.message}")
+            except RuntimeError as e:
+                error_msg = str(e)
+                if "not started" in error_msg.lower() or "workflow not started" in error_msg.lower():
+                    st.error("Workflow not started. Please restart the configuration wizard.")
+                else:
+                    st.error(f"Failed to confirm classification: {error_msg}")
             except Exception as e:
-                st.error(f"Failed to confirm classification: {e}")
+                st.error(f"Failed to confirm classification: {str(e)}")
 
     with col2:
         if st.button("Reset Workflow"):
@@ -648,12 +662,25 @@ def _render_encoding_phase(
                         result = service.confirm_encoding(modifications)
                         status.update(label="Model configuration complete", state="complete")
                     st.session_state["workflow_phase"] = "configuration"
+                    
+                    if result.get("status") == "error":
+                        error_msg = result.get("error", "Encoding confirmation failed")
+                        st.error(f"**Encoding Error**")
+                        st.error(f"Encoding confirmation failed: {error_msg}")
+                        return None
+                    
                 st.session_state["workflow_result"] = result
                 st.rerun()
             except APIError as e:
                 st.error(f"Failed to confirm encoding: {e.message}")
+            except RuntimeError as e:
+                error_msg = str(e)
+                if "not started" in error_msg.lower() or "workflow not started" in error_msg.lower():
+                    st.error("Workflow not started. Please restart the configuration wizard.")
+                else:
+                    st.error(f"Failed to confirm encoding: {error_msg}")
             except Exception as e:
-                st.error(f"Failed to confirm encoding: {e}")
+                st.error(f"Failed to confirm encoding: {str(e)}")
 
     with col2:
         if st.button("Back to Classification", key="back_to_class"):
@@ -879,45 +906,53 @@ def _render_configuration_phase(
                     service: WorkflowService = st.session_state.get("workflow_service")
                     final_config = service.get_final_config()
 
-                    if final_config:
-                        final_config["model"]["features"] = final_features
-                        final_config["model"]["quantiles"] = final_quantiles
-                        final_config["model"]["hyperparameters"] = {
-                            "training": {
-                                "objective": "reg:quantileerror",
-                                "tree_method": "hist",
-                                "max_depth": int(max_depth),
-                                "eta": float(eta),
-                                "subsample": float(subsample),
-                                "colsample_bytree": float(colsample),
-                                "verbosity": 0,
-                            },
-                            "cv": {
-                                "num_boost_round": int(num_boost),
-                                "nfold": int(nfold),
-                                "early_stopping_rounds": int(early_stop),
-                                "verbose_eval": False,
-                            },
-                        }
+                    if not final_config:
+                        st.error("**Configuration Error**")
+                        st.error("No final configuration available. Ensure workflow is in configuration phase.")
+                        return None
 
-                        if location_columns and "workflow_location_settings" in st.session_state:
-                            final_config["location_settings"] = st.session_state[
+                    final_config["model"]["features"] = final_features
+                    final_config["model"]["quantiles"] = final_quantiles
+                    final_config["model"]["hyperparameters"] = {
+                        "training": {
+                            "objective": "reg:quantileerror",
+                            "tree_method": "hist",
+                            "max_depth": int(max_depth),
+                            "eta": float(eta),
+                            "subsample": float(subsample),
+                            "colsample_bytree": float(colsample),
+                            "verbosity": 0,
+                        },
+                        "cv": {
+                            "num_boost_round": int(num_boost),
+                            "nfold": int(nfold),
+                            "early_stopping_rounds": int(early_stop),
+                            "verbose_eval": False,
+                        },
+                    }
+
+                    if location_columns and "workflow_location_settings" in st.session_state:
+                        final_config["location_settings"] = st.session_state[
+                            "workflow_location_settings"
+                        ]
+                        if service and service.workflow:
+                            service.workflow.current_state["location_settings"] = st.session_state[
                                 "workflow_location_settings"
                             ]
-                            if service and service.workflow:
-                                service.workflow.current_state["location_settings"] = st.session_state[
-                                    "workflow_location_settings"
-                                ]
 
-                        st.session_state["workflow_result"]["final_config"] = final_config
-                        st.session_state["workflow_phase"] = "complete"
-                        st.rerun()
-                    else:
-                        st.error("Could not retrieve final configuration")
+                    st.session_state["workflow_result"]["final_config"] = final_config
+                    st.session_state["workflow_phase"] = "complete"
+                    st.rerun()
             except APIError as e:
                 st.error(f"Failed to finalize configuration: {e.message}")
+            except RuntimeError as e:
+                error_msg = str(e)
+                if "not started" in error_msg.lower() or "workflow not started" in error_msg.lower():
+                    st.error("Workflow not started. Please restart the configuration wizard.")
+                else:
+                    st.error(f"Failed to finalize configuration: {error_msg}")
             except Exception as e:
-                st.error(f"Failed to finalize configuration: {e}")
+                st.error(f"Failed to finalize configuration: {str(e)}")
 
     with col2:
         if st.button("Back to Encoding", key="back_to_encoding"):

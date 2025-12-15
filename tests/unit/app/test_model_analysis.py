@@ -32,8 +32,10 @@ def mock_registry():
 
 @pytest.fixture
 def mock_analytics():
-    with patch("src.app.model_analysis.AnalyticsService") as MockAn:
-        yield MockAn.return_value
+    with patch("src.app.model_analysis.get_analytics_service") as mock_get_analytics:
+        mock_instance = MagicMock()
+        mock_get_analytics.return_value = mock_instance
+        yield mock_instance
 
 
 def test_no_models_shows_warning(mock_streamlit, mock_registry):
@@ -44,7 +46,10 @@ def test_no_models_shows_warning(mock_streamlit, mock_registry):
     )
 
 
-def test_load_valid_model(mock_streamlit, mock_registry, mock_analytics):
+@patch("src.app.model_analysis.get_inference_service")
+def test_load_valid_model(mock_get_inference_service, mock_streamlit, mock_registry, mock_analytics):
+    from src.services.inference_service import ModelSchema
+    
     run_data = {
         "run_id": "run123",
         "start_time": datetime(2023, 1, 1, 12, 0),
@@ -58,29 +63,15 @@ def test_load_valid_model(mock_streamlit, mock_registry, mock_analytics):
     # User selects the label
     mock_streamlit.selectbox.side_effect = [expected_label, "BaseSalary", 0.5]
 
-    # Actual Forecaster
+    # Mock model and schema
     mock_forecaster = MagicMock()
-    # Mock Forecaster wrapper returned by MLflow
-    mock_wrapper = MagicMock()
-    mock_wrapper.unwrap_python_model.return_value = mock_forecaster
-    # Actual Forecaster
-    mock_forecaster = MagicMock()
-    # Mock Analytics Responses
-    mock_analytics.get_available_targets.return_value = ["BaseSalary"]
-    mock_analytics.get_available_quantiles.return_value = [0.5]
-
-    # Registry returns the wrapper first? No, our code calls unwrap.
-    # registry.load_model -> returns unwrap_python_model().
-    # So we just need registry.load_model to return the forecaster directly
-    # IF the registry method does the unwrapping internally (which it does).
-    # Wait, let's check code:
-    # return mlflow.pyfunc.load_model(model_uri).unwrap_python_model()
-    # So the mock need to act as mlflow. But here we are mocking registry.load_model directly.
-    # Ah! The test mocks `src.app.model_analysis.ModelRegistry`.
-    # So `mock_registry.load_model.return_value` should be the FORECASTER object itself.
-
-    mock_registry.load_model.return_value = mock_forecaster
-    mock_analytics.get_available_quantiles.return_value = [0.5]
+    mock_schema = MagicMock(spec=ModelSchema)
+    mock_schema.targets = ["BaseSalary"]
+    mock_schema.quantiles = [0.5]
+    
+    mock_inference_service = mock_get_inference_service.return_value
+    mock_inference_service.load_model.return_value = mock_forecaster
+    mock_inference_service.get_model_schema.return_value = mock_schema
 
     # Mock Feature Importance
     df_imp = pd.DataFrame({"Feature": ["A"], "Gain": [10.0]})
@@ -92,14 +83,13 @@ def test_load_valid_model(mock_streamlit, mock_registry, mock_analytics):
     mock_streamlit.success.assert_called()
 
     # Verify plotting
-    # Verify plotting
-    # Assuming get_feature_importance returns valid DF, it plots
     mock_streamlit.pyplot.assert_called()
 
 
-def test_empty_importance(mock_streamlit, mock_registry, mock_analytics):
-    # Construct expected label based on default mock behavior?
-    # Better to define specific run data
+@patch("src.app.model_analysis.get_inference_service")
+def test_empty_importance(mock_get_inference_service, mock_streamlit, mock_registry, mock_analytics):
+    from src.services.inference_service import ModelSchema
+    
     run_data = {
         "run_id": "run123",
         "start_time": datetime(2023, 1, 1, 12, 0),
@@ -114,10 +104,13 @@ def test_empty_importance(mock_streamlit, mock_registry, mock_analytics):
     ]
 
     mock_forecaster = MagicMock()
-    mock_registry.load_model.return_value = mock_forecaster
-
-    mock_analytics.get_available_targets.return_value = ["BaseSalary"]
-    mock_analytics.get_available_quantiles.return_value = [0.5]
+    mock_schema = MagicMock(spec=ModelSchema)
+    mock_schema.targets = ["BaseSalary"]
+    mock_schema.quantiles = [0.5]
+    
+    mock_inference_service = mock_get_inference_service.return_value
+    mock_inference_service.load_model.return_value = mock_forecaster
+    mock_inference_service.get_model_schema.return_value = mock_schema
 
     # Return empty importance
     mock_analytics.get_feature_importance.return_value = pd.DataFrame()
@@ -178,8 +171,11 @@ def test_empty_selected_label_returns_early(mock_streamlit, mock_registry):
     mock_registry.load_model.assert_not_called()
 
 
-def test_no_targets_shows_error(mock_streamlit, mock_registry, mock_analytics):
+@patch("src.app.model_analysis.get_inference_service")
+def test_no_targets_shows_error(mock_get_inference_service, mock_streamlit, mock_registry, mock_analytics):
     """Test that function shows error and returns when no targets found."""
+    from src.services.inference_service import ModelSchema
+    
     run_data = {
         "run_id": "run123",
         "start_time": datetime(2023, 1, 1, 12, 0),
@@ -191,18 +187,22 @@ def test_no_targets_shows_error(mock_streamlit, mock_registry, mock_analytics):
     mock_streamlit.selectbox.return_value = expected_label
     
     mock_forecaster = MagicMock()
-    mock_registry.load_model.return_value = mock_forecaster
-    mock_analytics.get_available_targets.return_value = []
+    mock_schema = MagicMock(spec=ModelSchema)
+    mock_schema.targets = []  # No targets
+    
+    mock_inference_service = mock_get_inference_service.return_value
+    mock_inference_service.load_model.return_value = mock_forecaster
+    mock_inference_service.get_model_schema.return_value = mock_schema
     
     render_model_analysis_ui()
     
     mock_streamlit.error.assert_called_with(
         "This model file does not appear to contain trained models."
     )
-    mock_analytics.get_available_quantiles.assert_not_called()
 
 
-def test_exception_handling_displays_traceback(mock_streamlit, mock_registry):
+@patch("src.app.model_analysis.get_inference_service")
+def test_exception_handling_displays_traceback(mock_get_inference_service, mock_streamlit, mock_registry):
     """Test that exceptions are caught and traceback is displayed."""
     run_data = {
         "run_id": "run123",
@@ -214,10 +214,12 @@ def test_exception_handling_displays_traceback(mock_streamlit, mock_registry):
     expected_label = f"2023-01-01 12:00 | CV:0.9900 | ID:run123"
     mock_streamlit.selectbox.return_value = expected_label
     
-    mock_registry.load_model.side_effect = ValueError("Test error")
+    mock_inference_service = mock_get_inference_service.return_value
+    mock_inference_service.load_model.side_effect = ValueError("Test error")
     
     render_model_analysis_ui()
     
+    mock_streamlit.error.assert_called()
     mock_streamlit.code.assert_called()
     call_args = mock_streamlit.code.call_args[0][0]
     assert "ValueError" in call_args or "Test error" in call_args

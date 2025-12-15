@@ -9,15 +9,8 @@ import streamlit as st
 from src.app.api_client import APIError, get_api_client
 from src.app.caching import load_data_cached as load_data
 from src.app.config_ui import _reset_workflow_state, render_workflow_wizard
-from src.services.analytics_service import AnalyticsService
-from src.services.model_registry import ModelRegistry
-from src.services.training_service import TrainingService
+from src.app.service_factories import get_analytics_service, get_training_service
 from src.services.workflow_service import get_workflow_providers
-
-
-@st.cache_resource
-def get_training_service() -> TrainingService:
-    return TrainingService()
 
 
 def render_data_overview(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
@@ -125,7 +118,7 @@ def render_training_ui() -> None:
                 st.error(f"Failed to get data summary: {e.message}")
                 summary = {}
         else:
-            analytics_service = AnalyticsService()
+            analytics_service = get_analytics_service()
             summary = analytics_service.get_data_summary(df)
 
         viz_options = [

@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import streamlit as st
 
-from src.services.analytics_service import AnalyticsService
+from src.app.service_factories import get_analytics_service, get_inference_service
+from src.services.inference_service import ModelNotFoundError
 from src.services.model_registry import ModelRegistry
 
 
@@ -14,7 +15,6 @@ def render_model_analysis_ui() -> None:
     st.header("Model Analysis")
 
     registry = ModelRegistry()
-
     runs = registry.list_models()
 
     if not runs:
@@ -41,14 +41,17 @@ def render_model_analysis_ui() -> None:
     selected_run_id = run_options[selected_label]
 
     try:
-        forecaster = registry.load_model(selected_run_id)
+        inference_service = get_inference_service()
+        model = inference_service.load_model(selected_run_id)
+        schema = inference_service.get_model_schema(model)
+        
         st.success(f"Loaded Run: {selected_run_id}")
 
         st.subheader("Feature Importance")
         st.info("Visualize which features drive the predictions (Gain metric).")
 
-        analytics_service = AnalyticsService()
-        targets = analytics_service.get_available_targets(forecaster)
+        analytics_service = get_analytics_service()
+        targets = schema.targets
 
         if not targets:
             st.error("This model file does not appear to contain trained models.")
@@ -57,15 +60,19 @@ def render_model_analysis_ui() -> None:
         selected_target = st.selectbox("Select Target Component", targets)
 
         if selected_target:
-            quantiles = analytics_service.get_available_quantiles(forecaster, selected_target)
+            quantiles = schema.quantiles
+            if not quantiles:
+                st.warning(f"No quantiles available for target {selected_target}.")
+                return
+                
             selected_q_val = st.selectbox(
                 "Select Quantile", quantiles, format_func=lambda x: f"P{int(x*100)}"
             )
 
             df_imp = analytics_service.get_feature_importance(
-                forecaster, selected_target, selected_q_val
+                model, selected_target, selected_q_val
             )
-            if df_imp.empty:
+            if df_imp is None or df_imp.empty:
                 st.warning(
                     f"No feature importance scores found for {selected_target} at P{int(selected_q_val*100)}."
                 )
@@ -85,5 +92,8 @@ def render_model_analysis_ui() -> None:
                 ax.set_title(f"Top 20 Features for {selected_target} (P{int(selected_q_val*100)})")
                 st.pyplot(fig)
 
+    except ModelNotFoundError as e:
+        st.error(f"Model not found: {e}")
     except Exception as e:
+        st.error(f"Failed to load model: {str(e)}")
         st.code(traceback.format_exc())

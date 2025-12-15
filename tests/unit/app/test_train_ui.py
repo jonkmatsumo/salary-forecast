@@ -44,13 +44,14 @@ def mock_training_service():
 
 @pytest.fixture
 def mock_registry():
-    with patch("src.app.train_ui.ModelRegistry") as mock_reg:
-        yield mock_reg
+    # ModelRegistry is no longer imported in train_ui.py
+    # This fixture is kept for backward compatibility but may not be needed
+    yield None
 
 
 @pytest.fixture
 def mock_analytics_service():
-    with patch("src.app.train_ui.AnalyticsService") as mock_analytics:
+    with patch("src.app.train_ui.get_analytics_service") as mock_get_analytics:
         mock_instance = MagicMock()
         mock_instance.get_data_summary.return_value = {
             "total_samples": 100,
@@ -58,8 +59,8 @@ def mock_analytics_service():
             "unique_levels": 5,
             "shape": (100, 10),
         }
-        mock_analytics.return_value = mock_instance
-        yield mock_analytics
+        mock_get_analytics.return_value = mock_instance
+        yield mock_instance
 
 
 @pytest.fixture
@@ -242,8 +243,8 @@ def test_data_analysis_section_available(
     expander_calls = [call[0][0] for call in mock_streamlit.expander.call_args_list]
     assert "Data Analysis" in expander_calls, "Data Analysis expander should be called"
 
-    # Should call AnalyticsService
-    mock_analytics_service.return_value.get_data_summary.assert_called()
+    # Should call AnalyticsService via factory
+    mock_analytics_service.get_data_summary.assert_called()
 
 
 def test_data_analysis_visualization_selection(mock_streamlit, sample_df, mock_analytics_service):
