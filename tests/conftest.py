@@ -5,6 +5,7 @@ from typing import Any, Dict
 import pytest
 
 from src.model.config_schema_model import Config
+from src.utils.cache_manager import get_cache_manager
 
 
 def create_test_config() -> Dict[str, Any]:
@@ -59,3 +60,12 @@ def validated_test_config() -> Config:
         Config: Validated config.
     """
     return create_validated_test_config()
+
+
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Clear all caches before each test to ensure clean state."""
+    cache_manager = get_cache_manager()
+    cache_manager.clear()
+    yield
+    cache_manager.clear()

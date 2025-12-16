@@ -1,13 +1,15 @@
 """LLM client module providing both legacy LLM clients and LangChain-compatible wrappers for use with the agentic workflow."""
 
 import asyncio
+import hashlib
 import time
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional, cast
 
 import google.generativeai as genai
 from openai import APIError, AsyncOpenAI, OpenAI, RateLimitError
 
+from src.utils.cache_manager import get_cache_manager
 from src.utils.env_loader import get_env_var
 from src.utils.logger import get_logger
 from src.utils.performance import LLMCallTracker
@@ -26,6 +28,21 @@ else:
         BaseChatModel = Any
 
 logger = get_logger(__name__)
+
+
+def _generate_cache_key(prompt: str, system_prompt: Optional[str], model: str) -> str:
+    """Generate cache key for LLM request.
+
+    Args:
+        prompt (str): User prompt.
+        system_prompt (Optional[str]): System prompt.
+        model (str): Model name.
+
+    Returns:
+        str: Cache key hash.
+    """
+    cache_input = f"{prompt}|{system_prompt or ''}|{model}"
+    return hashlib.sha256(cache_input.encode()).hexdigest()
 
 
 class LLMClient(ABC):
@@ -76,7 +93,7 @@ class OpenAIClient(LLMClient):
         return self.async_client
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate text from OpenAI with retry logic.
+        """Generate text from OpenAI with retry logic and caching.
 
         Args:
             prompt (str): User prompt.
@@ -88,6 +105,14 @@ class OpenAIClient(LLMClient):
         Raises:
             Exception: If all retries fail.
         """
+        cache_manager = get_cache_manager()
+        cache_key = _generate_cache_key(prompt, system_prompt, self.model)
+
+        cached_response = cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for OpenAI request (model: {self.model})")
+            return cast(str, cached_response)
+
         from openai.types.chat import (
             ChatCompletionSystemMessageParam,
             ChatCompletionUserMessageParam,
@@ -137,7 +162,9 @@ class OpenAIClient(LLMClient):
                 content = response.choices[0].message.content
                 if content is None:
                     raise ValueError("OpenAI returned empty response content")
-                return str(content)
+                result = str(content)
+                cache_manager.set("llm", cache_key, result)
+                return result
             except (RateLimitError, APIError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES - 1:
@@ -159,7 +186,7 @@ class OpenAIClient(LLMClient):
         raise RuntimeError("OpenAI generation failed: unknown error")
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Async generate text from OpenAI with retry logic.
+        """Async generate text from OpenAI with retry logic and caching.
 
         Args:
             prompt (str): User prompt.
@@ -171,6 +198,14 @@ class OpenAIClient(LLMClient):
         Raises:
             Exception: If all retries fail.
         """
+        cache_manager = get_cache_manager()
+        cache_key = _generate_cache_key(prompt, system_prompt, self.model)
+
+        cached_response = cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for OpenAI async request (model: {self.model})")
+            return cast(str, cached_response)
+
         from openai.types.chat import (
             ChatCompletionSystemMessageParam,
             ChatCompletionUserMessageParam,
@@ -221,7 +256,9 @@ class OpenAIClient(LLMClient):
                 content = response.choices[0].message.content
                 if content is None:
                     raise ValueError("OpenAI returned empty response content")
-                return str(content)
+                result = str(content)
+                cache_manager.set("llm", cache_key, result)
+                return result
             except (RateLimitError, APIError) as e:
                 last_exception = e
                 if attempt < MAX_RETRIES - 1:
@@ -255,7 +292,7 @@ class GeminiClient(LLMClient):
         self.model = genai.GenerativeModel(model)
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate text using Gemini with retry logic.
+        """Generate text using Gemini with retry logic and caching.
 
         Args:
             prompt (str): User prompt.
@@ -267,6 +304,14 @@ class GeminiClient(LLMClient):
         Raises:
             Exception: If all retries fail.
         """
+        cache_manager = get_cache_manager()
+        cache_key = _generate_cache_key(prompt, system_prompt, self.model_name)
+
+        cached_response = cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for Gemini request (model: {self.model_name})")
+            return cast(str, cached_response)
+
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
@@ -309,7 +354,9 @@ class GeminiClient(LLMClient):
                         f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
                     )
 
-                return str(response.text)
+                result = str(response.text)
+                cache_manager.set("llm", cache_key, result)
+                return result
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
@@ -333,7 +380,7 @@ class GeminiClient(LLMClient):
         raise RuntimeError("Gemini generation failed: unknown error")
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Async generate text using Gemini with retry logic.
+        """Async generate text using Gemini with retry logic and caching.
 
         Args:
             prompt (str): User prompt.
@@ -345,6 +392,14 @@ class GeminiClient(LLMClient):
         Raises:
             Exception: If all retries fail.
         """
+        cache_manager = get_cache_manager()
+        cache_key = _generate_cache_key(prompt, system_prompt, self.model_name)
+
+        cached_response = cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for Gemini async request (model: {self.model_name})")
+            return cast(str, cached_response)
+
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
@@ -391,7 +446,9 @@ class GeminiClient(LLMClient):
                         f"cost={tracker.total_cost:.6f}, latency={latency:.3f}s"
                     )
 
-                return str(response.text)
+                result = str(response.text)
+                cache_manager.set("llm", cache_key, result)
+                return result
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
@@ -454,19 +511,114 @@ def get_llm_client(provider: str = "openai") -> LLMClient:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
+class CachedLangChainLLM:
+    """Wrapper for LangChain LLM that adds response caching.
+
+    Caches LLM responses based on message content hash to reduce API calls.
+    """
+
+    def __init__(self, llm: BaseChatModel) -> None:
+        """Initialize cached LLM wrapper.
+
+        Args:
+            llm (BaseChatModel): LangChain chat model to wrap.
+        """
+        self.llm = llm
+        self.cache_manager = get_cache_manager()
+        self.model_name = getattr(llm, "model_name", getattr(llm, "model", "unknown"))
+
+    def _generate_message_cache_key(self, messages: List[Any]) -> str:
+        """Generate cache key from messages.
+
+        Args:
+            messages (List[Any]): List of message objects.
+
+        Returns:
+            str: Cache key hash.
+        """
+        messages_str = "|".join(
+            [
+                f"{getattr(msg, 'type', 'unknown')}:{getattr(msg, 'content', str(msg))}"
+                for msg in messages
+            ]
+        )
+        cache_input = f"{messages_str}|{self.model_name}"
+        return hashlib.sha256(cache_input.encode()).hexdigest()
+
+    def invoke(self, messages: List[Any], config: Optional[Any] = None, **kwargs: Any) -> Any:
+        """Invoke LLM with caching.
+
+        Args:
+            messages (List[Any]): List of message objects.
+            config (Optional[Any]): Optional runtime configuration.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Any: LLM response.
+        """
+        cache_key = self._generate_message_cache_key(messages)
+        cached_response = self.cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for LangChain LLM invoke (model: {self.model_name})")
+            return cached_response
+
+        response = self.llm.invoke(messages, config=config, **kwargs)
+        self.cache_manager.set("llm", cache_key, response)
+        return response
+
+    async def ainvoke(
+        self, messages: List[Any], config: Optional[Any] = None, **kwargs: Any
+    ) -> Any:
+        """Async invoke LLM with caching.
+
+        Args:
+            messages (List[Any]): List of message objects.
+            config (Optional[Any]): Optional runtime configuration.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Any: LLM response.
+        """
+        cache_key = self._generate_message_cache_key(messages)
+        cached_response = self.cache_manager.get("llm", cache_key)
+        if cached_response is not None:
+            logger.debug(f"Cache hit for LangChain LLM ainvoke (model: {self.model_name})")
+            return cached_response
+
+        response = await self.llm.ainvoke(messages, config=config, **kwargs)
+        self.cache_manager.set("llm", cache_key, response)
+        return response
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to wrapped LLM.
+
+        Args:
+            name (str): Attribute name.
+
+        Returns:
+            Any: Attribute value.
+        """
+        return getattr(self.llm, name)
+
+
 def get_langchain_llm(
-    provider: str = "openai", model: Optional[str] = None, temperature: float = 0.0, **kwargs
+    provider: str = "openai",
+    model: Optional[str] = None,
+    temperature: float = 0.0,
+    use_cache: bool = True,
+    **kwargs: Any,
 ) -> BaseChatModel:
-    """Get a LangChain-compatible LLM instance.
+    """Get a LangChain-compatible LLM instance with optional caching.
 
     Args:
         provider (str): Provider name.
         model (Optional[str]): Model name override.
         temperature (float): Generation temperature.
+        use_cache (bool): Whether to enable caching. Defaults to True.
         **kwargs: Additional arguments.
 
     Returns:
-        BaseChatModel: LangChain BaseChatModel instance.
+        BaseChatModel: LangChain BaseChatModel instance (wrapped with cache if use_cache=True).
 
     Raises:
         ValueError: If provider is unknown.
@@ -474,11 +626,15 @@ def get_langchain_llm(
     provider_lower = provider.lower()
 
     if provider_lower == "openai":
-        return _get_langchain_openai(model, temperature, **kwargs)
+        llm = _get_langchain_openai(model, temperature, **kwargs)
     elif provider_lower == "gemini":
-        return _get_langchain_gemini(model, temperature, **kwargs)
+        llm = _get_langchain_gemini(model, temperature, **kwargs)
     else:
         raise ValueError(f"Unknown LangChain provider: {provider}. Supported: openai, gemini")
+
+    if use_cache:
+        return CachedLangChainLLM(llm)
+    return llm
 
 
 def _get_langchain_openai(

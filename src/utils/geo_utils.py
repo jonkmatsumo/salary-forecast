@@ -1,10 +1,10 @@
-import json
-import os
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 from geopy.distance import geodesic
 from geopy.geocoders import Nominatim
+
+from src.utils.cache_manager import get_cache_manager
 
 
 class GeoMapper:
@@ -25,26 +25,7 @@ class GeoMapper:
             "location_settings", {"max_distance_km": 50}
         )
 
-        env_path = os.environ.get("SALARY_CACHE_FILE")
-        if env_path:
-            self.cache_file = os.path.abspath(os.path.expanduser(env_path))
-        else:
-            home_dir = os.path.expanduser("~")
-            app_dir = os.path.join(home_dir, ".salary_forecast")
-            self.cache_file = os.path.join(app_dir, "city_cache.json")
-
-        os.makedirs(os.path.dirname(self.cache_file), exist_ok=True)
-
-        local_cache = "city_cache.json"
-        if os.path.exists(local_cache) and not os.path.exists(self.cache_file):
-            print(f"Migrating local cache from {local_cache} to {self.cache_file}...")
-            try:
-                with open(local_cache, "r") as src, open(self.cache_file, "w") as dst:
-                    dst.write(src.read())
-            except Exception as e:
-                print(f"Failed to migrate cache: {e}")
-
-        self.cache: Dict[str, Tuple[float, float]] = self._load_cache()
+        self.cache_manager = get_cache_manager()
         self._init_geolocator()
 
         self.zone_cache: Dict[str, int] = {}
@@ -75,32 +56,8 @@ class GeoMapper:
         self.__dict__.update(state)
         self._init_geolocator()
 
-    def _load_cache(self) -> Dict[str, Tuple[float, float]]:
-        """Load city coordinate cache from file.
-
-        Returns:
-            Dict[str, Tuple[float, float]]: City name to coordinates mapping.
-        """
-        if os.path.exists(self.cache_file):
-            try:
-                with open(self.cache_file, "r") as f:
-                    data = json.load(f)
-                    return {
-                        k: (float(v[0]), float(v[1]))
-                        for k, v in data.items()
-                        if isinstance(v, (list, tuple)) and len(v) >= 2
-                    }
-            except json.JSONDecodeError:
-                return {}
-        return {}
-
-    def _save_cache(self) -> None:
-        """Save city coordinate cache to file."""
-        with open(self.cache_file, "w") as f:
-            json.dump(self.cache, f, indent=4)
-
     def _get_coords(self, city: str) -> Optional[Tuple[float, float]]:
-        """Get coordinates for a city.
+        """Get coordinates for a city using in-memory cache.
 
         Args:
             city (str): City name.
@@ -108,9 +65,9 @@ class GeoMapper:
         Returns:
             Optional[Tuple[float, float]]: (latitude, longitude) or None.
         """
-        if city in self.cache:
-            coords = self.cache[city]
-            return (coords[0], coords[1])
+        cached_coords = self.cache_manager.get("geo", city)
+        if cached_coords is not None:
+            return cast(Tuple[float, float], cached_coords)
 
         max_retries = 3
         for attempt in range(max_retries):
@@ -118,8 +75,7 @@ class GeoMapper:
                 location = self.geolocator.geocode(city, timeout=10)
                 if location:
                     coords = (location.latitude, location.longitude)
-                    self.cache[city] = coords
-                    self._save_cache()
+                    self.cache_manager.set("geo", city, coords)
                     time.sleep(1)
                     return coords
                 else:

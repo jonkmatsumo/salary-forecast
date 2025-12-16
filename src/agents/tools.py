@@ -1,13 +1,15 @@
 """Analysis tools for LangGraph agents used to explore and analyze data during the configuration generation workflow."""
 
+import hashlib
 import json
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, cast
 
 import numpy as np
 import pandas as pd
 from langchain_core.tools import tool
 
+from src.utils.cache_manager import get_cache_manager
 from src.utils.json_utils import parse_df_json_safely
 
 if TYPE_CHECKING:
@@ -28,6 +30,14 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
+
+    cache_manager = get_cache_manager()
+    cache_key = hashlib.sha256(f"{df_json}|{columns or ''}".encode()).hexdigest()
+
+    cached_result = cache_manager.get("correlation", cache_key)
+    if cached_result is not None:
+        logger.debug("Cache hit for correlation matrix computation")
+        return cast(str, cached_result)
 
     logger.debug(f"compute_correlation_matrix called with columns: {columns}")
     logger.debug(f"df_json type: {type(df_json)}, length: {len(df_json) if df_json else 0}")
@@ -81,7 +91,7 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
                 }
             )
 
-    return json.dumps(
+    result = json.dumps(
         {
             "columns_analyzed": col_list,
             "correlations": correlations,
@@ -89,6 +99,8 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
         },
         indent=2,
     )
+    cache_manager.set("correlation", cache_key, result)
+    return result
 
 
 @tool

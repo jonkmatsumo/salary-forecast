@@ -9,6 +9,33 @@ from conftest import create_test_config
 from src.xgboost.model import QuantileForecaster, SalaryForecaster
 
 
+@pytest.fixture(scope="module", autouse=True)
+def mock_geocoder():
+    """Mock GeoMapper geocoder to prevent network calls and hangs in tests."""
+    with patch("src.utils.geo_utils.Nominatim") as mock_nominatim:
+        mock_geocoder_instance = MagicMock()
+        mock_nominatim.return_value = mock_geocoder_instance
+
+        def mock_geocode(city: str, timeout: int = 10):
+            """Mock geocode that returns coordinates for known cities."""
+            mock_location = MagicMock()
+            city_coords = {
+                "New York": (40.7128, -74.0060),
+                "San Francisco": (37.7749, -122.4194),
+                "Seattle": (47.6062, -122.3321),
+                "Austin": (30.2672, -97.7431),
+                "New York, NY": (40.7128, -74.0060),
+                "San Francisco, CA": (37.7749, -122.4194),
+            }
+            if city in city_coords:
+                mock_location.latitude, mock_location.longitude = city_coords[city]
+                return mock_location
+            return None
+
+        mock_geocoder_instance.geocode = MagicMock(side_effect=mock_geocode)
+        yield mock_geocoder_instance
+
+
 @pytest.fixture(scope="module")
 def trained_model():
     data = []

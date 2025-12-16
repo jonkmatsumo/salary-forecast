@@ -173,7 +173,10 @@ def test_get_langchain_llm_openai(mock_get_openai):
     result = get_langchain_llm("openai")
 
     mock_get_openai.assert_called_once()
-    assert result == mock_llm
+    from src.llm.client import CachedLangChainLLM
+
+    assert isinstance(result, CachedLangChainLLM)
+    assert result.llm == mock_llm
 
 
 @patch("src.llm.client._get_langchain_gemini")
@@ -184,7 +187,10 @@ def test_get_langchain_llm_gemini(mock_get_gemini):
     result = get_langchain_llm("gemini")
 
     mock_get_gemini.assert_called_once()
-    assert result == mock_llm
+    from src.llm.client import CachedLangChainLLM
+
+    assert isinstance(result, CachedLangChainLLM)
+    assert result.llm == mock_llm
 
 
 def test_get_langchain_llm_invalid_provider():
