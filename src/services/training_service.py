@@ -27,6 +27,7 @@ class TrainingService:
     """Service for orchestrating model training and hyperparameter tuning."""
 
     def __init__(self):
+        """Initialize training service."""
         self.logger = get_logger(__name__)
         self._jobs: Dict[str, Dict[str, Any]] = {}
         self._lock = threading.Lock()
@@ -41,7 +42,20 @@ class TrainingService:
         remove_outliers: bool = True,
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None,
     ) -> SalaryForecaster:
-        """Synchronous training (blocking). Args: data (pd.DataFrame): Training data. config (Dict[str, Any]): Required configuration dictionary. remove_outliers (bool): Remove outliers. callback (Optional[Callable]): Progress callback. Returns: SalaryForecaster: Trained model. Raises: ValueError: If config is missing or invalid."""
+        """Synchronous training (blocking).
+
+        Args:
+            data (pd.DataFrame): Training data.
+            config (Dict[str, Any]): Required configuration dictionary.
+            remove_outliers (bool): Remove outliers.
+            callback (Optional[Callable]): Progress callback.
+
+        Returns:
+            SalaryForecaster: Trained model.
+
+        Raises:
+            ValueError: If config is missing or invalid.
+        """
         if not config:
             raise ValueError(
                 "Config is required. Generate config using WorkflowService first. "
@@ -61,7 +75,20 @@ class TrainingService:
         n_trials: int = 20,
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None,
     ) -> Dict[str, Any]:
-        """Synchronous tuning (blocking). Args: data (pd.DataFrame): Training data. config (Dict[str, Any]): Required configuration dictionary. n_trials (int): Number of trials. callback (Optional[Callable]): Progress callback. Returns: Dict[str, Any]: Best hyperparameters. Raises: ValueError: If config is missing or invalid."""
+        """Synchronous tuning (blocking).
+
+        Args:
+            data (pd.DataFrame): Training data.
+            config (Dict[str, Any]): Required configuration dictionary.
+            n_trials (int): Number of trials.
+            callback (Optional[Callable]): Progress callback.
+
+        Returns:
+            Dict[str, Any]: Best hyperparameters.
+
+        Raises:
+            ValueError: If config is missing or invalid.
+        """
         if not config:
             raise ValueError(
                 "Config is required. Generate config using WorkflowService first. "
@@ -83,7 +110,23 @@ class TrainingService:
         additional_tag: Optional[str] = None,
         dataset_name: str = "Unknown",
     ) -> str:
-        """Start training in a background asyncio task. Args: data (pd.DataFrame): Training data. config (Dict[str, Any]): Required configuration dictionary. remove_outliers (bool): Remove outliers. do_tune (bool): Run tuning. n_trials (int): Tuning trials. additional_tag (Optional[str]): Additional tag. dataset_name (str): Dataset name. Returns: str: Job ID. Raises: ValueError: If config is missing or invalid."""
+        """Start training in a background asyncio task.
+
+        Args:
+            data (pd.DataFrame): Training data.
+            config (Dict[str, Any]): Required configuration dictionary.
+            remove_outliers (bool): Remove outliers.
+            do_tune (bool): Run tuning.
+            n_trials (int): Tuning trials.
+            additional_tag (Optional[str]): Additional tag.
+            dataset_name (str): Dataset name.
+
+        Returns:
+            str: Job ID.
+
+        Raises:
+            ValueError: If config is missing or invalid.
+        """
         if not config:
             raise ValueError(
                 "Config is required. Generate config using WorkflowService first. "
@@ -102,12 +145,9 @@ class TrainingService:
                 "error": None,
             }
 
-        # Run async task in background
-        # Use asyncio.ensure_future to handle both existing and new event loops
         try:
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # If loop is already running, schedule task
                 task = asyncio.create_task(
                     self._run_async_job(
                         job_id,
@@ -121,7 +161,6 @@ class TrainingService:
                     )
                 )
             else:
-                # If loop exists but not running, create task
                 task = loop.create_task(
                     self._run_async_job(
                         job_id,
@@ -135,7 +174,6 @@ class TrainingService:
                     )
                 )
         except RuntimeError:
-            # No event loop, create new one and run in thread
             import threading
 
             def run_in_new_loop():
@@ -165,14 +203,29 @@ class TrainingService:
         return job_id
 
     def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
-        """Get the current status dictionary of a job. Args: job_id (str): Job identifier. Returns: Optional[Dict[str, Any]]: Job status dictionary or None if not found."""
+        """Get the current status dictionary of a job.
+
+        Args:
+            job_id (str): Job identifier.
+
+        Returns:
+            Optional[Dict[str, Any]]: Job status dictionary or None if not found.
+        """
         with self._lock:
             return self._jobs.get(job_id)
 
     def validate_csv_file(
         self, file_content: bytes, filename: str
     ) -> Tuple[bool, Optional[str], Optional[pd.DataFrame]]:
-        """Validate and parse a CSV file. Args: file_content (bytes): CSV file content. filename (str): Original filename. Returns: Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe)."""
+        """Validate and parse a CSV file.
+
+        Args:
+            file_content (bytes): CSV file content.
+            filename (str): Original filename.
+
+        Returns:
+            Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe).
+        """
         try:
             file_buffer = io.BytesIO(file_content)
             is_valid, error_msg, df = validate_csv(file_buffer)
@@ -186,7 +239,17 @@ class TrainingService:
             return False, f"Failed to validate CSV file: {str(e)}", None
 
     def parse_csv_data(self, file_content: bytes) -> pd.DataFrame:
-        """Parse CSV file content into a DataFrame. Args: file_content (bytes): CSV file content. Returns: pd.DataFrame: Parsed DataFrame. Raises: ValueError: If CSV cannot be parsed."""
+        """Parse CSV file content into a DataFrame.
+
+        Args:
+            file_content (bytes): CSV file content.
+
+        Returns:
+            pd.DataFrame: Parsed DataFrame.
+
+        Raises:
+            ValueError: If CSV cannot be parsed.
+        """
         file_buffer = io.BytesIO(file_content)
         is_valid, error_msg, df = validate_csv(file_buffer)
 
@@ -199,7 +262,14 @@ class TrainingService:
         return df
 
     def get_training_job_summary(self, job_id: str) -> Optional[Dict[str, Any]]:
-        """Get a summary of a training job suitable for API responses. Args: job_id (str): Job identifier. Returns: Optional[Dict[str, Any]]: Job summary or None if not found."""
+        """Get a summary of a training job suitable for API responses.
+
+        Args:
+            job_id (str): Job identifier.
+
+        Returns:
+            Optional[Dict[str, Any]]: Job summary or None if not found.
+        """
         job_status = self.get_job_status(job_id)
         if job_status is None:
             return None
@@ -232,11 +302,27 @@ class TrainingService:
         additional_tag: Optional[str],
         dataset_name: str,
     ) -> None:
-        """Internal async worker method. Args: job_id (str): Job identifier. data (pd.DataFrame): Training data. config (Dict[str, Any]): Required configuration dictionary. remove_outliers (bool): Remove outliers. do_tune (bool): Run tuning. n_trials (int): Tuning trials. additional_tag (Optional[str]): Additional tag. dataset_name (str): Dataset name. Returns: None."""
+        """Internal async worker method.
+
+        Args:
+            job_id (str): Job identifier.
+            data (pd.DataFrame): Training data.
+            config (Dict[str, Any]): Required configuration dictionary.
+            remove_outliers (bool): Remove outliers.
+            do_tune (bool): Run tuning.
+            n_trials (int): Tuning trials.
+            additional_tag (Optional[str]): Additional tag.
+            dataset_name (str): Dataset name.
+        """
         loop = asyncio.get_event_loop()
 
         def _async_callback(msg: str, data: Optional[Dict[str, Any]] = None) -> None:
-            """Thread-safe callback for training progress. Args: msg (str): Message. data (Optional[Dict[str, Any]]): Optional data. Returns: None."""
+            """Thread-safe callback for training progress.
+
+            Args:
+                msg (str): Message.
+                data (Optional[Dict[str, Any]]): Optional data.
+            """
             with self._lock:
                 if job_id in self._jobs:
                     self._jobs[job_id]["logs"].append(msg)
@@ -296,7 +382,6 @@ class TrainingService:
                     self.logger.info(f"Starting tuning for job {job_id}")
                     _async_callback(f"Starting tuning with {n_trials} trials...")
                     with PerformanceMetrics("tuning_total_time"):
-                        # Run CPU-bound tuning in executor
                         best_params = await loop.run_in_executor(
                             None, lambda: forecaster.tune(data, n_trials=n_trials)
                         )
@@ -312,7 +397,6 @@ class TrainingService:
 
                 _async_callback("Starting training...")
                 with PerformanceMetrics("training_total_time"):
-                    # Run CPU-bound training in executor
                     await loop.run_in_executor(
                         None,
                         lambda: forecaster.train(

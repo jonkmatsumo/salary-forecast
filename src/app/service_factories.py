@@ -29,5 +29,13 @@ def get_analytics_service() -> AnalyticsService:
 
 
 def get_workflow_service(provider: str = "openai", model: Optional[str] = None) -> WorkflowService:
-    """Get workflow service instance. Note: Not cached as it's stateful and should be stored in session state. Args: provider (str): LLM provider name. model (Optional[str]): Optional model name override. Returns: WorkflowService: Workflow service."""
+    """Get workflow service instance. Note: Not cached as it's stateful and should be stored in session state.
+
+    Args:
+        provider (str): LLM provider name.
+        model (Optional[str]): Optional model name override.
+
+    Returns:
+        WorkflowService: Workflow service.
+    """
     return WorkflowService(provider=provider, model=model)

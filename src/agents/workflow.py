@@ -21,7 +21,14 @@ class PromptInjectionError(Exception):
     """Exception raised when prompt injection is detected in user input."""
 
     def __init__(self, message: str, confidence: float, reasoning: str, suspicious_content: str):
-        """Initialize the error. Args: message (str): Error message. confidence (float): Detection confidence level. reasoning (str): Explanation of the detection. suspicious_content (str): Content that triggered the detection."""
+        """Initialize the error.
+
+        Args:
+            message (str): Error message.
+            confidence (float): Detection confidence level.
+            reasoning (str): Explanation of the detection.
+            suspicious_content (str): Content that triggered the detection.
+        """
         super().__init__(message)
         self.confidence = confidence
         self.reasoning = reasoning
@@ -53,7 +60,18 @@ class WorkflowState(TypedDict, total=False):
 
 
 def validate_input_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
-    """Validates user input for prompt injection attacks. Args: state (WorkflowState): Current workflow state. llm (BaseChatModel): Language model for detection. Returns: Dict[str, Any]: Empty dict if validation passes. Raises: PromptInjectionError: If prompt injection is detected."""
+    """Validates user input for prompt injection attacks.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+        llm (BaseChatModel): Language model for detection.
+
+    Returns:
+        Dict[str, Any]: Empty dict if validation passes.
+
+    Raises:
+        PromptInjectionError: If prompt injection is detected.
+    """
     logger.info("Validating input for prompt injection...")
     log_workflow_state_transition("validate_input_before", dict(state))
 
@@ -96,7 +114,15 @@ def validate_input_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, A
 
 
 def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
-    """Runs the column classification agent. Args: state (WorkflowState): Current workflow state. llm (BaseChatModel): Language model for the agent. Returns: Dict[str, Any]: State updates with classification results."""
+    """Runs the column classification agent.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+        llm (BaseChatModel): Language model for the agent.
+
+    Returns:
+        Dict[str, Any]: State updates with classification results.
+    """
     logger.info("Running column classification agent...")
     log_workflow_state_transition("classify_columns_before", dict(state))
 
@@ -168,7 +194,15 @@ def classify_columns_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str,
 
 
 def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
-    """Runs the feature encoding agent. Args: state (WorkflowState): Current workflow state. llm (BaseChatModel): Language model for the agent. Returns: Dict[str, Any]: State updates with encoding recommendations."""
+    """Runs the feature encoding agent.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+        llm (BaseChatModel): Language model for the agent.
+
+    Returns:
+        Dict[str, Any]: State updates with encoding recommendations.
+    """
     logger.info("Running feature encoding agent...")
     log_workflow_state_transition("encode_features_before", dict(state))
 
@@ -223,7 +257,15 @@ def encode_features_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
 
 
 def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, Any]:
-    """Runs the model configuration agent. Args: state (WorkflowState): Current workflow state. llm (BaseChatModel): Language model for the agent. Returns: Dict[str, Any]: State updates with model configuration."""
+    """Runs the model configuration agent.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+        llm (BaseChatModel): Language model for the agent.
+
+    Returns:
+        Dict[str, Any]: State updates with model configuration.
+    """
     logger.info("Running model configuration agent...")
     log_workflow_state_transition("configure_model_before", dict(state))
 
@@ -264,7 +306,14 @@ def configure_model_node(state: WorkflowState, llm: BaseChatModel) -> Dict[str, 
 
 
 def build_final_config_node(state: WorkflowState) -> Dict[str, Any]:
-    """Assembles the final configuration from all agent outputs. Args: state (WorkflowState): Current workflow state. Returns: Dict[str, Any]: State updates with final configuration."""
+    """Assembles the final configuration from all agent outputs.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+
+    Returns:
+        Dict[str, Any]: State updates with final configuration.
+    """
     logger.info("Building final configuration...")
 
     classification = state.get("column_classification", {})
@@ -323,7 +372,14 @@ def build_final_config_node(state: WorkflowState) -> Dict[str, Any]:
 def should_continue_after_classification(
     state: WorkflowState,
 ) -> Literal["encode_features", "await_classification"]:
-    """Determine if we should proceed after classification or wait for user."""
+    """Determine if we should proceed after classification or wait for user.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+
+    Returns:
+        Literal["encode_features", "await_classification"]: Next step.
+    """
     if state.get("classification_confirmed", False):
         return "encode_features"
     return "await_classification"
@@ -332,14 +388,28 @@ def should_continue_after_classification(
 def should_continue_after_encoding(
     state: WorkflowState,
 ) -> Literal["configure_model", "await_encoding"]:
-    """Determine if we should proceed after encoding or wait for user."""
+    """Determine if we should proceed after encoding or wait for user.
+
+    Args:
+        state (WorkflowState): Current workflow state.
+
+    Returns:
+        Literal["configure_model", "await_encoding"]: Next step.
+    """
     if state.get("encodings_confirmed", False):
         return "configure_model"
     return "await_encoding"
 
 
 def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
-    """Creates the LangGraph workflow for configuration generation with validation and three main phases with human-in-the-loop checkpoints. Args: llm (BaseChatModel): Language model to use for agents. Returns: StateGraph: Compiled StateGraph ready for execution."""
+    """Creates the LangGraph workflow for configuration generation with validation and three main phases with human-in-the-loop checkpoints.
+
+    Args:
+        llm (BaseChatModel): Language model to use for agents.
+
+    Returns:
+        StateGraph: Compiled StateGraph ready for execution.
+    """
     workflow = StateGraph(WorkflowState)
 
     workflow.add_node("validate_input", lambda state: validate_input_node(state, llm))
@@ -384,7 +454,15 @@ def create_workflow_graph(llm: BaseChatModel) -> StateGraph:
 
 
 def compile_workflow(llm: BaseChatModel, checkpointer: Optional[MemorySaver] = None) -> Any:
-    """Compiles the workflow graph with optional checkpointing. Args: llm (BaseChatModel): Language model to use for agents. checkpointer (Optional[MemorySaver]): Optional memory saver for state persistence. Returns: Any: Compiled workflow ready for execution."""
+    """Compiles the workflow graph with optional checkpointing.
+
+    Args:
+        llm (BaseChatModel): Language model to use for agents.
+        checkpointer (Optional[MemorySaver]): Optional memory saver for state persistence.
+
+    Returns:
+        Any: Compiled workflow ready for execution.
+    """
     workflow = create_workflow_graph(llm)
 
     if checkpointer is None:
@@ -399,7 +477,11 @@ class ConfigWorkflow:
     """High-level wrapper for the configuration workflow with step-by-step execution and user confirmation between phases."""
 
     def __init__(self, llm: BaseChatModel):
-        """Initializes the workflow. Args: llm (BaseChatModel): Language model to use for agents."""
+        """Initializes the workflow.
+
+        Args:
+            llm (BaseChatModel): Language model to use for agents.
+        """
         self.llm = llm
         self.checkpointer = MemorySaver()
         self.compiled = compile_workflow(llm, self.checkpointer)
@@ -414,7 +496,18 @@ class ConfigWorkflow:
         dataset_size: int,
         preset: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Starts the workflow with initial data, running until the first checkpoint after column classification. Args: df_json (str): JSON representation of DataFrame sample. columns (List[str]): List of column names. dtypes (Dict[str, str]): Dict mapping column names to dtypes. dataset_size (int): Number of rows in the dataset. preset (Optional[str]): Optional preset prompt name. Returns: Dict[str, Any]: Current workflow state after classification."""
+        """Starts the workflow with initial data, running until the first checkpoint after column classification.
+
+        Args:
+            df_json (str): JSON representation of DataFrame sample.
+            columns (List[str]): List of column names.
+            dtypes (Dict[str, str]): Dict mapping column names to dtypes.
+            dataset_size (int): Number of rows in the dataset.
+            preset (Optional[str]): Optional preset prompt name.
+
+        Returns:
+            Dict[str, Any]: Current workflow state after classification.
+        """
         import uuid
 
         self.thread_id = str(uuid.uuid4())
@@ -458,7 +551,17 @@ class ConfigWorkflow:
     def confirm_classification(
         self, modifications: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Confirms the column classification and proceeds to encoding. Args: modifications (Optional[Dict[str, Any]]): Optional modifications to the classification. Returns: Dict[str, Any]: Current workflow state after encoding."""
+        """Confirms the column classification and proceeds to encoding.
+
+        Args:
+            modifications (Optional[Dict[str, Any]]): Optional modifications to the classification.
+
+        Returns:
+            Dict[str, Any]: Current workflow state after encoding.
+
+        Raises:
+            RuntimeError: If workflow not started.
+        """
         if not self.thread_id:
             raise RuntimeError("Workflow not started")
 
@@ -513,7 +616,17 @@ class ConfigWorkflow:
         return self.current_state
 
     def confirm_encoding(self, modifications: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Confirms the feature encoding and proceeds to model configuration. Args: modifications (Optional[Dict[str, Any]]): Optional modifications to the encodings. Returns: Dict[str, Any]: Current workflow state with final config."""
+        """Confirms the feature encoding and proceeds to model configuration.
+
+        Args:
+            modifications (Optional[Dict[str, Any]]): Optional modifications to the encodings.
+
+        Returns:
+            Dict[str, Any]: Current workflow state with final config.
+
+        Raises:
+            RuntimeError: If workflow not started.
+        """
         if not self.thread_id:
             raise RuntimeError("Workflow not started")
 
@@ -549,14 +662,22 @@ class ConfigWorkflow:
         return self.current_state
 
     def get_current_phase(self) -> str:
-        """Get the current workflow phase."""
+        """Get the current workflow phase.
+
+        Returns:
+            str: Current phase name.
+        """
         if self.current_state:
             phase = self.current_state.get("current_phase", "unknown")
             return str(phase) if phase else "unknown"
         return "not_started"
 
     def get_final_config(self) -> Optional[Dict[str, Any]]:
-        """Get the final configuration if workflow is complete."""
+        """Get the final configuration if workflow is complete.
+
+        Returns:
+            Optional[Dict[str, Any]]: Final configuration or None if not complete.
+        """
         if self.current_state and self.current_state.get("current_phase") == "complete":
             return self.current_state.get("final_config")
         return None

@@ -16,7 +16,15 @@ if TYPE_CHECKING:
 
 @tool
 def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> str:
-    """Compute pairwise Pearson correlation coefficients between numeric columns. Args: df_json (str): JSON DataFrame representation. columns (Optional[str]): Comma-separated column names. Returns: str: JSON correlation matrix."""
+    """Compute pairwise Pearson correlation coefficients between numeric columns.
+
+    Args:
+        df_json (str): JSON DataFrame representation.
+        columns (Optional[str]): Comma-separated column names.
+
+    Returns:
+        str: JSON correlation matrix.
+    """
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
@@ -85,7 +93,15 @@ def compute_correlation_matrix(df_json: str, columns: Optional[str] = None) -> s
 
 @tool
 def get_column_statistics(df_json: str, column: str) -> str:
-    """Get detailed statistics for a specific column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON statistics."""
+    """Get detailed statistics for a specific column.
+
+    Args:
+        df_json (str): JSON DataFrame representation.
+        column (str): Column name.
+
+    Returns:
+        str: JSON statistics.
+    """
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
@@ -133,7 +149,14 @@ def get_column_statistics(df_json: str, column: str) -> str:
     if pd.api.types.is_numeric_dtype(col_data) and not pd.api.types.is_bool_dtype(col_data):
 
         def safe_round(val: Any) -> Optional[float]:
-            """Safely round values, handling numpy types. Args: val (Any): Value to round. Returns: Optional[float]: Rounded value or None."""
+            """Safely round values, handling numpy types.
+
+            Args:
+                val (Any): Value to round.
+
+            Returns:
+                Optional[float]: Rounded value or None.
+            """
             if val is None or pd.isna(val):
                 return None
             try:
@@ -174,7 +197,16 @@ def get_column_statistics(df_json: str, column: str) -> str:
 
 @tool
 def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
-    """Get unique values and their counts for a column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. limit (int): Max unique values to return. Returns: str: JSON value counts."""
+    """Get unique values and their counts for a column.
+
+    Args:
+        df_json (str): JSON DataFrame representation.
+        column (str): Column name.
+        limit (int): Max unique values to return.
+
+    Returns:
+        str: JSON value counts.
+    """
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
@@ -217,7 +249,15 @@ def get_unique_value_counts(df_json: str, column: str, limit: int = 20) -> str:
 
 @tool
 def detect_ordinal_patterns(df_json: str, column: str) -> str:
-    """Detect if a column contains ordinal patterns. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON with detected patterns and suggested mapping."""
+    """Detect if a column contains ordinal patterns.
+
+    Args:
+        df_json (str): JSON DataFrame representation.
+        column (str): Column name.
+
+    Returns:
+        str: JSON with detected patterns and suggested mapping.
+    """
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
@@ -327,7 +367,15 @@ def detect_ordinal_patterns(df_json: str, column: str) -> str:
 
 @tool
 def detect_column_dtype(df_json: str, column: str) -> str:
-    """Infer the semantic data type of a column. Args: df_json (str): JSON DataFrame representation. column (str): Column name. Returns: str: JSON with inferred semantic type and reasoning."""
+    """Infer the semantic data type of a column.
+
+    Args:
+        df_json (str): JSON DataFrame representation.
+        column (str): Column name.
+
+    Returns:
+        str: JSON with inferred semantic type and reasoning.
+    """
     from src.utils.logger import get_logger
 
     logger = get_logger(__name__)
@@ -469,7 +517,11 @@ def detect_column_dtype(df_json: str, column: str) -> str:
 
 
 def get_all_tools() -> List["BaseTool"]:
-    """Return list of all analysis tools for use with agents. Returns: List[BaseTool]: List of tool functions."""
+    """Return list of all analysis tools for use with agents.
+
+    Returns:
+        List[BaseTool]: List of tool functions.
+    """
     return [
         compute_correlation_matrix,
         get_column_statistics,

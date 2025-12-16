@@ -9,7 +9,11 @@ from geopy.geocoders import Nominatim
 
 class GeoMapper:
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize GeoMapper. Args: config (Optional[Dict[str, Any]]): Configuration dictionary. If None, uses defaults. Returns: None."""
+        """Initialize GeoMapper.
+
+        Args:
+            config (Optional[Dict[str, Any]]): Configuration dictionary. If None, uses defaults.
+        """
         if config is None:
             config = {
                 "mappings": {"location_targets": {}},
@@ -48,19 +52,35 @@ class GeoMapper:
         self._init_targets()
 
     def _init_geolocator(self) -> None:
+        """Initialize geocoder instance."""
         self.geolocator = Nominatim(user_agent="salary_forecast_app_v1")
 
     def __getstate__(self) -> Dict[str, Any]:
+        """Get state for pickling.
+
+        Returns:
+            Dict[str, Any]: State dictionary without geolocator.
+        """
         state = self.__dict__.copy()
         if "geolocator" in state:
             del state["geolocator"]
         return state
 
     def __setstate__(self, state: Dict[str, Any]) -> None:
+        """Restore state from pickling.
+
+        Args:
+            state (Dict[str, Any]): State dictionary.
+        """
         self.__dict__.update(state)
         self._init_geolocator()
 
     def _load_cache(self) -> Dict[str, Tuple[float, float]]:
+        """Load city coordinate cache from file.
+
+        Returns:
+            Dict[str, Tuple[float, float]]: City name to coordinates mapping.
+        """
         if os.path.exists(self.cache_file):
             try:
                 with open(self.cache_file, "r") as f:
@@ -75,11 +95,19 @@ class GeoMapper:
         return {}
 
     def _save_cache(self) -> None:
+        """Save city coordinate cache to file."""
         with open(self.cache_file, "w") as f:
             json.dump(self.cache, f, indent=4)
 
     def _get_coords(self, city: str) -> Optional[Tuple[float, float]]:
-        """Get coordinates for a city. Args: city (str): City name. Returns: Optional[Tuple[float, float]]: (latitude, longitude) or None."""
+        """Get coordinates for a city.
+
+        Args:
+            city (str): City name.
+
+        Returns:
+            Optional[Tuple[float, float]]: (latitude, longitude) or None.
+        """
         if city in self.cache:
             coords = self.cache[city]
             return (coords[0], coords[1])
@@ -104,7 +132,7 @@ class GeoMapper:
         return None
 
     def _init_targets(self) -> None:
-        """Initialize target cities. Returns: None."""
+        """Initialize target cities."""
         print("Initializing target cities...")
         for city, zone in self.targets.items():
             coords = self._get_coords(city)
@@ -114,7 +142,14 @@ class GeoMapper:
                 print(f"Warning: Could not geocode target city {city}")
 
     def get_zone(self, input_city: Any) -> int:
-        """Determine the cost zone for a given city based on proximity to targets. Args: input_city (Any): City name. Returns: int: Cost zone (defaults to 4)."""
+        """Determine the cost zone for a given city based on proximity to targets.
+
+        Args:
+            input_city (Any): City name.
+
+        Returns:
+            int: Cost zone (defaults to 4).
+        """
         if not isinstance(input_city, str):
             return 4
 

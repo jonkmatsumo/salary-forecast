@@ -20,7 +20,14 @@ from src.xgboost.preprocessing import (
 
 class QuantileForecaster:
     def __init__(self, config: Dict[str, Any]) -> None:
-        """Initialize QuantileForecaster with required configuration. Args: config (Dict[str, Any]): Configuration dictionary. Returns: None. Raises: ValueError: If config is missing or invalid."""
+        """Initialize QuantileForecaster with required configuration.
+
+        Args:
+            config (Dict[str, Any]): Configuration dictionary.
+
+        Raises:
+            ValueError: If config is missing or invalid.
+        """
         if not config:
             raise ValueError(
                 "Config is required. Generate config using WorkflowService first. "
@@ -89,7 +96,14 @@ class QuantileForecaster:
         self.feature_names: List[str] = [f["name"] for f in self.features_config]
 
     def _preprocess(self, X: pd.DataFrame) -> pd.DataFrame:
-        """Preprocesses input data. Args: X (pd.DataFrame): Input data. Returns: pd.DataFrame: Preprocessed data."""
+        """Preprocesses input data.
+
+        Args:
+            X (pd.DataFrame): Input data.
+
+        Returns:
+            pd.DataFrame: Preprocessed data.
+        """
         X_proc = X.copy()
 
         for col, encoder in self.ranked_encoders.items():
@@ -135,7 +149,19 @@ class QuantileForecaster:
     def remove_outliers(
         self, df: pd.DataFrame, method: str = "iqr", threshold: float = 1.5
     ) -> Tuple[pd.DataFrame, int]:
-        """Removes outliers from the dataframe based on target columns. Args: df (pd.DataFrame): Input data. method (str): Outlier method. threshold (float): IQR multiplier. Returns: Tuple[pd.DataFrame, int]: Tuple of filtered dataframe and number of rows removed."""
+        """Removes outliers from the dataframe based on target columns.
+
+        Args:
+            df (pd.DataFrame): Input data.
+            method (str): Outlier method.
+            threshold (float): IQR multiplier.
+
+        Returns:
+            Tuple[pd.DataFrame, int]: Tuple of filtered dataframe and number of rows removed.
+
+        Raises:
+            NotImplementedError: If method is not "iqr".
+        """
         if method != "iqr":
             raise NotImplementedError("Only IQR method is currently supported.")
 
@@ -162,11 +188,25 @@ class QuantileForecaster:
         return df_clean, removed_count
 
     def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Clean and normalize raw data columns. Args: df (pd.DataFrame): Raw data. Returns: pd.DataFrame: Cleaned data."""
+        """Clean and normalize raw data columns.
+
+        Args:
+            df (pd.DataFrame): Raw data.
+
+        Returns:
+            pd.DataFrame: Cleaned data.
+        """
         df_clean = df.copy()
 
         def clean_years(val: Union[int, float, str]) -> float:
-            """Parse year strings like '11+' or '5-10' into floats. Args: val (Union[int, float, str]): Year value. Returns: float: Parsed year."""
+            """Parse year strings like '11+' or '5-10' into floats.
+
+            Args:
+                val (Union[int, float, str]): Year value.
+
+            Returns:
+                float: Parsed year.
+            """
             if isinstance(val, (int, float)):
                 return float(val)
             val = str(val).strip()
@@ -201,7 +241,16 @@ class QuantileForecaster:
         remove_outliers: bool,
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]],
     ) -> pd.DataFrame:
-        """Prepare training data with data cleaning and optional outlier removal. Args: df (pd.DataFrame): Training data. remove_outliers (bool): Remove outliers. callback (Optional[Callable]): Progress callback. Returns: pd.DataFrame: Prepared DataFrame."""
+        """Prepare training data with data cleaning and optional outlier removal.
+
+        Args:
+            df (pd.DataFrame): Training data.
+            remove_outliers (bool): Remove outliers.
+            callback (Optional[Callable]): Progress callback.
+
+        Returns:
+            pd.DataFrame: Prepared DataFrame.
+        """
         if callback:
             callback("Preprocessing: Cleaning data...", {"stage": "preprocess"})
         else:
@@ -226,7 +275,15 @@ class QuantileForecaster:
         return df
 
     def _get_training_params(self, quantile: float, monotone_constraints: str) -> Dict[str, Any]:
-        """Get training parameters for a specific quantile. Args: quantile (float): Quantile value. monotone_constraints (str): Monotonic constraints string. Returns: Dict[str, Any]: Training parameters."""
+        """Get training parameters for a specific quantile.
+
+        Args:
+            quantile (float): Quantile value.
+            monotone_constraints (str): Monotonic constraints string.
+
+        Returns:
+            Dict[str, Any]: Training parameters.
+        """
         hyperparams = self.model_config.get("hyperparameters", {})
         train_params_config = hyperparams.get(
             "training", {"objective": "reg:quantileerror", "tree_method": "hist", "verbosity": 0}
@@ -244,7 +301,11 @@ class QuantileForecaster:
         return params
 
     def _get_cv_params(self) -> Dict[str, Any]:
-        """Get cross-validation parameters. Returns: Dict[str, Any]: CV parameters."""
+        """Get cross-validation parameters.
+
+        Returns:
+            Dict[str, Any]: CV parameters.
+        """
         from typing import cast
 
         hyperparams = self.model_config.get("hyperparameters", {})
@@ -267,7 +328,18 @@ class QuantileForecaster:
         cv_params: Dict[str, Any],
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]],
     ) -> xgb.Booster:
-        """Train a single quantile model. Args: model_name (str): Model name. dtrain (xgb.DMatrix): Training data. params (Dict[str, Any]): Training parameters. cv_params (Dict[str, Any]): CV parameters. callback (Optional[Callable]): Progress callback. Returns: xgb.Booster: Trained model."""
+        """Train a single quantile model.
+
+        Args:
+            model_name (str): Model name.
+            dtrain (xgb.DMatrix): Training data.
+            params (Dict[str, Any]): Training parameters.
+            cv_params (Dict[str, Any]): CV parameters.
+            callback (Optional[Callable]): Progress callback.
+
+        Returns:
+            xgb.Booster: Trained model.
+        """
         if callback:
             callback(f"Training {model_name}...", {"stage": "start", "model_name": model_name})
         else:
@@ -315,7 +387,13 @@ class QuantileForecaster:
         callback: Optional[Callable[[str, Optional[Dict[str, Any]]], None]] = None,
         remove_outliers: bool = False,
     ) -> None:
-        """Trains the XGBoost models. Args: df (pd.DataFrame): Training data. callback (Optional[Callable]): Optional callback for status updates. remove_outliers (bool): If True, applies IQR outlier removal before training. Returns: None."""
+        """Trains the XGBoost models.
+
+        Args:
+            df (pd.DataFrame): Training data.
+            callback (Optional[Callable]): Optional callback for status updates.
+            remove_outliers (bool): If True, applies IQR outlier removal before training.
+        """
         df = self._prepare_training_data(df, remove_outliers, callback)
 
         with PerformanceMetrics("preprocessing_feature_encoding_time"):
@@ -384,7 +462,16 @@ class QuantileForecaster:
     def tune(
         self, df: pd.DataFrame, n_trials: int = 20, timeout: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Runs Optuna optimization to find best hyperparameters and updates self.model_config. Args: df (pd.DataFrame): Training data. n_trials (int): Number of trials. timeout (Optional[int]): Timeout in seconds. Returns: Dict[str, Any]: Best parameters found."""
+        """Runs Optuna optimization to find best hyperparameters and updates self.model_config.
+
+        Args:
+            df (pd.DataFrame): Training data.
+            n_trials (int): Number of trials.
+            timeout (Optional[int]): Timeout in seconds.
+
+        Returns:
+            Dict[str, Any]: Best parameters found.
+        """
         optuna.logging.set_verbosity(optuna.logging.WARNING)
 
         X = self._preprocess(df)
@@ -400,6 +487,14 @@ class QuantileForecaster:
         dtrain = xgb.DMatrix(X, label=y, weight=weights)
 
         def objective(trial: optuna.trial.Trial) -> float:
+            """Optuna objective function for hyperparameter optimization.
+
+            Args:
+                trial (optuna.trial.Trial): Optuna trial object.
+
+            Returns:
+                float: CV score to minimize.
+            """
             params = {
                 "objective": "reg:quantileerror",
                 "tree_method": "hist",
@@ -443,7 +538,14 @@ class QuantileForecaster:
         return cast(Dict[str, Any], best_params)
 
     def predict(self, X_input: pd.DataFrame) -> Dict[str, Dict[str, Any]]:
-        """Generates predictions for input data. Args: X_input (pd.DataFrame): Input data with features matching training columns. Returns: Dict[str, Dict[str, Any]]: A nested dictionary: {target: {quantile_key: predictions}}."""
+        """Generates predictions for input data.
+
+        Args:
+            X_input (pd.DataFrame): Input data with features matching training columns.
+
+        Returns:
+            Dict[str, Dict[str, Any]]: A nested dictionary: {target: {quantile_key: predictions}}.
+        """
         X_proc = self._preprocess(X_input)
         dtest = xgb.DMatrix(X_proc)
 
@@ -463,7 +565,18 @@ class QuantileForecaster:
     def _analyze_cv_results(
         cv_results: pd.DataFrame, metric_name: str = "test-quantile-mean"
     ) -> Tuple[int, float]:
-        """Analyzes cross-validation results to find optimal rounds and best score. Args: cv_results (pd.DataFrame): XGBoost CV results dataframe. metric_name (str): Name of the metric to analyze. Returns: Tuple[int, float]: Best round (1-based) and best score."""
+        """Analyzes cross-validation results to find optimal rounds and best score.
+
+        Args:
+            cv_results (pd.DataFrame): XGBoost CV results dataframe.
+            metric_name (str): Name of the metric to analyze.
+
+        Returns:
+            Tuple[int, float]: Best round (1-based) and best score.
+
+        Raises:
+            ValueError: If metric_name not found in CV results.
+        """
         if metric_name not in cv_results.columns:
             raise ValueError(
                 f"Metric {metric_name} not found in CV results columns: {cv_results.columns}"

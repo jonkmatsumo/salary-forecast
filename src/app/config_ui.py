@@ -17,7 +17,14 @@ from src.utils.performance import PerformanceMetrics
 
 
 def _get_progress_message(service: Optional[WorkflowService]) -> str:
-    """Get progress message based on current node. Args: service (Optional[WorkflowService]): Workflow service. Returns: str: Progress message."""
+    """Get progress message based on current node.
+
+    Args:
+        service (Optional[WorkflowService]): Workflow service.
+
+    Returns:
+        str: Progress message.
+    """
     if not service or not service.workflow or not service.workflow.current_state:
         return "Processing..."
 
@@ -37,7 +44,15 @@ def _get_progress_message(service: Optional[WorkflowService]) -> str:
 
 
 def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Optional[Dict[str, Any]]:
-    """Render the multi-step agentic workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
+    """Render the multi-step agentic workflow wizard.
+
+    Args:
+        df (pd.DataFrame): DataFrame to analyze.
+        provider (str): LLM provider.
+
+    Returns:
+        Optional[Dict[str, Any]]: Final configuration if complete, None otherwise.
+    """
     import os
 
     enable_ui_perf = os.getenv("ENABLE_UI_PERFORMANCE_TRACKING", "false").lower() == "true"
@@ -51,7 +66,15 @@ def render_workflow_wizard(df: pd.DataFrame, provider: str = "openai") -> Option
 def _render_workflow_wizard_impl(
     df: pd.DataFrame, provider: str = "openai"
 ) -> Optional[Dict[str, Any]]:
-    """Internal implementation of workflow wizard. Args: df (pd.DataFrame): DataFrame to analyze. provider (str): LLM provider. Returns: Optional[Dict[str, Any]]: Final configuration if complete, None otherwise."""
+    """Internal implementation of workflow wizard.
+
+    Args:
+        df (pd.DataFrame): DataFrame to analyze.
+        provider (str): LLM provider.
+
+    Returns:
+        Optional[Dict[str, Any]]: Final configuration if complete, None otherwise.
+    """
     if "workflow_service" not in st.session_state:
         st.session_state["workflow_service"] = None
     if "workflow_phase" not in st.session_state:
@@ -221,7 +244,16 @@ def _render_classification_phase(
     result: Dict[str, Any],
     df: pd.DataFrame,
 ) -> Optional[Dict[str, Any]]:
-    """Render the column classification review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Classification result. df (pd.DataFrame): Data. Returns: Optional[Dict[str, Any]]: Config if confirmed, None otherwise."""
+    """Render the column classification review phase.
+
+    Args:
+        service (WorkflowService): Workflow service.
+        result (Dict[str, Any]): Classification result.
+        df (pd.DataFrame): Data.
+
+    Returns:
+        Optional[Dict[str, Any]]: Config if confirmed, None otherwise.
+    """
     st.subheader("Step 1: Column Classification")
 
     data = result.get("data", {})
@@ -456,7 +488,15 @@ def _render_encoding_phase(
     use_api: bool,
     result: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """Render the feature encoding review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Encoding result. Returns: Optional[Dict[str, Any]]: Config if confirmed, None otherwise."""
+    """Render the feature encoding review phase.
+
+    Args:
+        service (WorkflowService): Workflow service.
+        result (Dict[str, Any]): Encoding result.
+
+    Returns:
+        Optional[Dict[str, Any]]: Config if confirmed, None otherwise.
+    """
     st.subheader("Step 2: Feature Encoding")
 
     data = result.get("data", {})
@@ -781,7 +821,15 @@ def _render_configuration_phase(
     use_api: bool,
     result: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
-    """Render the model configuration review phase. Args: service (WorkflowService): Workflow service. result (Dict[str, Any]): Configuration result. Returns: Optional[Dict[str, Any]]: Config if finalized, None otherwise."""
+    """Render the model configuration review phase.
+
+    Args:
+        service (WorkflowService): Workflow service.
+        result (Dict[str, Any]): Configuration result.
+
+    Returns:
+        Optional[Dict[str, Any]]: Config if finalized, None otherwise.
+    """
     st.subheader("Step 3: Model Configuration")
 
     data = result.get("data", {})
@@ -1075,7 +1123,14 @@ def _render_configuration_phase(
 
 
 def _render_complete_phase(result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Render the completion phase with final config. Args: result (Dict[str, Any]): Complete workflow result. Returns: Optional[Dict[str, Any]]: Final config."""
+    """Render the completion phase with final config.
+
+    Args:
+        result (Dict[str, Any]): Complete workflow result.
+
+    Returns:
+        Optional[Dict[str, Any]]: Final config.
+    """
     st.subheader("Configuration Complete!")
     st.success("Your configuration has been generated successfully.")
 
@@ -1135,7 +1190,11 @@ def _reset_workflow_state() -> None:
 
 
 def render_save_load_controls(current_config_state: Dict[str, Any]) -> None:
-    """Renders Save/Load controls. JSON export only (for user convenience), loading is deprecated. Args: current_config_state (Dict[str, Any]): Current configuration. Returns: None."""
+    """Renders Save/Load controls. JSON export only (for user convenience), loading is deprecated.
+
+    Args:
+        current_config_state (Dict[str, Any]): Current configuration.
+    """
     st.markdown("---")
     st.subheader("Config Management")
 

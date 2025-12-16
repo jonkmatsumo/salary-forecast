@@ -18,7 +18,18 @@ async def verify_api_key(
     authorization: Optional[HTTPAuthorizationCredentials] = Security(security),
     x_api_key: Optional[str] = Header(default=None, alias="X-API-Key"),
 ) -> str:
-    """Verify API key from header. Args: authorization (Optional[HTTPAuthorizationCredentials]): Bearer token. x_api_key (Optional[str]): X-API-Key header. Returns: str: User ID or API key identifier. Raises: AuthenticationError: If authentication fails."""
+    """Verify API key from header.
+
+    Args:
+        authorization (Optional[HTTPAuthorizationCredentials]): Bearer token.
+        x_api_key (Optional[str]): X-API-Key header.
+
+    Returns:
+        str: User ID or API key identifier.
+
+    Raises:
+        AuthenticationError: If authentication fails.
+    """
     api_key_from_env = get_env_var("API_KEY")
 
     provided_key = None
@@ -43,7 +54,14 @@ async def verify_api_key(
 
 
 async def get_current_user(api_key: str = Security(verify_api_key)) -> str:
-    """Get current user from API key. Args: api_key (str): Verified API key. Returns: str: User identifier."""
+    """Get current user from API key.
+
+    Args:
+        api_key (str): Verified API key.
+
+    Returns:
+        str: User identifier.
+    """
     api_key_from_env = get_env_var("API_KEY")
     if not api_key_from_env:
         return api_key

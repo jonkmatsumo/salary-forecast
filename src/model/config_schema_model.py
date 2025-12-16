@@ -34,7 +34,14 @@ class ModelConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_quantiles_range(self) -> "ModelConfig":
-        """Validate that quantiles are between 0 and 1. Returns: ModelConfig: Self for chaining."""
+        """Validate that quantiles are between 0 and 1.
+
+        Returns:
+            ModelConfig: Self for chaining.
+
+        Raises:
+            ValueError: If any quantile is outside [0, 1].
+        """
         for q in self.quantiles:
             if not 0 <= q <= 1:
                 raise ValueError(f"Quantiles must be between 0 and 1, got {q}")
@@ -42,7 +49,14 @@ class ModelConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_features_unique(self) -> "ModelConfig":
-        """Validate that feature names are unique. Returns: ModelConfig: Self for chaining."""
+        """Validate that feature names are unique.
+
+        Returns:
+            ModelConfig: Self for chaining.
+
+        Raises:
+            ValueError: If feature names are not unique.
+        """
         names = [f.name for f in self.features]
         if len(names) != len(set(names)):
             raise ValueError("Feature names must be unique")
@@ -60,7 +74,17 @@ class Config(BaseModel):
 
 
 def validate_config_dict(config: Dict[str, Any]) -> Config:
-    """Validate a configuration dictionary using Pydantic. Args: config (Dict[str, Any]): Configuration dictionary. Returns: Config: Validated Config object. Raises: ValidationError: If config is invalid."""
+    """Validate a configuration dictionary using Pydantic.
+
+    Args:
+        config (Dict[str, Any]): Configuration dictionary.
+
+    Returns:
+        Config: Validated Config object.
+
+    Raises:
+        ValidationError: If config is invalid.
+    """
     from typing import cast
 
     return cast(Config, Config.model_validate(config))

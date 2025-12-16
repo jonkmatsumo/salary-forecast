@@ -12,7 +12,6 @@ from src.utils.env_loader import get_env_var
 from src.utils.logger import get_logger
 from src.utils.performance import LLMCallTracker
 
-# Retry configuration
 MAX_RETRIES = 3
 INITIAL_BACKOFF = 1.0
 MAX_BACKOFF = 60.0
@@ -32,11 +31,27 @@ logger = get_logger(__name__)
 class LLMClient(ABC):
     @abstractmethod
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate text from the LLM. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
+        """Generate text from the LLM.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+        """
         pass
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Async generate text from the LLM. Default implementation uses sync method in executor. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text."""
+        """Async generate text from the LLM. Default implementation uses sync method in executor.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+        """
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self.generate, prompt, system_prompt)
 
@@ -51,13 +66,28 @@ class OpenAIClient(LLMClient):
         self.model = model
 
     def _get_async_client(self) -> AsyncOpenAI:
-        """Get or create async OpenAI client. Returns: AsyncOpenAI: Async client instance."""
+        """Get or create async OpenAI client.
+
+        Returns:
+            AsyncOpenAI: Async client instance.
+        """
         if self.async_client is None:
             self.async_client = AsyncOpenAI(api_key=self.api_key)
         return self.async_client
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate text from OpenAI with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
+        """Generate text from OpenAI with retry logic.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+
+        Raises:
+            Exception: If all retries fail.
+        """
         from openai.types.chat import (
             ChatCompletionSystemMessageParam,
             ChatCompletionUserMessageParam,
@@ -129,7 +159,18 @@ class OpenAIClient(LLMClient):
         raise RuntimeError("OpenAI generation failed: unknown error")
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Async generate text from OpenAI with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
+        """Async generate text from OpenAI with retry logic.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+
+        Raises:
+            Exception: If all retries fail.
+        """
         from openai.types.chat import (
             ChatCompletionSystemMessageParam,
             ChatCompletionUserMessageParam,
@@ -214,7 +255,18 @@ class GeminiClient(LLMClient):
         self.model = genai.GenerativeModel(model)
 
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate text using Gemini with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
+        """Generate text using Gemini with retry logic.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+
+        Raises:
+            Exception: If all retries fail.
+        """
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
@@ -261,7 +313,6 @@ class GeminiClient(LLMClient):
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
-                # Retry on rate limits and server errors
                 if any(keyword in error_str for keyword in ["rate", "quota", "503", "500", "429"]):
                     if attempt < MAX_RETRIES - 1:
                         wait_time = min(backoff, MAX_BACKOFF)
@@ -282,7 +333,18 @@ class GeminiClient(LLMClient):
         raise RuntimeError("Gemini generation failed: unknown error")
 
     async def agenerate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Async generate text using Gemini with retry logic. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Generated text. Raises: Exception: If all retries fail."""
+        """Async generate text using Gemini with retry logic.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Generated text.
+
+        Raises:
+            Exception: If all retries fail.
+        """
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"System: {system_prompt}\nUser: {prompt}"
@@ -333,7 +395,6 @@ class GeminiClient(LLMClient):
             except Exception as e:
                 last_exception = e
                 error_str = str(e).lower()
-                # Retry on rate limits and server errors
                 if any(keyword in error_str for keyword in ["rate", "quota", "503", "500", "429"]):
                     if attempt < MAX_RETRIES - 1:
                         wait_time = min(backoff, MAX_BACKOFF)
@@ -358,13 +419,31 @@ class GeminiClient(LLMClient):
 
 class DebugClient(LLMClient):
     def generate(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate mock text for debugging. Args: prompt (str): User prompt. system_prompt (Optional[str]): System prompt. Returns: str: Mock response."""
+        """Generate mock text for debugging.
+
+        Args:
+            prompt (str): User prompt.
+            system_prompt (Optional[str]): System prompt.
+
+        Returns:
+            str: Mock response.
+        """
         logger.info("DebugClient: Generating mock response.")
         return "MOCK_RESPONSE"
 
 
 def get_llm_client(provider: str = "openai") -> LLMClient:
-    """Gets a legacy LLM client instance. Args: provider (str): Provider name ("openai", "gemini", or "debug"). Returns: LLMClient: LLMClient instance."""
+    """Gets a legacy LLM client instance.
+
+    Args:
+        provider (str): Provider name ("openai", "gemini", or "debug").
+
+    Returns:
+        LLMClient: LLMClient instance.
+
+    Raises:
+        ValueError: If provider is unknown.
+    """
     if provider.lower() == "openai":
         return OpenAIClient()
     elif provider.lower() == "gemini":
@@ -378,7 +457,20 @@ def get_llm_client(provider: str = "openai") -> LLMClient:
 def get_langchain_llm(
     provider: str = "openai", model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> BaseChatModel:
-    """Get a LangChain-compatible LLM instance. Args: provider (str): Provider name. model (Optional[str]): Model name override. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: LangChain BaseChatModel instance."""
+    """Get a LangChain-compatible LLM instance.
+
+    Args:
+        provider (str): Provider name.
+        model (Optional[str]): Model name override.
+        temperature (float): Generation temperature.
+        **kwargs: Additional arguments.
+
+    Returns:
+        BaseChatModel: LangChain BaseChatModel instance.
+
+    Raises:
+        ValueError: If provider is unknown.
+    """
     provider_lower = provider.lower()
 
     if provider_lower == "openai":
@@ -392,7 +484,20 @@ def get_langchain_llm(
 def _get_langchain_openai(
     model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> "BaseChatModel":
-    """Get a LangChain ChatOpenAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatOpenAI instance."""
+    """Get a LangChain ChatOpenAI instance.
+
+    Args:
+        model (Optional[str]): Model name.
+        temperature (float): Generation temperature.
+        **kwargs: Additional arguments.
+
+    Returns:
+        BaseChatModel: ChatOpenAI instance.
+
+    Raises:
+        ImportError: If langchain-openai is not installed.
+        ValueError: If OPENAI_API_KEY is not found.
+    """
     try:
         from langchain_openai import ChatOpenAI
     except ImportError:
@@ -417,7 +522,20 @@ def _get_langchain_openai(
 def _get_langchain_gemini(
     model: Optional[str] = None, temperature: float = 0.0, **kwargs
 ) -> "BaseChatModel":
-    """Get a LangChain ChatGoogleGenerativeAI instance. Args: model (Optional[str]): Model name. temperature (float): Generation temperature. **kwargs: Additional arguments. Returns: BaseChatModel: ChatGoogleGenerativeAI instance."""
+    """Get a LangChain ChatGoogleGenerativeAI instance.
+
+    Args:
+        model (Optional[str]): Model name.
+        temperature (float): Generation temperature.
+        **kwargs: Additional arguments.
+
+    Returns:
+        BaseChatModel: ChatGoogleGenerativeAI instance.
+
+    Raises:
+        ImportError: If langchain-google-genai is not installed.
+        ValueError: If GEMINI_API_KEY is not found.
+    """
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
     except ImportError:
@@ -438,7 +556,11 @@ def _get_langchain_gemini(
 
 
 def get_available_providers() -> List[str]:
-    """Get list of available LLM providers. Returns: List[str]: Available provider names."""
+    """Get list of available LLM providers.
+
+    Returns:
+        List[str]: Available provider names.
+    """
     available = []
 
     try:
@@ -461,7 +583,14 @@ def get_available_providers() -> List[str]:
 
 
 def validate_provider(provider: str) -> bool:
-    """Check if a provider is available and properly configured. Args: provider (str): Provider name. Returns: bool: True if available, False otherwise."""
+    """Check if a provider is available and properly configured.
+
+    Args:
+        provider (str): Provider name.
+
+    Returns:
+        bool: True if available, False otherwise.
+    """
     try:
         llm = get_langchain_llm(provider)
         return llm is not None

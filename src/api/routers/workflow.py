@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 from fastapi import APIRouter, Depends
 
+from src.api.dependencies import get_current_user
 from src.api.dto.workflow import (
     ClassificationConfirmationRequest,
     ConfigurationFinalizationRequest,
@@ -15,7 +16,6 @@ from src.api.dto.workflow import (
     WorkflowStartResponse,
     WorkflowStateResponse,
 )
-from src.api.dependencies import get_current_user
 from src.api.exceptions import WorkflowNotFoundError
 from src.services.workflow_service import WorkflowService
 from src.utils.logger import get_logger
@@ -28,7 +28,14 @@ _workflow_storage: Dict[str, WorkflowService] = {}
 
 
 def get_workflow_service(workflow_id: str) -> Optional[WorkflowService]:
-    """Get workflow service by ID. Args: workflow_id (str): Workflow identifier. Returns: Optional[WorkflowService]: Workflow service or None."""
+    """Get workflow service by ID.
+
+    Args:
+        workflow_id (str): Workflow identifier.
+
+    Returns:
+        Optional[WorkflowService]: Workflow service or None.
+    """
     return _workflow_storage.get(workflow_id)
 
 
@@ -37,9 +44,21 @@ async def start_workflow(
     request: WorkflowStartRequest,
     user: str = Depends(get_current_user),
 ):
-    """Start a configuration workflow. Args: request (WorkflowStartRequest): Workflow start request. user (str): Current user. Returns: WorkflowStartResponse: Workflow start response."""
-    import pandas as pd
+    """Start a configuration workflow.
+
+    Args:
+        request (WorkflowStartRequest): Workflow start request.
+        user (str): Current user.
+
+    Returns:
+        WorkflowStartResponse: Workflow start response.
+
+    Raises:
+        InvalidInputError: If workflow start fails.
+    """
     from io import StringIO
+
+    import pandas as pd
 
     workflow_id = str(uuid.uuid4())
     service = WorkflowService(provider=request.provider)
@@ -77,7 +96,18 @@ async def get_workflow_state(
     workflow_id: str,
     user: str = Depends(get_current_user),
 ):
-    """Get workflow state. Args: workflow_id (str): Workflow identifier. user (str): Current user. Returns: WorkflowStateResponse: Workflow state. Raises: WorkflowNotFoundError: If workflow not found."""
+    """Get workflow state.
+
+    Args:
+        workflow_id (str): Workflow identifier.
+        user (str): Current user.
+
+    Returns:
+        WorkflowStateResponse: Workflow state.
+
+    Raises:
+        WorkflowNotFoundError: If workflow not found.
+    """
     service = get_workflow_service(workflow_id)
 
     if not service:
@@ -99,7 +129,20 @@ async def confirm_classification(
     request: ClassificationConfirmationRequest,
     user: str = Depends(get_current_user),
 ):
-    """Confirm classification phase. Args: workflow_id (str): Workflow identifier. request (ClassificationConfirmationRequest): Classification confirmation. user (str): Current user. Returns: WorkflowProgressResponse: Progress response. Raises: WorkflowNotFoundError: If workflow not found."""
+    """Confirm classification phase.
+
+    Args:
+        workflow_id (str): Workflow identifier.
+        request (ClassificationConfirmationRequest): Classification confirmation.
+        user (str): Current user.
+
+    Returns:
+        WorkflowProgressResponse: Progress response.
+
+    Raises:
+        WorkflowNotFoundError: If workflow not found.
+        InvalidInputError: If confirmation fails.
+    """
     service = get_workflow_service(workflow_id)
 
     if not service:
@@ -132,7 +175,20 @@ async def confirm_encoding(
     request: EncodingConfirmationRequest,
     user: str = Depends(get_current_user),
 ):
-    """Confirm encoding phase. Args: workflow_id (str): Workflow identifier. request (EncodingConfirmationRequest): Encoding confirmation. user (str): Current user. Returns: WorkflowProgressResponse: Progress response. Raises: WorkflowNotFoundError: If workflow not found."""
+    """Confirm encoding phase.
+
+    Args:
+        workflow_id (str): Workflow identifier.
+        request (EncodingConfirmationRequest): Encoding confirmation.
+        user (str): Current user.
+
+    Returns:
+        WorkflowProgressResponse: Progress response.
+
+    Raises:
+        WorkflowNotFoundError: If workflow not found.
+        InvalidInputError: If confirmation fails.
+    """
     service = get_workflow_service(workflow_id)
 
     if not service:
@@ -179,7 +235,20 @@ async def finalize_configuration(
     request: ConfigurationFinalizationRequest,
     user: str = Depends(get_current_user),
 ):
-    """Finalize configuration. Args: workflow_id (str): Workflow identifier. request (ConfigurationFinalizationRequest): Finalization request. user (str): Current user. Returns: WorkflowCompleteResponse: Complete response. Raises: WorkflowNotFoundError: If workflow not found."""
+    """Finalize configuration.
+
+    Args:
+        workflow_id (str): Workflow identifier.
+        request (ConfigurationFinalizationRequest): Finalization request.
+        user (str): Current user.
+
+    Returns:
+        WorkflowCompleteResponse: Complete response.
+
+    Raises:
+        WorkflowNotFoundError: If workflow not found.
+        InvalidInputError: If finalization fails.
+    """
     service = get_workflow_service(workflow_id)
 
     if not service:

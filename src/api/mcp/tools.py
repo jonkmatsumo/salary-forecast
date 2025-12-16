@@ -17,14 +17,25 @@ class MCPTool:
         input_schema: Dict[str, Any],
         examples: Optional[List[Dict[str, Any]]] = None,
     ):
-        """Initialize MCP tool. Args: name (str): Tool name. description (str): Tool description. input_schema (Dict[str, Any]): JSON schema for inputs. examples (List[Dict[str, Any]]): Example inputs/outputs. Returns: None."""
+        """Initialize MCP tool.
+
+        Args:
+            name (str): Tool name.
+            description (str): Tool description.
+            input_schema (Dict[str, Any]): JSON schema for inputs.
+            examples (Optional[List[Dict[str, Any]]]): Example inputs/outputs.
+        """
         self.name = name
         self.description = description
         self.input_schema = input_schema
         self.examples = examples or []
 
     def to_dict(self) -> Dict[str, Any]:
-        """Convert tool to dictionary. Returns: Dict[str, Any]: Tool definition."""
+        """Convert tool to dictionary.
+
+        Returns:
+            Dict[str, Any]: Tool definition.
+        """
         result: Dict[str, Any] = {
             "name": self.name,
             "description": self.description,
@@ -36,7 +47,11 @@ class MCPTool:
 
 
 def get_mcp_tools() -> List[MCPTool]:
-    """Get list of all MCP tools. Returns: List[MCPTool]: List of tool definitions."""
+    """Get list of all MCP tools.
+
+    Returns:
+        List[MCPTool]: List of tool definitions.
+    """
     return [
         _tool_list_models(),
         _tool_get_model_details(),
@@ -53,7 +68,11 @@ def get_mcp_tools() -> List[MCPTool]:
 
 
 def _tool_list_models() -> MCPTool:
-    """Create list_models tool. Returns: MCPTool: Tool definition."""
+    """Create list_models tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="list_models",
         description=(
@@ -103,7 +122,11 @@ def _tool_list_models() -> MCPTool:
 
 
 def _tool_get_model_details() -> MCPTool:
-    """Create get_model_details tool. Returns: MCPTool: Tool definition."""
+    """Create get_model_details tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="get_model_details",
         description=(
@@ -139,7 +162,11 @@ def _tool_get_model_details() -> MCPTool:
 
 
 def _tool_get_model_schema() -> MCPTool:
-    """Create get_model_schema tool. Returns: MCPTool: Tool definition."""
+    """Create get_model_schema tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="get_model_schema",
         description=(
@@ -161,7 +188,11 @@ def _tool_get_model_schema() -> MCPTool:
 
 
 def _tool_predict_salary() -> MCPTool:
-    """Create predict_salary tool. Returns: MCPTool: Tool definition."""
+    """Create predict_salary tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="predict_salary",
         description=(
@@ -207,7 +238,11 @@ def _tool_predict_salary() -> MCPTool:
 
 
 def _tool_start_training() -> MCPTool:
-    """Create start_training tool. Returns: MCPTool: Tool definition."""
+    """Create start_training tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="start_training",
         description=(
@@ -252,7 +287,11 @@ def _tool_start_training() -> MCPTool:
 
 
 def _tool_get_training_status() -> MCPTool:
-    """Create get_training_status tool. Returns: MCPTool: Tool definition."""
+    """Create get_training_status tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="get_training_status",
         description=(
@@ -274,7 +313,11 @@ def _tool_get_training_status() -> MCPTool:
 
 
 def _tool_start_configuration_workflow() -> MCPTool:
-    """Create start_configuration_workflow tool. Returns: MCPTool: Tool definition."""
+    """Create start_configuration_workflow tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="start_configuration_workflow",
         description=(
@@ -319,7 +362,11 @@ def _tool_start_configuration_workflow() -> MCPTool:
 
 
 def _tool_confirm_classification() -> MCPTool:
-    """Create confirm_classification tool. Returns: MCPTool: Tool definition."""
+    """Create confirm_classification tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="confirm_classification",
         description=(
@@ -361,7 +408,11 @@ def _tool_confirm_classification() -> MCPTool:
 
 
 def _tool_confirm_encoding() -> MCPTool:
-    """Create confirm_encoding tool. Returns: MCPTool: Tool definition."""
+    """Create confirm_encoding tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="confirm_encoding",
         description=(
@@ -396,7 +447,11 @@ def _tool_confirm_encoding() -> MCPTool:
 
 
 def _tool_finalize_configuration() -> MCPTool:
-    """Create finalize_configuration tool. Returns: MCPTool: Tool definition."""
+    """Create finalize_configuration tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="finalize_configuration",
         description=(
@@ -422,7 +477,11 @@ def _tool_finalize_configuration() -> MCPTool:
 
 
 def _tool_get_feature_importance() -> MCPTool:
-    """Create get_feature_importance tool. Returns: MCPTool: Tool definition."""
+    """Create get_feature_importance tool.
+
+    Returns:
+        MCPTool: Tool definition.
+    """
     return MCPTool(
         name="get_feature_importance",
         description=(

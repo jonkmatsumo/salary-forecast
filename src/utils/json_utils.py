@@ -9,15 +9,32 @@ logger = get_logger(__name__)
 
 
 def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
-    """Normalizes and parses a JSON string that may be escaped or double-encoded using multiple parsing strategies. Args: json_str (str): JSON string that may be escaped or encoded. max_depth (int): Maximum recursion depth to prevent infinite loops. Returns: Any: Parsed JSON object (dict, list, or primitive type). Raises: ValueError: If all parsing attempts fail."""
+    """Normalizes and parses a JSON string that may be escaped or double-encoded using multiple parsing strategies.
+
+    Args:
+        json_str (str): JSON string that may be escaped or encoded.
+        max_depth (int): Maximum recursion depth to prevent infinite loops.
+
+    Returns:
+        Any: Parsed JSON object (dict, list, or primitive type).
+
+    Raises:
+        ValueError: If all parsing attempts fail.
+    """
     if not json_str or not isinstance(json_str, str):
         raise ValueError(f"Invalid input: expected non-empty string, got {type(json_str)}")
 
     original_str = json_str
 
     def _parse_once(s: str) -> Optional[Any]:
-        """Tries all parsing strategies once. Args: s (str): JSON string to parse. Returns: Optional[Any]: Parsed JSON object or None if all strategies fail."""
-        # Strategy 1: Direct parse
+        """Tries all parsing strategies once.
+
+        Args:
+            s (str): JSON string to parse.
+
+        Returns:
+            Optional[Any]: Parsed JSON object or None if all strategies fail.
+        """
         try:
             return json.loads(s)
         except json.JSONDecodeError:
@@ -25,7 +42,6 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
 
         stripped = s.strip()
 
-        # Strategy 2: Remove outer quotes if present
         if (stripped.startswith('"') and stripped.endswith('"')) or (
             stripped.startswith("'") and stripped.endswith("'")
         ):
@@ -34,15 +50,12 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
                 return json.loads(unquoted)
             except json.JSONDecodeError:
                 pass
-
-        # Strategy 3: Handle escaped quotes
         try:
             manual_unescaped = s.replace('\\"', '"').replace("\\\\", "\\")
             return json.loads(manual_unescaped)
         except json.JSONDecodeError:
             pass
 
-        # Strategy 4: Remove quotes and unescape
         if stripped.startswith('"') and stripped.endswith('"'):
             try:
                 unquoted = stripped[1:-1]
@@ -50,15 +63,12 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
                 return json.loads(unescaped)
             except json.JSONDecodeError:
                 pass
-
-        # Strategy 5: Try unicode escape decoding
         try:
             unescaped = s.encode().decode("unicode_escape")
             return json.loads(unescaped)
         except (json.JSONDecodeError, UnicodeDecodeError):
             pass
 
-        # Strategy 6: Try to find and extract JSON object if embedded in text
         if "{" in s and "}" in s:
             try:
                 start_idx = s.find("{")
@@ -99,7 +109,17 @@ def normalize_json_string(json_str: str, max_depth: int = 5) -> Any:
 
 
 def parse_df_json_safely(df_json: str) -> Dict[str, Any]:
-    """Safely parses df_json parameter with comprehensive error handling. Args: df_json (str): JSON string representation of DataFrame. Returns: Dict[str, Any]: Parsed JSON object (dict). Raises: ValueError: If parsing fails, with structured error information."""
+    """Safely parses df_json parameter with comprehensive error handling.
+
+    Args:
+        df_json (str): JSON string representation of DataFrame.
+
+    Returns:
+        Dict[str, Any]: Parsed JSON object (dict).
+
+    Raises:
+        ValueError: If parsing fails, with structured error information.
+    """
     try:
         result = normalize_json_string(df_json)
         if not isinstance(result, dict):

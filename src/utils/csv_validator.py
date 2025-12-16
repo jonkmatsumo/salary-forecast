@@ -4,7 +4,14 @@ import pandas as pd
 
 
 def validate_csv(file_buffer: Any) -> Tuple[bool, Optional[str], Optional[pd.DataFrame]]:
-    """Validate a CSV file buffer. Args: file_buffer (Any): File-like object. Returns: Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe)."""
+    """Validate a CSV file buffer.
+
+    Args:
+        file_buffer (Any): File-like object.
+
+    Returns:
+        Tuple[bool, Optional[str], Optional[pd.DataFrame]]: (is_valid, error_message, dataframe).
+    """
     try:
         file_buffer.seek(0)
         first_byte = file_buffer.read(1)

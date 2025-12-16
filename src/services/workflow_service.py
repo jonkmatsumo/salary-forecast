@@ -15,7 +15,12 @@ class WorkflowService:
     """Service to manage the agentic configuration workflow with methods to start workflows, get state, confirm phases, and retrieve final configuration."""
 
     def __init__(self, provider: str = "openai", model: Optional[str] = None):
-        """Initializes the workflow service. Args: provider (str): LLM provider name. model (Optional[str]): Optional model name override."""
+        """Initializes the workflow service.
+
+        Args:
+            provider (str): LLM provider name.
+            model (Optional[str]): Optional model name override.
+        """
         self.provider = provider
         self.model = model
         self.workflow: Optional[ConfigWorkflow] = None
@@ -29,7 +34,14 @@ class WorkflowService:
             raise
 
     def _validate_dataframe(self, df: pd.DataFrame) -> None:
-        """Validate DataFrame before processing. Args: df (pd.DataFrame): DataFrame to validate. Returns: None. Raises: ValueError: If DataFrame is invalid."""
+        """Validate DataFrame before processing.
+
+        Args:
+            df (pd.DataFrame): DataFrame to validate.
+
+        Raises:
+            ValueError: If DataFrame is invalid.
+        """
         if df is None:
             raise ValueError("DataFrame cannot be None")
         if df.empty:
@@ -40,7 +52,18 @@ class WorkflowService:
     def _prepare_workflow_input(
         self, df: pd.DataFrame, sample_size: int
     ) -> tuple[str, list[str], Dict[str, str], int]:
-        """Prepare and validate workflow input data. Args: df (pd.DataFrame): Input DataFrame. sample_size (int): Rows to sample. Returns: tuple[str, list[str], Dict[str, str], int]: (df_json, columns, dtypes, dataset_size). Raises: ValueError: If data preparation fails."""
+        """Prepare and validate workflow input data.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+            sample_size (int): Rows to sample.
+
+        Returns:
+            tuple[str, list[str], Dict[str, str], int]: (df_json, columns, dtypes, dataset_size).
+
+        Raises:
+            ValueError: If data preparation fails.
+        """
         self._validate_dataframe(df)
 
         sample_df = df.head(sample_size)
@@ -57,16 +80,23 @@ class WorkflowService:
         return df_json, columns, dtypes, dataset_size
 
     def _serialize_dataframe(self, df: pd.DataFrame) -> str:
-        """Serialize DataFrame to JSON with validation and fallback. Args: df (pd.DataFrame): DataFrame to serialize. Returns: str: JSON string. Raises: ValueError: If serialization fails."""
+        """Serialize DataFrame to JSON with validation and fallback.
+
+        Args:
+            df (pd.DataFrame): DataFrame to serialize.
+
+        Returns:
+            str: JSON string.
+
+        Raises:
+            ValueError: If serialization fails.
+        """
         from src.utils.json_utils import parse_df_json_safely
 
-        # Try 'records' orient first as it's more compact and less likely to cause parsing issues
-        # when passed through LLM tool calls
         try:
             df_json = df.to_json(orient="records", date_format="iso")
             logger.debug(f"Generated df_json (records) length: {len(df_json)} characters")
 
-            # Validate JSON can be parsed
             parse_df_json_safely(df_json)
             logger.debug("df_json validated successfully")
             from typing import cast
@@ -95,7 +125,20 @@ class WorkflowService:
     def start_workflow(
         self, df: pd.DataFrame, sample_size: int = 50, preset: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Start a new configuration workflow. Args: df (pd.DataFrame): Input DataFrame. sample_size (int): Rows to sample. preset (Optional[str]): Optional preset prompt name. Returns: Dict[str, Any]: Classification results. Raises: ValueError: If data validation fails. RuntimeError: If workflow initialization fails."""
+        """Start a new configuration workflow.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+            sample_size (int): Rows to sample.
+            preset (Optional[str]): Optional preset prompt name.
+
+        Returns:
+            Dict[str, Any]: Classification results.
+
+        Raises:
+            ValueError: If data validation fails.
+            RuntimeError: If workflow initialization fails.
+        """
         logger.info(f"Starting workflow with {len(df)} rows, sampling {sample_size}")
         logger.debug(f"DataFrame columns: {df.columns.tolist()}")
         logger.debug(f"DataFrame dtypes: {df.dtypes.to_dict()}")
@@ -193,7 +236,11 @@ class WorkflowService:
             return {"phase": "classification", "status": "error", "error": str(e)}
 
     def get_current_state(self) -> Dict[str, Any]:
-        """Get the current workflow state. Returns: Dict[str, Any]: Current state dictionary."""
+        """Get the current workflow state.
+
+        Returns:
+            Dict[str, Any]: Current state dictionary.
+        """
         if not self.workflow:
             return {"phase": "not_started", "status": "pending"}
 
@@ -203,7 +250,17 @@ class WorkflowService:
     def confirm_classification(
         self, modifications: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """Confirm column classification and proceed to encoding. Args: modifications (Optional[Dict[str, Any]]): Modified classification. Returns: Dict[str, Any]: Encoding results."""
+        """Confirm column classification and proceed to encoding.
+
+        Args:
+            modifications (Optional[Dict[str, Any]]): Modified classification.
+
+        Returns:
+            Dict[str, Any]: Encoding results.
+
+        Raises:
+            RuntimeError: If workflow not started.
+        """
         if not self.workflow:
             raise RuntimeError("Workflow not started")
 
@@ -218,7 +275,17 @@ class WorkflowService:
             return {"phase": "encoding", "status": "error", "error": str(e)}
 
     def confirm_encoding(self, modifications: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """Confirm feature encoding and proceed to model configuration. Args: modifications (Optional[Dict[str, Any]]): Modified encodings. Returns: Dict[str, Any]: Configuration results."""
+        """Confirm feature encoding and proceed to model configuration.
+
+        Args:
+            modifications (Optional[Dict[str, Any]]): Modified encodings.
+
+        Returns:
+            Dict[str, Any]: Configuration results.
+
+        Raises:
+            RuntimeError: If workflow not started.
+        """
         if not self.workflow:
             raise RuntimeError("Workflow not started")
 
@@ -233,20 +300,35 @@ class WorkflowService:
             return {"phase": "configuration", "status": "error", "error": str(e)}
 
     def get_final_config(self) -> Optional[Dict[str, Any]]:
-        """Get the final configuration if workflow is complete. Returns: Optional[Dict[str, Any]]: Final configuration or None."""
+        """Get the final configuration if workflow is complete.
+
+        Returns:
+            Optional[Dict[str, Any]]: Final configuration or None.
+        """
         if not self.workflow:
             return None
 
         return self.workflow.get_final_config()
 
     def is_complete(self) -> bool:
-        """Check if the workflow has completed successfully. Returns: bool: True if complete."""
+        """Check if the workflow has completed successfully.
+
+        Returns:
+            bool: True if complete.
+        """
         if not self.workflow:
             return False
         return self.workflow.get_current_phase() == "complete"
 
     def _format_phase_result(self, phase: str) -> Dict[str, Any]:
-        """Format the current state for UI consumption. Args: phase (str): Current phase name. Returns: Dict[str, Any]: Formatted result dictionary."""
+        """Format the current state for UI consumption.
+
+        Args:
+            phase (str): Current phase name.
+
+        Returns:
+            Dict[str, Any]: Formatted result dictionary.
+        """
         state: Dict[str, Any] = {}
         if self.workflow and self.workflow.current_state:
             state = self.workflow.current_state
@@ -300,10 +382,22 @@ class WorkflowService:
 def create_workflow_service(
     provider: str = "openai", model: Optional[str] = None
 ) -> WorkflowService:
-    """Factory function to create a WorkflowService instance. Args: provider (str): LLM provider name. model (Optional[str]): Model name. Returns: WorkflowService: WorkflowService instance."""
+    """Factory function to create a WorkflowService instance.
+
+    Args:
+        provider (str): LLM provider name.
+        model (Optional[str]): Model name.
+
+    Returns:
+        WorkflowService: WorkflowService instance.
+    """
     return WorkflowService(provider=provider, model=model)
 
 
 def get_workflow_providers() -> List[str]:
-    """Get list of available LLM providers for the workflow. Returns: List[str]: Provider names."""
+    """Get list of available LLM providers for the workflow.
+
+    Returns:
+        List[str]: Provider names.
+    """
     return get_available_providers()

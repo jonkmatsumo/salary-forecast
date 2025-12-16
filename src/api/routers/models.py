@@ -4,6 +4,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 
+from src.api.dependencies import get_current_user
 from src.api.dto.common import BaseResponse, PaginationResponse
 from src.api.dto.models import (
     ModelDetailsResponse,
@@ -13,7 +14,6 @@ from src.api.dto.models import (
     ProximityFeatureSchema,
     RankedFeatureSchema,
 )
-from src.api.dependencies import get_current_user
 from src.api.exceptions import ModelNotFoundError as APIModelNotFoundError
 from src.services.inference_service import InferenceService, ModelNotFoundError
 from src.services.model_registry import ModelRegistry
@@ -25,12 +25,20 @@ router = APIRouter(prefix="/api/v1/models", tags=["models"])
 
 
 def get_model_registry() -> ModelRegistry:
-    """Get model registry instance. Returns: ModelRegistry: Model registry."""
+    """Get model registry instance.
+
+    Returns:
+        ModelRegistry: Model registry.
+    """
     return ModelRegistry()
 
 
 def get_inference_service() -> InferenceService:
-    """Get inference service instance. Returns: InferenceService: Inference service."""
+    """Get inference service instance.
+
+    Returns:
+        InferenceService: Inference service.
+    """
     return InferenceService()
 
 
@@ -42,7 +50,18 @@ async def list_models(
     user: str = Depends(get_current_user),
     registry: ModelRegistry = Depends(get_model_registry),
 ):
-    """List all available models. Args: limit (int): Maximum items to return. offset (int): Items to skip. experiment_name (Optional[str]): Filter by experiment. user (str): Current user. registry (ModelRegistry): Model registry. Returns: BaseResponse: List of models with pagination."""
+    """List all available models.
+
+    Args:
+        limit (int): Maximum items to return.
+        offset (int): Items to skip.
+        experiment_name (Optional[str]): Filter by experiment.
+        user (str): Current user.
+        registry (ModelRegistry): Model registry.
+
+    Returns:
+        BaseResponse: List of models with pagination.
+    """
     runs = registry.list_models()
 
     if experiment_name:
@@ -83,7 +102,19 @@ async def get_model_details(
     user: str = Depends(get_current_user),
     inference_service: InferenceService = Depends(get_inference_service),
 ):
-    """Get detailed information about a model. Args: run_id (str): MLflow run ID. user (str): Current user. inference_service (InferenceService): Inference service. Returns: ModelDetailsResponse: Model details. Raises: APIModelNotFoundError: If model not found."""
+    """Get detailed information about a model.
+
+    Args:
+        run_id (str): MLflow run ID.
+        user (str): Current user.
+        inference_service (InferenceService): Inference service.
+
+    Returns:
+        ModelDetailsResponse: Model details.
+
+    Raises:
+        APIModelNotFoundError: If model not found.
+    """
     try:
         model = inference_service.load_model(run_id)
         schema = inference_service.get_model_schema(model)

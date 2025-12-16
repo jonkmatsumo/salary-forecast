@@ -10,17 +10,23 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Thread-safe storage for metrics
 _metrics_store: Dict[str, List[float]] = {}
 _metrics_lock = threading.Lock()
 
-# Global LLM call tracker (will be set after LLMCallTracker is defined)
 _global_llm_tracker: Any = None
 _global_llm_lock = threading.Lock()
 
 
 def timing_decorator(metric_name: Optional[str] = None, log_result: bool = False):
-    """Decorator to measure function execution time. Args: metric_name (Optional[str]): Metric name. If None, uses function name. log_result (bool): Log timing result. Returns: Decorator function."""
+    """Decorator to measure function execution time.
+
+    Args:
+        metric_name (Optional[str]): Metric name. If None, uses function name.
+        log_result (bool): Log timing result.
+
+    Returns:
+        Callable: Decorator function.
+    """
 
     def decorator(func: Callable) -> Callable:
         name = metric_name or f"{func.__module__}.{func.__name__}"
@@ -66,7 +72,12 @@ def timing_decorator(metric_name: Optional[str] = None, log_result: bool = False
 
 
 def _record_metric(name: str, value: float) -> None:
-    """Record a metric value. Args: name (str): Metric name. value (float): Metric value. Returns: None."""
+    """Record a metric value.
+
+    Args:
+        name (str): Metric name.
+        value (float): Metric value.
+    """
     with _metrics_lock:
         if name not in _metrics_store:
             _metrics_store[name] = []
@@ -77,18 +88,32 @@ class PerformanceMetrics:
     """Context manager for tracking performance metrics."""
 
     def __init__(self, metric_name: str):
-        """Initialize performance metrics tracker. Args: metric_name (str): Metric name. Returns: None."""
+        """Initialize performance metrics tracker.
+
+        Args:
+            metric_name (str): Metric name.
+        """
         self.metric_name = metric_name
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
 
     def __enter__(self) -> "PerformanceMetrics":
-        """Start timing. Returns: PerformanceMetrics: Self."""
+        """Start timing.
+
+        Returns:
+            PerformanceMetrics: Self instance.
+        """
         self.start_time = time.perf_counter()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Stop timing and record metric. Args: exc_type (Any): Exception type. exc_val (Any): Exception value. exc_tb (Any): Traceback. Returns: None."""
+        """Stop timing and record metric.
+
+        Args:
+            exc_type (Any): Exception type.
+            exc_val (Any): Exception value.
+            exc_tb (Any): Traceback.
+        """
         self.end_time = time.perf_counter()
         if self.start_time is not None:
             elapsed = self.end_time - self.start_time
@@ -96,7 +121,11 @@ class PerformanceMetrics:
 
     @property
     def elapsed(self) -> float:
-        """Get elapsed time. Returns: float: Elapsed time in seconds."""
+        """Get elapsed time.
+
+        Returns:
+            float: Elapsed time in seconds.
+        """
         if self.start_time is None:
             return 0.0
         end = self.end_time if self.end_time is not None else time.perf_counter()
@@ -107,7 +136,13 @@ class LLMCallTracker:
     """Track LLM API calls with token usage and costs."""
 
     def __init__(self, model: str, provider: str = "openai", global_tracking: bool = False):
-        """Initialize LLM call tracker. Args: model (str): Model name. provider (str): Provider name. global_tracking (bool): If True, also record to global tracker. Returns: None."""
+        """Initialize LLM call tracker.
+
+        Args:
+            model (str): Model name.
+            provider (str): Provider name.
+            global_tracking (bool): If True, also record to global tracker.
+        """
         self.model = model
         self.provider = provider.lower()
         self.calls: List[Dict[str, Any]] = []
@@ -116,12 +151,22 @@ class LLMCallTracker:
         self.global_tracking = global_tracking
 
     def __enter__(self) -> "LLMCallTracker":
-        """Start tracking. Returns: LLMCallTracker: Self."""
+        """Start tracking.
+
+        Returns:
+            LLMCallTracker: Self instance.
+        """
         self.start_time = time.perf_counter()
         return self
 
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
-        """Stop tracking. Args: exc_type (Any): Exception type. exc_val (Any): Exception value. exc_tb (Any): Traceback. Returns: None."""
+        """Stop tracking.
+
+        Args:
+            exc_type (Any): Exception type.
+            exc_val (Any): Exception value.
+            exc_tb (Any): Traceback.
+        """
         pass
 
     def record(
@@ -131,7 +176,14 @@ class LLMCallTracker:
         total_tokens: Optional[int] = None,
         latency: Optional[float] = None,
     ) -> None:
-        """Record an LLM call. Args: prompt_tokens (int): Prompt tokens. completion_tokens (int): Completion tokens. total_tokens (Optional[int]): Total tokens. latency (Optional[float]): Call latency in seconds. Returns: None."""
+        """Record an LLM call.
+
+        Args:
+            prompt_tokens (int): Prompt tokens.
+            completion_tokens (int): Completion tokens.
+            total_tokens (Optional[int]): Total tokens.
+            latency (Optional[float]): Call latency in seconds.
+        """
         if total_tokens is None:
             total_tokens = prompt_tokens + completion_tokens
 
@@ -162,20 +214,32 @@ class LLMCallTracker:
 
     @property
     def total_tokens(self) -> int:
-        """Get total tokens across all calls. Returns: int: Total tokens."""
+        """Get total tokens across all calls.
+
+        Returns:
+            int: Total tokens.
+        """
         with self.lock:
             return sum(call["total_tokens"] for call in self.calls)
 
     @property
     def total_cost(self) -> float:
-        """Get total estimated cost. Returns: float: Total cost in USD."""
+        """Get total estimated cost.
+
+        Returns:
+            float: Total cost in USD.
+        """
         with self.lock:
             costs = [float(call["cost"]) for call in self.calls]
             return sum(costs)
 
     @property
     def avg_latency(self) -> float:
-        """Get average latency. Returns: float: Average latency in seconds."""
+        """Get average latency.
+
+        Returns:
+            float: Average latency in seconds.
+        """
         from typing import cast
 
         with self.lock:
@@ -187,12 +251,20 @@ class LLMCallTracker:
 
     @property
     def call_count(self) -> int:
-        """Get number of calls. Returns: int: Call count."""
+        """Get number of calls.
+
+        Returns:
+            int: Call count.
+        """
         with self.lock:
             return len(self.calls)
 
     def get_summary(self) -> Dict[str, Any]:
-        """Get summary statistics. Returns: Dict[str, Any]: Summary statistics."""
+        """Get summary statistics.
+
+        Returns:
+            Dict[str, Any]: Summary statistics.
+        """
         with self.lock:
             total_tokens = sum(call["total_tokens"] for call in self.calls)
             costs = [float(call["cost"]) for call in self.calls]
@@ -212,7 +284,14 @@ class LLMCallTracker:
 
 
 def get_metric_stats(metric_name: str) -> Optional[Dict[str, float]]:
-    """Get statistics for a metric. Args: metric_name (str): Metric name. Returns: Optional[Dict[str, float]]: Statistics dict or None if metric doesn't exist."""
+    """Get statistics for a metric.
+
+    Args:
+        metric_name (str): Metric name.
+
+    Returns:
+        Optional[Dict[str, float]]: Statistics dict or None if metric doesn't exist.
+    """
     with _metrics_lock:
         if metric_name not in _metrics_store or not _metrics_store[metric_name]:
             return None
@@ -228,19 +307,27 @@ def get_metric_stats(metric_name: str) -> Optional[Dict[str, float]]:
 
 
 def get_all_metrics() -> Dict[str, List[float]]:
-    """Get all recorded metrics. Returns: Dict[str, List[float]]: All metrics."""
+    """Get all recorded metrics.
+
+    Returns:
+        Dict[str, List[float]]: All metrics.
+    """
     with _metrics_lock:
         return _metrics_store.copy()
 
 
 def clear_metrics() -> None:
-    """Clear all recorded metrics. Returns: None."""
+    """Clear all recorded metrics."""
     with _metrics_lock:
         _metrics_store.clear()
 
 
 def get_global_llm_tracker() -> Optional["LLMCallTracker"]:
-    """Get the global LLM tracker instance. Returns: Optional[LLMCallTracker]: Global tracker or None."""
+    """Get the global LLM tracker instance.
+
+    Returns:
+        Optional[LLMCallTracker]: Global tracker or None.
+    """
     with _global_llm_lock:
         tracker = _global_llm_tracker
         if tracker is None:
@@ -251,22 +338,28 @@ def get_global_llm_tracker() -> Optional["LLMCallTracker"]:
 
 
 def set_global_llm_tracker(tracker: Optional["LLMCallTracker"]) -> None:
-    """Set the global LLM tracker instance. Args: tracker (Optional[LLMCallTracker]): Tracker to set. Returns: None."""
+    """Set the global LLM tracker instance.
+
+    Args:
+        tracker (Optional[LLMCallTracker]): Tracker to set.
+    """
     with _global_llm_lock:
         global _global_llm_tracker
         _global_llm_tracker = tracker
 
 
 def get_llm_metrics_summary() -> Optional[Dict[str, Any]]:
-    """Get summary of all LLM metrics from global tracker. Returns: Optional[Dict[str, Any]]: Summary or None."""
+    """Get summary of all LLM metrics from global tracker.
+
+    Returns:
+        Optional[Dict[str, Any]]: Summary or None.
+    """
     tracker = get_global_llm_tracker()
     if tracker:
         return tracker.get_summary()
     return None
 
 
-# OpenAI pricing per 1M tokens (as of 2024)
-# Format: {model_name: (prompt_price, completion_price)}
 OPENAI_PRICING: Dict[str, Tuple[float, float]] = {
     "gpt-4-turbo-preview": (10.0, 30.0),
     "gpt-4": (30.0, 60.0),
@@ -277,8 +370,6 @@ OPENAI_PRICING: Dict[str, Tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.6),
 }
 
-# Gemini pricing per 1M tokens (as of 2024)
-# Format: {model_name: (prompt_price, completion_price)}
 GEMINI_PRICING: Dict[str, Tuple[float, float]] = {
     "gemini-pro": (0.5, 1.5),
     "gemini-1.5-pro": (1.25, 5.0),
@@ -290,7 +381,17 @@ GEMINI_PRICING: Dict[str, Tuple[float, float]] = {
 def estimate_llm_cost(
     provider: str, model: str, prompt_tokens: int, completion_tokens: int
 ) -> float:
-    """Estimate cost for LLM API call. Args: provider (str): Provider name. model (str): Model name. prompt_tokens (int): Prompt tokens. completion_tokens (int): Completion tokens. Returns: float: Estimated cost in USD."""
+    """Estimate cost for LLM API call.
+
+    Args:
+        provider (str): Provider name.
+        model (str): Model name.
+        prompt_tokens (int): Prompt tokens.
+        completion_tokens (int): Completion tokens.
+
+    Returns:
+        float: Estimated cost in USD.
+    """
     provider_lower = provider.lower()
 
     if provider_lower == "openai":
@@ -313,7 +414,14 @@ def estimate_llm_cost(
 
 
 def format_cost(cost: float) -> str:
-    """Format cost as currency string. Args: cost (float): Cost in USD. Returns: str: Formatted cost string."""
+    """Format cost as currency string.
+
+    Args:
+        cost (float): Cost in USD.
+
+    Returns:
+        str: Formatted cost string.
+    """
     if cost < 0.01:
         return f"${cost * 1000:.2f} (millicents)"
     elif cost < 1.0:
@@ -323,7 +431,11 @@ def format_cost(cost: float) -> str:
 
 
 def generate_performance_summary() -> Dict[str, Any]:
-    """Generate a comprehensive performance summary. Returns: Dict[str, Any]: Performance summary."""
+    """Generate a comprehensive performance summary.
+
+    Returns:
+        Dict[str, Any]: Performance summary.
+    """
     summary: Dict[str, Any] = {
         "timing_metrics": {},
         "llm_metrics": None,
@@ -360,7 +472,11 @@ def generate_performance_summary() -> Dict[str, Any]:
 
 
 def export_metrics_to_json(filepath: str) -> None:
-    """Export all metrics to JSON file. Args: filepath (str): Output file path. Returns: None."""
+    """Export all metrics to JSON file.
+
+    Args:
+        filepath (str): Output file path.
+    """
     import json
 
     summary = generate_performance_summary()
@@ -369,7 +485,11 @@ def export_metrics_to_json(filepath: str) -> None:
 
 
 def export_metrics_to_csv(filepath: str) -> None:
-    """Export timing metrics to CSV file. Args: filepath (str): Output file path. Returns: None."""
+    """Export timing metrics to CSV file.
+
+    Args:
+        filepath (str): Output file path.
+    """
     import csv
 
     all_metrics = get_all_metrics()
@@ -382,7 +502,7 @@ def export_metrics_to_csv(filepath: str) -> None:
 
 
 def print_performance_report() -> None:
-    """Print a formatted performance report to console. Returns: None."""
+    """Print a formatted performance report to console."""
     summary = generate_performance_summary()
 
     print("\n" + "=" * 80)
@@ -421,7 +541,14 @@ def print_performance_report() -> None:
 
 
 def extract_tokens_from_langchain_response(response: Any) -> Tuple[int, int, int]:
-    """Extract token usage from LangChain response. Args: response (Any): LangChain response object. Returns: Tuple[int, int, int]: (prompt_tokens, completion_tokens, total_tokens)."""
+    """Extract token usage from LangChain response.
+
+    Args:
+        response (Any): LangChain response object.
+
+    Returns:
+        Tuple[int, int, int]: (prompt_tokens, completion_tokens, total_tokens).
+    """
     prompt_tokens = 0
     completion_tokens = 0
     total_tokens = 0

@@ -16,7 +16,7 @@ class MCPToolHandler:
     """Handler for MCP tool invocations."""
 
     def __init__(self):
-        """Initialize handler. Returns: None."""
+        """Initialize handler."""
         self.inference_service = InferenceService()
         self.training_service = TrainingService()
         self.workflow_service = None
@@ -24,7 +24,18 @@ class MCPToolHandler:
         self.analytics_service = AnalyticsService()
 
     async def handle_tool_call(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle tool call. Args: tool_name (str): Tool name. arguments (Dict[str, Any]): Tool arguments. Returns: Dict[str, Any]: Tool result. Raises: ValueError: If tool not found or invalid arguments."""
+        """Handle tool call.
+
+        Args:
+            tool_name (str): Tool name.
+            arguments (Dict[str, Any]): Tool arguments.
+
+        Returns:
+            Dict[str, Any]: Tool result.
+
+        Raises:
+            ValueError: If tool not found or invalid arguments.
+        """
         handler_map = {
             "list_models": self._handle_list_models,
             "get_model_details": self._handle_get_model_details,
@@ -46,7 +57,14 @@ class MCPToolHandler:
         return await handler(arguments)
 
     async def _handle_list_models(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle list_models tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle list_models tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         limit = args.get("limit", 50)
         offset = args.get("offset", 0)
         experiment_name = args.get("experiment_name")
@@ -79,7 +97,17 @@ class MCPToolHandler:
         }
 
     async def _handle_get_model_details(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle get_model_details tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle get_model_details tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+
+        Raises:
+            APIModelNotFoundError: If model not found.
+        """
         from src.api.dto.models import (
             ModelDetailsResponse,
             ModelMetadata,
@@ -144,7 +172,17 @@ class MCPToolHandler:
             raise APIModelNotFoundError(run_id) from e
 
     async def _handle_get_model_schema(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle get_model_schema tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle get_model_schema tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+
+        Raises:
+            APIModelNotFoundError: If model not found.
+        """
         from src.api.dto.models import (
             ModelSchema,
             ModelSchemaResponse,
@@ -186,7 +224,18 @@ class MCPToolHandler:
             raise APIModelNotFoundError(run_id) from e
 
     async def _handle_predict_salary(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle predict_salary tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle predict_salary tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+
+        Raises:
+            APIModelNotFoundError: If model not found.
+            APIInvalidInputError: If input validation fails.
+        """
         from src.api.dto.inference import PredictionMetadata, PredictionResponse
         from src.api.exceptions import InvalidInputError as APIInvalidInputError
         from src.services.inference_service import InvalidInputError, ModelNotFoundError
@@ -219,7 +268,17 @@ class MCPToolHandler:
             raise APIInvalidInputError(str(e)) from e
 
     async def _handle_start_training(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle start_training tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle start_training tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+
+        Raises:
+            ValueError: If dataset not found.
+        """
         from src.api.dto.training import TrainingJobRequest
         from src.api.routers.training import start_training
         from src.api.storage import DatasetStorage
@@ -255,7 +314,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_get_training_status(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle get_training_status tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle get_training_status tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from src.api.routers.training import get_training_job_status
 
         job_id = args["job_id"]
@@ -265,7 +331,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_start_configuration_workflow(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle start_configuration_workflow tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle start_configuration_workflow tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from io import StringIO
 
         import pandas as pd
@@ -295,7 +368,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_confirm_classification(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle confirm_classification tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle confirm_classification tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from src.api.routers.workflow import confirm_classification
 
         workflow_id = args["workflow_id"]
@@ -318,7 +398,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_confirm_encoding(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle confirm_encoding tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle confirm_encoding tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from src.api.routers.workflow import confirm_encoding
 
         workflow_id = args["workflow_id"]
@@ -356,7 +443,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_finalize_configuration(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle finalize_configuration tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle finalize_configuration tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from src.api.routers.workflow import finalize_configuration
 
         workflow_id = args["workflow_id"]
@@ -387,7 +481,14 @@ class MCPToolHandler:
         return cast(Dict[str, Any], response.model_dump())
 
     async def _handle_get_feature_importance(self, args: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle get_feature_importance tool. Args: args (Dict[str, Any]): Arguments. Returns: Dict[str, Any]: Result."""
+        """Handle get_feature_importance tool.
+
+        Args:
+            args (Dict[str, Any]): Arguments.
+
+        Returns:
+            Dict[str, Any]: Result.
+        """
         from src.api.routers.analytics import get_feature_importance
 
         run_id = args["run_id"]

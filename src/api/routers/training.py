@@ -25,12 +25,20 @@ router = APIRouter(prefix="/api/v1/training", tags=["training"])
 
 
 def get_training_service() -> TrainingService:
-    """Get training service instance. Returns: TrainingService: Training service."""
+    """Get training service instance.
+
+    Returns:
+        TrainingService: Training service.
+    """
     return TrainingService()
 
 
 def get_analytics_service() -> AnalyticsService:
-    """Get analytics service instance. Returns: AnalyticsService: Analytics service."""
+    """Get analytics service instance.
+
+    Returns:
+        AnalyticsService: Analytics service.
+    """
     return AnalyticsService()
 
 
@@ -42,7 +50,21 @@ async def upload_training_data(
     training_service: TrainingService = Depends(get_training_service),
     analytics_service: AnalyticsService = Depends(get_analytics_service),
 ):
-    """Upload training data CSV file. Args: file (UploadFile): CSV file. dataset_name (Optional[str]): Dataset name. user (str): Current user. training_service (TrainingService): Training service. analytics_service (AnalyticsService): Analytics service. Returns: DataUploadResponse: Upload response with dataset ID and summary. Raises: InvalidInputError: If file validation fails."""
+    """Upload training data CSV file.
+
+    Args:
+        file (UploadFile): CSV file.
+        dataset_name (Optional[str]): Dataset name.
+        user (str): Current user.
+        training_service (TrainingService): Training service.
+        analytics_service (AnalyticsService): Analytics service.
+
+    Returns:
+        DataUploadResponse: Upload response with dataset ID and summary.
+
+    Raises:
+        InvalidInputError: If file validation fails.
+    """
     import uuid
 
     file_content = await file.read()
@@ -87,7 +109,19 @@ async def start_training(
     user: str = Depends(get_current_user),
     training_service: TrainingService = Depends(get_training_service),
 ):
-    """Start a training job. Args: request (TrainingJobRequest): Training job request. user (str): Current user. training_service (TrainingService): Training service. Returns: TrainingJobResponse: Job response. Raises: InvalidInputError: If request validation fails."""
+    """Start a training job.
+
+    Args:
+        request (TrainingJobRequest): Training job request.
+        user (str): Current user.
+        training_service (TrainingService): Training service.
+
+    Returns:
+        TrainingJobResponse: Job response.
+
+    Raises:
+        InvalidInputError: If request validation fails.
+    """
     dataset_id = request.dataset_id
 
     storage = get_dataset_storage()
@@ -121,7 +155,19 @@ async def get_training_job_status(
     user: str = Depends(get_current_user),
     training_service: TrainingService = Depends(get_training_service),
 ):
-    """Get training job status. Args: job_id (str): Job identifier. user (str): Current user. training_service (TrainingService): Training service. Returns: TrainingJobStatusResponse: Job status. Raises: TrainingJobNotFoundError: If job not found."""
+    """Get training job status.
+
+    Args:
+        job_id (str): Job identifier.
+        user (str): Current user.
+        training_service (TrainingService): Training service.
+
+    Returns:
+        TrainingJobStatusResponse: Job status.
+
+    Raises:
+        TrainingJobNotFoundError: If job not found.
+    """
     job_status = training_service.get_job_status(job_id)
 
     if job_status is None:
@@ -164,7 +210,18 @@ async def list_training_jobs(
     user: str = Depends(get_current_user),
     training_service: TrainingService = Depends(get_training_service),
 ):
-    """List training jobs. Args: limit (int): Maximum items. offset (int): Items to skip. status (Optional[str]): Status filter. user (str): Current user. training_service (TrainingService): Training service. Returns: BaseResponse: List of jobs with pagination."""
+    """List training jobs.
+
+    Args:
+        limit (int): Maximum items.
+        offset (int): Items to skip.
+        status (Optional[str]): Status filter.
+        user (str): Current user.
+        training_service (TrainingService): Training service.
+
+    Returns:
+        BaseResponse: List of jobs with pagination.
+    """
     all_jobs = training_service._jobs
     jobs_list = [
         TrainingJobSummary(

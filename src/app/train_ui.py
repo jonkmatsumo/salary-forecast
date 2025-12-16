@@ -1,5 +1,5 @@
 import time
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional, cast
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -14,7 +14,12 @@ from src.services.workflow_service import get_workflow_providers
 
 
 def render_data_overview(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
-    """Render overview metrics. Args: df (pd.DataFrame): Data. summary (Dict[str, Any]): Summary stats. Returns: None."""
+    """Render overview metrics.
+
+    Args:
+        df (pd.DataFrame): Data.
+        summary (Dict[str, Any]): Summary stats.
+    """
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Samples", summary.get("total_samples", 0))
     col2.metric("Unique Locations", summary.get("unique_locations", 0))
@@ -22,13 +27,23 @@ def render_data_overview(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
 
 
 def render_data_sample(df: pd.DataFrame, summary: Dict[str, Any]) -> None:
-    """Render data sample preview. Args: df (pd.DataFrame): Data. summary (Dict[str, Any]): Summary stats. Returns: None."""
+    """Render data sample preview.
+
+    Args:
+        df (pd.DataFrame): Data.
+        summary (Dict[str, Any]): Summary stats.
+    """
     st.dataframe(df.head())
     st.caption(f"Shape: {summary.get('shape')}")
 
 
 def render_salary_distribution(df: pd.DataFrame, target_col: str) -> None:
-    """Render salary distribution histogram. Args: df (pd.DataFrame): Data. target_col (str): Target column. Returns: None."""
+    """Render salary distribution histogram.
+
+    Args:
+        df (pd.DataFrame): Data.
+        target_col (str): Target column.
+    """
     fig, ax = plt.subplots(figsize=(10, 5))
     sns.histplot(data=df, x=target_col, kde=True, ax=ax)
     ax.set_title(f"Distribution of {target_col}")
@@ -39,7 +54,11 @@ def render_salary_distribution(df: pd.DataFrame, target_col: str) -> None:
 
 
 def render_categorical_breakdown(df: pd.DataFrame) -> None:
-    """Render categorical breakdown charts. Args: df (pd.DataFrame): Data. Returns: None."""
+    """Render categorical breakdown charts.
+
+    Args:
+        df (pd.DataFrame): Data.
+    """
     c1, c2 = st.columns(2)
     with c1:
         st.markdown("**Level Counts**")
@@ -58,7 +77,12 @@ def render_categorical_breakdown(df: pd.DataFrame) -> None:
 
 
 def render_correlations(df: pd.DataFrame, salary_cols: list) -> None:
-    """Render correlation heatmap. Args: df (pd.DataFrame): Data. salary_cols (list): Salary columns. Returns: None."""
+    """Render correlation heatmap.
+
+    Args:
+        df (pd.DataFrame): Data.
+        salary_cols (list): Salary columns.
+    """
     num_cols = ["YearsOfExperience", "YearsAtCompany"] + salary_cols
     avail_num_cols = [c for c in num_cols if c in df.columns]
 
@@ -106,6 +130,7 @@ def render_training_ui() -> None:
         use_api = api_client is not None
 
         if use_api:
+            assert api_client is not None
             try:
                 summary_response = api_client.get_data_summary(df)
                 summary = {
@@ -236,20 +261,13 @@ def render_training_ui() -> None:
 
     if job_id is None:
         if st.button("Start Training (Async)", type="primary"):
-            if df is None:
-                st.error("No data loaded.")
-                return
-
-            if not config_valid:
-                st.error(
-                    "❌ Configuration is required for training. Please complete the Configuration Wizard first."
-                )
-                return
-
+            # Assert config is valid (checked above) for mypy
+            assert isinstance(config, dict)
             dataset_name = st.session_state.get("training_dataset_name", "Unknown Data")
 
             try:
                 if use_api:
+                    assert api_client is not None
                     if dataset_id is None:
                         csv_content = df.to_csv(index=False).encode("utf-8")
                         upload_response = api_client.upload_training_data(
@@ -291,7 +309,9 @@ def render_training_ui() -> None:
                 st.error(f"❌ Failed to start training: {e}")
 
     else:
+        status: Optional[Dict[str, Any]] = None
         if use_api:
+            assert api_client is not None
             try:
                 status_response = api_client.get_training_job_status(job_id)
                 status = {
@@ -306,7 +326,6 @@ def render_training_ui() -> None:
                 st.error(f"Failed to get job status: {e.message}")
                 st.session_state["training_job_id"] = None
                 st.rerun()
-                return
         else:
             training_service = get_training_service()
             status = training_service.get_job_status(job_id)
@@ -315,8 +334,8 @@ def render_training_ui() -> None:
                 st.error("Job not found. Clearing state.")
                 st.session_state["training_job_id"] = None
                 st.rerun()
-                return
 
+        assert status is not None
         state = status["status"]
         st.info(f"Training Status: **{state}**")
 
@@ -334,7 +353,7 @@ def render_training_ui() -> None:
         if state == "COMPLETED":
             st.success("Training Finished Successfully!")
 
-            history = status.get("history", [])
+            history: List[Dict[str, Any]] = cast(List[Dict[str, Any]], status.get("history", []))
             results_data = []
 
             for event in history:

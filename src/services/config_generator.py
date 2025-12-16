@@ -12,17 +12,33 @@ class ConfigGenerator:
     """Service to generate configuration from data using heuristics. For AI-powered configuration, use WorkflowService through the Streamlit UI's Configuration Wizard."""
 
     def __init__(self):
+        """Initialize configuration generator."""
         self.logger = get_logger(__name__)
 
     def infer_levels(self, df: pd.DataFrame, level_col: str = "Level") -> Dict[str, int]:
-        """Infers level ranking based on heuristics by extracting numeric patterns from level strings. Args: df (pd.DataFrame): Input DataFrame. level_col (str): Name of the level column. Returns: Dict[str, int]: Dictionary mapping level names to rank integers."""
+        """Infers level ranking based on heuristics by extracting numeric patterns from level strings.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+            level_col (str): Name of the level column.
+
+        Returns:
+            Dict[str, int]: Dictionary mapping level names to rank integers.
+        """
         if level_col not in df.columns:
             return {}
 
         unique_levels = df[level_col].dropna().unique().tolist()
 
         def extract_rank(val: str) -> int:
-            """Extract numeric rank from level string. Args: val (str): Level value. Returns: int: Extracted rank or -1 if not found."""
+            """Extract numeric rank from level string.
+
+            Args:
+                val (str): Level value.
+
+            Returns:
+                int: Extracted rank or -1 if not found.
+            """
             match = re.search(r"\d+", str(val))
             if match:
                 return int(match.group())
@@ -32,7 +48,15 @@ class ConfigGenerator:
         return {lvl: i for i, lvl in enumerate(sorted_levels)}
 
     def infer_locations(self, df: pd.DataFrame, loc_col: str = "Location") -> Dict[str, int]:
-        """Infer locations from column. Args: df (pd.DataFrame): Input DataFrame. loc_col (str): Location column name. Returns: Dict[str, int]: Location name to tier mapping."""
+        """Infer locations from column.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+            loc_col (str): Location column name.
+
+        Returns:
+            Dict[str, int]: Location name to tier mapping.
+        """
         if loc_col not in df.columns:
             return {}
 
@@ -40,7 +64,14 @@ class ConfigGenerator:
         return {loc: 2 for loc in unique_locs}
 
     def infer_targets(self, df: pd.DataFrame) -> List[str]:
-        """Infer likely target columns based on heuristics. Args: df (pd.DataFrame): Input DataFrame. Returns: List[str]: Likely target column names."""
+        """Infer likely target columns based on heuristics.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+
+        Returns:
+            List[str]: Likely target column names.
+        """
         target_keywords = [
             "salary",
             "price",
@@ -68,7 +99,15 @@ class ConfigGenerator:
     def infer_features(
         self, df: pd.DataFrame, exclude_cols: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
-        """Infers likely feature columns with basic constraints. Args: df (pd.DataFrame): Input DataFrame. exclude_cols (Optional[List[str]]): Columns to exclude. Returns: List[Dict[str, Any]]: List of feature configurations."""
+        """Infers likely feature columns with basic constraints.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+            exclude_cols (Optional[List[str]]): Columns to exclude.
+
+        Returns:
+            List[Dict[str, Any]]: List of feature configurations.
+        """
         exclude_cols = exclude_cols or []
         exclude_set = set(exclude_cols)
 
@@ -121,7 +160,14 @@ class ConfigGenerator:
     }
 
     def generate_config_template(self, df: pd.DataFrame) -> Dict[str, Any]:
-        """Generates a template config using heuristics. Args: df (pd.DataFrame): Input DataFrame. Returns: Dict[str, Any]: Configuration dictionary."""
+        """Generates a template config using heuristics.
+
+        Args:
+            df (pd.DataFrame): Input DataFrame.
+
+        Returns:
+            Dict[str, Any]: Configuration dictionary.
+        """
         levels = self.infer_levels(df)
         locations = self.infer_locations(df)
         targets = self.infer_targets(df)
@@ -164,7 +210,19 @@ class ConfigGenerator:
         provider: str = "openai",
         preset: str = "none",
     ) -> Dict[str, Any]:
-        """Generates configuration from dataframe using heuristics. Note: For AI-powered configuration, use WorkflowService through the Streamlit UI's Configuration Wizard. The use_llm parameter is deprecated. Args: df (pd.DataFrame): Input data. use_llm (bool): Deprecated - use WorkflowService for AI-powered config. provider (str): Deprecated - use WorkflowService for AI-powered config. preset (str): Deprecated - use WorkflowService for AI-powered config. Returns: Dict[str, Any]: Configuration dictionary."""
+        """Generates configuration from dataframe using heuristics.
+
+        Note: For AI-powered configuration, use WorkflowService through the Streamlit UI's Configuration Wizard. The use_llm parameter is deprecated.
+
+        Args:
+            df (pd.DataFrame): Input data.
+            use_llm (bool): Deprecated - use WorkflowService for AI-powered config.
+            provider (str): Deprecated - use WorkflowService for AI-powered config.
+            preset (str): Deprecated - use WorkflowService for AI-powered config.
+
+        Returns:
+            Dict[str, Any]: Configuration dictionary.
+        """
         if use_llm:
             self.logger.warning(
                 "The use_llm parameter is deprecated. For AI-powered configuration, "

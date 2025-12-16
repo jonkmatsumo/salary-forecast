@@ -37,7 +37,13 @@ class APIError(Exception):
         status_code: Optional[int] = None,
         details: Optional[Dict[str, Any]] = None,
     ):
-        """Initialize API error. Args: message (str): Error message. status_code (Optional[int]): HTTP status code. details (Optional[Dict[str, Any]]): Error details. Returns: None."""
+        """Initialize API error.
+
+        Args:
+            message (str): Error message.
+            status_code (Optional[int]): HTTP status code.
+            details (Optional[Dict[str, Any]]): Error details.
+        """
         self.message = message
         self.status_code = status_code
         self.details = details or {}
@@ -48,7 +54,12 @@ class APIClient:
     """HTTP client for interacting with the REST API."""
 
     def __init__(self, base_url: Optional[str] = None, api_key: Optional[str] = None):
-        """Initialize API client. Args: base_url (Optional[str]): API base URL. api_key (Optional[str]): API key. Returns: None."""
+        """Initialize API client.
+
+        Args:
+            base_url (Optional[str]): API base URL.
+            api_key (Optional[str]): API key.
+        """
         self.base_url: str = (
             base_url
             or get_env_var("API_BASE_URL", "http://localhost:8000")
@@ -71,7 +82,19 @@ class APIClient:
             self.session.headers.update({"X-API-Key": self.api_key})
 
     def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
-        """Make HTTP request. Args: method (str): HTTP method. endpoint (str): API endpoint. **kwargs: Request kwargs. Returns: Dict[str, Any]: Response JSON. Raises: APIError: If request fails."""
+        """Make HTTP request.
+
+        Args:
+            method (str): HTTP method.
+            endpoint (str): API endpoint.
+            **kwargs: Request kwargs.
+
+        Returns:
+            Dict[str, Any]: Response JSON.
+
+        Raises:
+            APIError: If request fails.
+        """
         url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         try:
@@ -101,7 +124,16 @@ class APIClient:
     def list_models(
         self, limit: int = 50, offset: int = 0, experiment_name: Optional[str] = None
     ) -> List[ModelMetadata]:
-        """List available models. Args: limit (int): Maximum items. offset (int): Items to skip. experiment_name (Optional[str]): Filter by experiment. Returns: List[ModelMetadata]: List of models."""
+        """List available models.
+
+        Args:
+            limit (int): Maximum items.
+            offset (int): Items to skip.
+            experiment_name (Optional[str]): Filter by experiment.
+
+        Returns:
+            List[ModelMetadata]: List of models.
+        """
         params: Dict[str, Any] = {"limit": limit, "offset": offset}
         if experiment_name:
             params["experiment_name"] = experiment_name
@@ -111,17 +143,39 @@ class APIClient:
         return [cast(ModelMetadata, ModelMetadata.model_validate(m)) for m in models_data]
 
     def get_model_details(self, run_id: str) -> ModelDetailsResponse:
-        """Get model details. Args: run_id (str): MLflow run ID. Returns: ModelDetailsResponse: Model details."""
+        """Get model details.
+
+        Args:
+            run_id (str): MLflow run ID.
+
+        Returns:
+            ModelDetailsResponse: Model details.
+        """
         response = self._request("GET", f"/api/v1/models/{run_id}")
         return cast(ModelDetailsResponse, ModelDetailsResponse.model_validate(response))
 
     def get_model_schema(self, run_id: str) -> ModelSchemaResponse:
-        """Get model schema. Args: run_id (str): MLflow run ID. Returns: ModelSchemaResponse: Model schema."""
+        """Get model schema.
+
+        Args:
+            run_id (str): MLflow run ID.
+
+        Returns:
+            ModelSchemaResponse: Model schema.
+        """
         response = self._request("GET", f"/api/v1/models/{run_id}/schema")
         return cast(ModelSchemaResponse, ModelSchemaResponse.model_validate(response))
 
     def predict(self, run_id: str, features: Dict[str, Any]) -> PredictionResponse:
-        """Predict salary quantiles. Args: run_id (str): MLflow run ID. features (Dict[str, Any]): Input features. Returns: PredictionResponse: Prediction results."""
+        """Predict salary quantiles.
+
+        Args:
+            run_id (str): MLflow run ID.
+            features (Dict[str, Any]): Input features.
+
+        Returns:
+            PredictionResponse: Prediction results.
+        """
         response = self._request(
             "POST",
             f"/api/v1/models/{run_id}/predict",
@@ -132,7 +186,15 @@ class APIClient:
     def predict_batch(
         self, run_id: str, features_list: List[Dict[str, Any]]
     ) -> BatchPredictionResponse:
-        """Batch predict salary quantiles. Args: run_id (str): MLflow run ID. features_list (List[Dict[str, Any]]): List of feature dictionaries. Returns: BatchPredictionResponse: Batch prediction results."""
+        """Batch predict salary quantiles.
+
+        Args:
+            run_id (str): MLflow run ID.
+            features_list (List[Dict[str, Any]]): List of feature dictionaries.
+
+        Returns:
+            BatchPredictionResponse: Batch prediction results.
+        """
         response = self._request(
             "POST",
             f"/api/v1/models/{run_id}/predict/batch",
@@ -143,7 +205,16 @@ class APIClient:
     def upload_training_data(
         self, file_content: bytes, filename: str, dataset_name: Optional[str] = None
     ) -> DataUploadResponse:
-        """Upload training data CSV. Args: file_content (bytes): File content. filename (str): Filename. dataset_name (Optional[str]): Dataset name. Returns: DataUploadResponse: Upload response."""
+        """Upload training data CSV.
+
+        Args:
+            file_content (bytes): File content.
+            filename (str): Filename.
+            dataset_name (Optional[str]): Dataset name.
+
+        Returns:
+            DataUploadResponse: Upload response.
+        """
         files = {"file": (filename, file_content, "text/csv")}
         data = {}
         if dataset_name:
@@ -162,7 +233,20 @@ class APIClient:
         additional_tag: Optional[str] = None,
         dataset_name: Optional[str] = None,
     ) -> TrainingJobResponse:
-        """Start training job. Args: dataset_id (str): Dataset ID. config (Dict[str, Any]): Model config. remove_outliers (bool): Remove outliers. do_tune (bool): Run tuning. n_trials (Optional[int]): Tuning trials. additional_tag (Optional[str]): Additional tag. dataset_name (Optional[str]): Dataset name. Returns: TrainingJobResponse: Job response."""
+        """Start training job.
+
+        Args:
+            dataset_id (str): Dataset ID.
+            config (Dict[str, Any]): Model config.
+            remove_outliers (bool): Remove outliers.
+            do_tune (bool): Run tuning.
+            n_trials (Optional[int]): Tuning trials.
+            additional_tag (Optional[str]): Additional tag.
+            dataset_name (Optional[str]): Dataset name.
+
+        Returns:
+            TrainingJobResponse: Job response.
+        """
         request_data = {
             "dataset_id": dataset_id,
             "config": config,
@@ -180,14 +264,30 @@ class APIClient:
         return cast(TrainingJobResponse, TrainingJobResponse.model_validate(response))
 
     def get_training_job_status(self, job_id: str) -> TrainingJobStatusResponse:
-        """Get training job status. Args: job_id (str): Job ID. Returns: TrainingJobStatusResponse: Job status."""
+        """Get training job status.
+
+        Args:
+            job_id (str): Job ID.
+
+        Returns:
+            TrainingJobStatusResponse: Job status.
+        """
         response = self._request("GET", f"/api/v1/training/jobs/{job_id}")
         return cast(TrainingJobStatusResponse, TrainingJobStatusResponse.model_validate(response))
 
     def list_training_jobs(
         self, limit: int = 50, offset: int = 0, status: Optional[str] = None
     ) -> List[TrainingJobSummary]:
-        """List training jobs. Args: limit (int): Maximum items. offset (int): Items to skip. status (Optional[str]): Status filter. Returns: List[TrainingJobSummary]: List of jobs."""
+        """List training jobs.
+
+        Args:
+            limit (int): Maximum items.
+            offset (int): Items to skip.
+            status (Optional[str]): Status filter.
+
+        Returns:
+            List[TrainingJobSummary]: List of jobs.
+        """
         params: Dict[str, Any] = {"limit": limit, "offset": offset}
         if status:
             params["status"] = status
@@ -202,7 +302,16 @@ class APIClient:
         provider: str = "openai",
         preset: Optional[str] = None,
     ) -> WorkflowStartResponse:
-        """Start configuration workflow. Args: df (pd.DataFrame): Input data. provider (str): LLM provider. preset (Optional[str]): Preset prompt. Returns: WorkflowStartResponse: Workflow start response."""
+        """Start configuration workflow.
+
+        Args:
+            df (pd.DataFrame): Input data.
+            provider (str): LLM provider.
+            preset (Optional[str]): Preset prompt.
+
+        Returns:
+            WorkflowStartResponse: Workflow start response.
+        """
         sample_df = df.head(50)
         df_json = sample_df.to_json(orient="records", date_format="iso")
 
@@ -220,14 +329,29 @@ class APIClient:
         return cast(WorkflowStartResponse, WorkflowStartResponse.model_validate(response))
 
     def get_workflow_state(self, workflow_id: str) -> WorkflowStateResponse:
-        """Get workflow state. Args: workflow_id (str): Workflow ID. Returns: WorkflowStateResponse: Workflow state."""
+        """Get workflow state.
+
+        Args:
+            workflow_id (str): Workflow ID.
+
+        Returns:
+            WorkflowStateResponse: Workflow state.
+        """
         response = self._request("GET", f"/api/v1/workflow/{workflow_id}")
         return cast(WorkflowStateResponse, WorkflowStateResponse.model_validate(response))
 
     def confirm_classification(
         self, workflow_id: str, modifications: Dict[str, Any]
     ) -> WorkflowProgressResponse:
-        """Confirm classification phase. Args: workflow_id (str): Workflow ID. modifications (Dict[str, Any]): Classification modifications. Returns: WorkflowProgressResponse: Progress response."""
+        """Confirm classification phase.
+
+        Args:
+            workflow_id (str): Workflow ID.
+            modifications (Dict[str, Any]): Classification modifications.
+
+        Returns:
+            WorkflowProgressResponse: Progress response.
+        """
         from src.api.dto.workflow import (
             ClassificationConfirmationRequest,
             ClassificationModifications,
@@ -251,7 +375,15 @@ class APIClient:
     def confirm_encoding(
         self, workflow_id: str, modifications: Dict[str, Any]
     ) -> WorkflowProgressResponse:
-        """Confirm encoding phase. Args: workflow_id (str): Workflow ID. modifications (Dict[str, Any]): Encoding modifications. Returns: WorkflowProgressResponse: Progress response."""
+        """Confirm encoding phase.
+
+        Args:
+            workflow_id (str): Workflow ID.
+            modifications (Dict[str, Any]): Encoding modifications.
+
+        Returns:
+            WorkflowProgressResponse: Progress response.
+        """
         from src.api.dto.workflow import EncodingConfirmationRequest, EncodingModifications
 
         encodings = {}
@@ -290,7 +422,15 @@ class APIClient:
     def finalize_configuration(
         self, workflow_id: str, config_updates: Dict[str, Any]
     ) -> WorkflowCompleteResponse:
-        """Finalize configuration. Args: workflow_id (str): Workflow ID. config_updates (Dict[str, Any]): Configuration updates. Returns: WorkflowCompleteResponse: Complete response."""
+        """Finalize configuration.
+
+        Args:
+            workflow_id (str): Workflow ID.
+            config_updates (Dict[str, Any]): Configuration updates.
+
+        Returns:
+            WorkflowCompleteResponse: Complete response.
+        """
         from src.api.dto.workflow import (
             ConfigurationFinalizationRequest,
             FeatureConfig,
@@ -320,7 +460,14 @@ class APIClient:
         return cast(WorkflowCompleteResponse, WorkflowCompleteResponse.model_validate(response))
 
     def get_data_summary(self, df: pd.DataFrame) -> DataSummaryResponse:
-        """Get data summary. Args: df (pd.DataFrame): Input data. Returns: DataSummaryResponse: Data summary."""
+        """Get data summary.
+
+        Args:
+            df (pd.DataFrame): Input data.
+
+        Returns:
+            DataSummaryResponse: Data summary.
+        """
         df_json = df.to_json(orient="records", date_format="iso")
         response = self._request("POST", "/api/v1/analytics/data-summary", json={"data": df_json})
         return cast(DataSummaryResponse, DataSummaryResponse.model_validate(response))
@@ -328,7 +475,16 @@ class APIClient:
     def get_feature_importance(
         self, run_id: str, target: str, quantile: float
     ) -> FeatureImportanceResponse:
-        """Get feature importance. Args: run_id (str): MLflow run ID. target (str): Target column. quantile (float): Quantile value. Returns: FeatureImportanceResponse: Feature importance."""
+        """Get feature importance.
+
+        Args:
+            run_id (str): MLflow run ID.
+            target (str): Target column.
+            quantile (float): Quantile value.
+
+        Returns:
+            FeatureImportanceResponse: Feature importance.
+        """
         params = {"target": target, "quantile": quantile}
         response = self._request(
             "GET",
@@ -339,7 +495,11 @@ class APIClient:
 
 
 def get_api_client() -> Optional[APIClient]:
-    """Get API client instance if API is enabled. Returns: Optional[APIClient]: API client or None if disabled."""
+    """Get API client instance if API is enabled.
+
+    Returns:
+        Optional[APIClient]: API client or None if disabled.
+    """
     use_api_val = get_env_var("USE_API", "false") or "false"
     use_api = use_api_val.lower() in ("true", "1", "yes")
     if not use_api:

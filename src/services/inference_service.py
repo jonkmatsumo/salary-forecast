@@ -25,7 +25,11 @@ class ModelSchema:
     """Represents the schema of a trained model."""
 
     def __init__(self, model: SalaryForecaster) -> None:
-        """Initialize model schema from a trained model. Args: model (SalaryForecaster): Trained model instance. Returns: None."""
+        """Initialize model schema from a trained model.
+
+        Args:
+            model (SalaryForecaster): Trained model instance.
+        """
         self.ranked_features: List[str] = list(model.ranked_encoders.keys())
         self.proximity_features: List[str] = list(model.proximity_encoders.keys())
         self.numerical_features: List[str] = [
@@ -45,7 +49,12 @@ class ValidationResult:
     """Result of input feature validation."""
 
     def __init__(self, is_valid: bool, errors: Optional[List[str]] = None) -> None:
-        """Initialize validation result. Args: is_valid (bool): Whether validation passed. errors (Optional[List[str]]): List of error messages if invalid. Returns: None."""
+        """Initialize validation result.
+
+        Args:
+            is_valid (bool): Whether validation passed.
+            errors (Optional[List[str]]): List of error messages if invalid.
+        """
         self.is_valid = is_valid
         self.errors = errors or []
 
@@ -58,7 +67,12 @@ class PredictionResult:
         predictions: Dict[str, Dict[str, float]],
         metadata: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Initialize prediction result. Args: predictions (Dict[str, Dict[str, float]]): Predictions by target and quantile. metadata (Optional[Dict[str, Any]]): Optional metadata. Returns: None."""
+        """Initialize prediction result.
+
+        Args:
+            predictions (Dict[str, Dict[str, float]]): Predictions by target and quantile.
+            metadata (Optional[Dict[str, Any]]): Optional metadata.
+        """
         self.predictions = predictions
         self.metadata = metadata or {}
 
@@ -67,13 +81,27 @@ class InferenceService:
     """Service for model inference operations."""
 
     def __init__(self, model_registry: Optional[ModelRegistry] = None) -> None:
-        """Initialize inference service. Args: model_registry (Optional[ModelRegistry]): Model registry instance. If None, creates a new one. Returns: None."""
+        """Initialize inference service.
+
+        Args:
+            model_registry (Optional[ModelRegistry]): Model registry instance. If None, creates a new one.
+        """
         self.logger = get_logger(__name__)
         self.registry = model_registry or ModelRegistry()
         self._model_cache: Dict[str, SalaryForecaster] = {}
 
     def load_model(self, run_id: str) -> SalaryForecaster:
-        """Load a model from the registry. Args: run_id (str): MLflow run ID. Returns: SalaryForecaster: Loaded model. Raises: ModelNotFoundError: If model cannot be loaded."""
+        """Load a model from the registry.
+
+        Args:
+            run_id (str): MLflow run ID.
+
+        Returns:
+            SalaryForecaster: Loaded model.
+
+        Raises:
+            ModelNotFoundError: If model cannot be loaded.
+        """
         if run_id in self._model_cache:
             self.logger.debug(f"Returning cached model for run_id: {run_id}")
             return self._model_cache[run_id]
@@ -88,13 +116,28 @@ class InferenceService:
             raise ModelNotFoundError(f"Model with run_id '{run_id}' not found: {str(e)}") from e
 
     def get_model_schema(self, model: SalaryForecaster) -> ModelSchema:
-        """Get the schema of a model. Args: model (SalaryForecaster): Model instance. Returns: ModelSchema: Model schema."""
+        """Get the schema of a model.
+
+        Args:
+            model (SalaryForecaster): Model instance.
+
+        Returns:
+            ModelSchema: Model schema.
+        """
         return ModelSchema(model)
 
     def validate_input_features(
         self, model: SalaryForecaster, features: Dict[str, Any]
     ) -> ValidationResult:
-        """Validate input features against model schema. Args: model (SalaryForecaster): Model instance. features (Dict[str, Any]): Input feature dictionary. Returns: ValidationResult: Validation result."""
+        """Validate input features against model schema.
+
+        Args:
+            model (SalaryForecaster): Model instance.
+            features (Dict[str, Any]): Input feature dictionary.
+
+        Returns:
+            ValidationResult: Validation result.
+        """
         schema = self.get_model_schema(model)
         errors: List[str] = []
 
@@ -141,7 +184,18 @@ class InferenceService:
         return ValidationResult(is_valid=len(errors) == 0, errors=errors)
 
     def predict(self, model: SalaryForecaster, features: Dict[str, Any]) -> PredictionResult:
-        """Execute prediction for given features. Args: model (SalaryForecaster): Model instance. features (Dict[str, Any]): Input feature dictionary. Returns: PredictionResult: Prediction result. Raises: InvalidInputError: If input features are invalid."""
+        """Execute prediction for given features.
+
+        Args:
+            model (SalaryForecaster): Model instance.
+            features (Dict[str, Any]): Input feature dictionary.
+
+        Returns:
+            PredictionResult: Prediction result.
+
+        Raises:
+            InvalidInputError: If input features are invalid.
+        """
         validation_result = self.validate_input_features(model, features)
         if not validation_result.is_valid:
             raise InvalidInputError(
@@ -180,7 +234,14 @@ class InferenceService:
             raise InvalidInputError(f"Prediction failed: {str(e)}") from e
 
     def format_predictions(self, predictions: Dict[str, Dict[str, float]]) -> List[Dict[str, Any]]:
-        """Format predictions for display. Args: predictions (Dict[str, Dict[str, float]]): Raw predictions. Returns: List[Dict[str, Any]]: Formatted predictions as list of rows."""
+        """Format predictions for display.
+
+        Args:
+            predictions (Dict[str, Dict[str, float]]): Raw predictions.
+
+        Returns:
+            List[Dict[str, Any]]: Formatted predictions as list of rows.
+        """
         formatted: List[Dict[str, Any]] = []
         for target, preds in predictions.items():
             row: Dict[str, Any] = {"Component": target}

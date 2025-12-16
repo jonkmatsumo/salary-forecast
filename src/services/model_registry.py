@@ -10,7 +10,11 @@ from src.xgboost.model import SalaryForecaster
 
 
 def get_experiment_name() -> str:
-    """Get MLflow experiment name from environment variable or default. Returns: str: Experiment name."""
+    """Get MLflow experiment name from environment variable or default.
+
+    Returns:
+        str: Experiment name.
+    """
     experiment_name = get_env_var("MLFLOW_EXPERIMENT_NAME", "AutoQuantile")
     return experiment_name or "AutoQuantile"
 
@@ -19,14 +23,31 @@ class SalaryForecasterWrapper(PythonModel):
     """Wrapper for MLflow persistence of SalaryForecaster."""
 
     def __init__(self, forecaster: Any) -> None:
+        """Initialize wrapper with forecaster.
+
+        Args:
+            forecaster (Any): SalaryForecaster instance to wrap.
+        """
         self.forecaster = forecaster
 
     def predict(self, context: Any, model_input: Any) -> Any:
-        """Predict using wrapped forecaster. Args: context (Any): MLflow context. model_input (Any): Input data. Returns: Any: Predictions."""
+        """Predict using wrapped forecaster.
+
+        Args:
+            context (Any): MLflow context.
+            model_input (Any): Input data.
+
+        Returns:
+            Any: Predictions.
+        """
         return self.forecaster.predict(model_input)
 
     def unwrap_python_model(self) -> Any:
-        """Unwrap the Python model. Returns: Any: Unwrapped forecaster."""
+        """Unwrap the Python model.
+
+        Returns:
+            Any: Unwrapped forecaster.
+        """
         return self.forecaster
 
 
@@ -34,6 +55,11 @@ class ModelRegistry:
     """Service for managing model persistence and retrieval via MLflow."""
 
     def __init__(self, experiment_name: Optional[str] = None) -> None:
+        """Initialize model registry.
+
+        Args:
+            experiment_name (Optional[str]): MLflow experiment name. If None, uses default.
+        """
         self.logger = get_logger(__name__)
 
         if experiment_name is None:
@@ -45,7 +71,11 @@ class ModelRegistry:
         self.logger.debug(f"Initialized ModelRegistry with experiment: {experiment_name}")
 
     def list_models(self) -> List[Any]:
-        """List successful runs that have a model artifact from all experiments. Returns: List[Any]: List of run dictionaries."""
+        """List successful runs that have a model artifact from all experiments.
+
+        Returns:
+            List[Any]: List of run dictionaries.
+        """
         try:
             try:
                 all_experiments = self.client.search_experiments()
@@ -96,7 +126,11 @@ class ModelRegistry:
         return cast(list[Any], runs[cols_to_keep].to_dict("records"))
 
     def _list_models_fallback(self) -> Any:
-        """Fallback method to list models by manually iterating runs across all experiments. Returns: Any: DataFrame of runs."""
+        """Fallback method to list models by manually iterating runs across all experiments.
+
+        Returns:
+            Any: DataFrame of runs.
+        """
         from datetime import datetime
 
         import pandas as pd
@@ -190,7 +224,14 @@ class ModelRegistry:
             return pd.DataFrame()
 
     def load_model(self, run_id: str) -> SalaryForecaster:
-        """Load the 'model' artifact from the specified run. Args: run_id (str): MLflow run ID. Returns: SalaryForecaster: Loaded model."""
+        """Load the 'model' artifact from the specified run.
+
+        Args:
+            run_id (str): MLflow run ID.
+
+        Returns:
+            SalaryForecaster: Loaded model.
+        """
         from typing import cast
 
         model_uri = f"runs:/{run_id}/model"
@@ -201,7 +242,12 @@ class ModelRegistry:
         )
 
     def save_model(self, model: SalaryForecaster, run_name: Optional[str] = None) -> None:
-        """Save model to MLflow. Args: model (SalaryForecaster): Model to save. run_name (Optional[str]): Run name. Returns: None."""
+        """Save model to MLflow.
+
+        Args:
+            model (SalaryForecaster): Model to save.
+            run_name (Optional[str]): Run name.
+        """
         if mlflow.active_run():
             mlflow.pyfunc.log_model(
                 artifact_path="model",

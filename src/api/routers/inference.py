@@ -4,19 +4,18 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends
 
+from src.api.dependencies import get_current_user
 from src.api.dto.inference import (
     BatchPredictionRequest,
     BatchPredictionResponse,
     PredictionRequest,
     PredictionResponse,
 )
-from src.api.dependencies import get_current_user
-from src.api.exceptions import InvalidInputError, ModelNotFoundError as APIModelNotFoundError
-from src.services.inference_service import (
-    InferenceService,
-    InvalidInputError as ServiceInvalidInputError,
-    ModelNotFoundError,
-)
+from src.api.exceptions import InvalidInputError
+from src.api.exceptions import ModelNotFoundError as APIModelNotFoundError
+from src.services.inference_service import InferenceService
+from src.services.inference_service import InvalidInputError as ServiceInvalidInputError
+from src.services.inference_service import ModelNotFoundError
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -25,7 +24,11 @@ router = APIRouter(prefix="/api/v1/models", tags=["inference"])
 
 
 def get_inference_service() -> InferenceService:
-    """Get inference service instance. Returns: InferenceService: Inference service."""
+    """Get inference service instance.
+
+    Returns:
+        InferenceService: Inference service.
+    """
     return InferenceService()
 
 
@@ -36,7 +39,21 @@ async def predict(
     user: str = Depends(get_current_user),
     inference_service: InferenceService = Depends(get_inference_service),
 ):
-    """Predict salary quantiles for given features. Args: run_id (str): MLflow run ID. request (PredictionRequest): Prediction request. user (str): Current user. inference_service (InferenceService): Inference service. Returns: PredictionResponse: Prediction results. Raises: APIModelNotFoundError: If model not found. InvalidInputError: If input validation fails."""
+    """Predict salary quantiles for given features.
+
+    Args:
+        run_id (str): MLflow run ID.
+        request (PredictionRequest): Prediction request.
+        user (str): Current user.
+        inference_service (InferenceService): Inference service.
+
+    Returns:
+        PredictionResponse: Prediction results.
+
+    Raises:
+        APIModelNotFoundError: If model not found.
+        InvalidInputError: If input validation fails.
+    """
     try:
         model = inference_service.load_model(run_id)
         result = inference_service.predict(model, request.features)
@@ -64,7 +81,21 @@ async def predict_batch(
     user: str = Depends(get_current_user),
     inference_service: InferenceService = Depends(get_inference_service),
 ):
-    """Batch predict salary quantiles for multiple feature sets. Args: run_id (str): MLflow run ID. request (BatchPredictionRequest): Batch prediction request. user (str): Current user. inference_service (InferenceService): Inference service. Returns: BatchPredictionResponse: Batch prediction results. Raises: APIModelNotFoundError: If model not found. InvalidInputError: If input validation fails."""
+    """Batch predict salary quantiles for multiple feature sets.
+
+    Args:
+        run_id (str): MLflow run ID.
+        request (BatchPredictionRequest): Batch prediction request.
+        user (str): Current user.
+        inference_service (InferenceService): Inference service.
+
+    Returns:
+        BatchPredictionResponse: Batch prediction results.
+
+    Raises:
+        APIModelNotFoundError: If model not found.
+        InvalidInputError: If input validation fails.
+    """
     try:
         model = inference_service.load_model(run_id)
         predictions = []

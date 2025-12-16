@@ -16,13 +16,25 @@ mcp_router = APIRouter(prefix="/mcp", tags=["mcp"])
 
 
 def create_mcp_app() -> APIRouter:
-    """Create MCP router. Returns: APIRouter: Configured MCP router."""
+    """Create MCP router.
+
+    Returns:
+        APIRouter: Configured MCP router.
+    """
     return mcp_router
 
 
 @mcp_router.post("/rpc")
 async def mcp_rpc(request: Request, user: str = Depends(get_current_user)):
-    """Handle JSON-RPC 2.0 requests. Args: request (Request): Request object. user (str): Current user. Returns: JSONResponse: JSON-RPC response."""
+    """Handle JSON-RPC 2.0 requests.
+
+    Args:
+        request (Request): Request object.
+        user (str): Current user.
+
+    Returns:
+        JSONResponse: JSON-RPC response.
+    """
     try:
         body = await request.json()
     except Exception as e:
@@ -125,7 +137,11 @@ async def mcp_rpc(request: Request, user: str = Depends(get_current_user)):
 
 
 async def handle_tools_list() -> Dict[str, Any]:
-    """Handle tools/list request. Returns: Dict[str, Any]: List of available tools."""
+    """Handle tools/list request.
+
+    Returns:
+        Dict[str, Any]: List of available tools.
+    """
     tools = get_mcp_tools()
     return {
         "tools": [tool.to_dict() for tool in tools],
@@ -133,5 +149,9 @@ async def handle_tools_list() -> Dict[str, Any]:
 
 
 def register_mcp_tools(app: Any) -> None:
-    """Register MCP router with FastAPI app. Args: app (Any): FastAPI application. Returns: None."""
+    """Register MCP router with FastAPI app.
+
+    Args:
+        app (Any): FastAPI application.
+    """
     app.include_router(mcp_router)

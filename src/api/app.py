@@ -12,7 +12,11 @@ logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:
-    """Create and configure FastAPI application. Returns: FastAPI: Configured application."""
+    """Create and configure FastAPI application.
+
+    Returns:
+        FastAPI: Configured application.
+    """
     app = FastAPI(
         title="AutoQuantile API",
         description="REST API for salary forecasting model inference and training",
@@ -31,7 +35,15 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(APIException)
     async def api_exception_handler(request: Request, exc: APIException):
-        """Handle API exceptions. Args: request (Request): Request object. exc (APIException): Exception instance. Returns: JSONResponse: Error response."""
+        """Handle API exceptions.
+
+        Args:
+            request (Request): Request object.
+            exc (APIException): Exception instance.
+
+        Returns:
+            JSONResponse: Error response.
+        """
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(
@@ -46,7 +58,15 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request: Request, exc: Exception):
-        """Handle general exceptions. Args: request (Request): Request object. exc (Exception): Exception instance. Returns: JSONResponse: Error response."""
+        """Handle general exceptions.
+
+        Args:
+            request (Request): Request object.
+            exc (Exception): Exception instance.
+
+        Returns:
+            JSONResponse: Error response.
+        """
         logger.error(f"Unhandled exception: {exc}", exc_info=True)
         return JSONResponse(
             status_code=500,
@@ -62,11 +82,15 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        """Health check endpoint. Returns: dict: Health status."""
+        """Health check endpoint.
+
+        Returns:
+            dict: Health status.
+        """
         return {"status": "healthy"}
 
-    from src.api.routers import analytics, inference, models, training, workflow
     from src.api.mcp.server import register_mcp_tools
+    from src.api.routers import analytics, inference, models, training, workflow
 
     app.include_router(models.router)
     app.include_router(inference.router)

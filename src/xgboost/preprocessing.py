@@ -16,7 +16,16 @@ class RankedCategoryEncoder:
         config: Optional[Dict[str, Any]] = None,
         config_key: Optional[str] = None,
     ) -> None:
-        """Initializes encoder. Args: mapping (Optional[Dict[str, int]]): Direct mapping dictionary. config (Optional[Dict[str, Any]]): Configuration dictionary. config_key (Optional[str]): Key in config['mappings'] to load mapping from. Returns: None. Raises: ValueError: If neither mapping nor (config and config_key) are provided."""
+        """Initializes encoder.
+
+        Args:
+            mapping (Optional[Dict[str, int]]): Direct mapping dictionary.
+            config (Optional[Dict[str, Any]]): Configuration dictionary.
+            config_key (Optional[str]): Key in config['mappings'] to load mapping from.
+
+        Raises:
+            ValueError: If neither mapping nor (config and config_key) are provided.
+        """
         if mapping is not None:
             self.mapping = mapping
         elif config is not None and config_key is not None:
@@ -30,11 +39,26 @@ class RankedCategoryEncoder:
             self.mapping = {}
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "RankedCategoryEncoder":
-        """Fits the encoder (no-op as mapping is static). Args: X (Any): Input data. y (Optional[Any]): Target data. Returns: RankedCategoryEncoder: self."""
+        """Fits the encoder (no-op as mapping is static).
+
+        Args:
+            X (Any): Input data.
+            y (Optional[Any]): Target data.
+
+        Returns:
+            RankedCategoryEncoder: Self instance.
+        """
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series, list]) -> pd.Series:
-        """Transforms categories to their integer representation. Args: X (Union[pd.DataFrame, pd.Series, list]): Input categories. Returns: pd.Series: Integer encoded categories. Unknown categories mapped to -1."""
+        """Transforms categories to their integer representation.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series, list]): Input categories.
+
+        Returns:
+            pd.Series: Integer encoded categories. Unknown categories mapped to -1.
+        """
         with PerformanceMetrics("preprocessing_ranked_encoder_time"):
             if isinstance(X, pd.DataFrame):
                 X = X.iloc[:, 0]
@@ -45,15 +69,34 @@ class ProximityEncoder:
     """Maps locations to Cost Zones based on proximity to target cities."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize ProximityEncoder. Args: config (Optional[Dict[str, Any]]): Configuration dictionary. Returns: None."""
+        """Initialize ProximityEncoder.
+
+        Args:
+            config (Optional[Dict[str, Any]]): Configuration dictionary.
+        """
         self.mapper = GeoMapper(config=config)
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "ProximityEncoder":
-        """Fits the encoder (no-op). Args: X (Any): Input data. y (Optional[Any]): Target data. Returns: ProximityEncoder: self."""
+        """Fits the encoder (no-op).
+
+        Args:
+            X (Any): Input data.
+            y (Optional[Any]): Target data.
+
+        Returns:
+            ProximityEncoder: Self instance.
+        """
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
-        """Transforms location names to their cost zone integers. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Cost zones (1-4)."""
+        """Transforms location names to their cost zone integers.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series]): Input locations.
+
+        Returns:
+            pd.Series: Cost zones (1-4).
+        """
         with PerformanceMetrics("preprocessing_proximity_encoder_time"):
             if isinstance(X, pd.DataFrame):
                 X = X.iloc[:, 0]
@@ -75,17 +118,38 @@ class SampleWeighter:
         ref_date: Optional[Union[str, datetime]] = None,
         date_col: str = "Date",
     ) -> None:
-        """Initializes the weighter. Args: k (float): Decay parameter. Defaults to 1.0. ref_date (Optional[Union[str, datetime]]): Reference date. Defaults to now. date_col (str): Column name for date if dataframe is passed. Defaults to "Date"."""
+        """Initializes the weighter.
+
+        Args:
+            k (float): Decay parameter. Defaults to 1.0.
+            ref_date (Optional[Union[str, datetime]]): Reference date. Defaults to now.
+            date_col (str): Column name for date if dataframe is passed. Defaults to "Date".
+        """
         self.k = k
         self.ref_date = pd.to_datetime(ref_date) if ref_date else datetime.now()
         self.date_col = date_col
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "SampleWeighter":
-        """Fits the weighter (no-op). Args: X (Any): Input data. y (Optional[Any]): Target data. Returns: SampleWeighter: self."""
+        """Fits the weighter (no-op).
+
+        Args:
+            X (Any): Input data.
+            y (Optional[Any]): Target data.
+
+        Returns:
+            SampleWeighter: Self instance.
+        """
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
-        """Calculates weights for the input dates. Args: X (Union[pd.DataFrame, pd.Series]): Input dates or dataframe containing date_col. Returns: pd.Series: Calculated weights."""
+        """Calculates weights for the input dates.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series]): Input dates or dataframe containing date_col.
+
+        Returns:
+            pd.Series: Calculated weights.
+        """
         if isinstance(X, pd.DataFrame):
             if self.date_col in X.columns:
                 X = X[self.date_col]
@@ -113,15 +177,34 @@ class CostOfLivingEncoder:
     """Maps locations to cost of living tiers using the same proximity-based approach as ProximityEncoder."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize CostOfLivingEncoder. Args: config (Optional[Dict[str, Any]]): Configuration dictionary. Returns: None."""
+        """Initialize CostOfLivingEncoder.
+
+        Args:
+            config (Optional[Dict[str, Any]]): Configuration dictionary.
+        """
         self.mapper = GeoMapper(config=config)
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "CostOfLivingEncoder":
-        """Fits the encoder (no-op). Args: X (Any): Input data. y (Optional[Any]): Target data. Returns: CostOfLivingEncoder: self."""
+        """Fits the encoder (no-op).
+
+        Args:
+            X (Any): Input data.
+            y (Optional[Any]): Target data.
+
+        Returns:
+            CostOfLivingEncoder: Self instance.
+        """
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
-        """Transforms location names to their cost of living tier integers. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Cost of living tiers (1-4, where 1 is highest cost)."""
+        """Transforms location names to their cost of living tier integers.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series]): Input locations.
+
+        Returns:
+            pd.Series: Cost of living tiers (1-4, where 1 is highest cost).
+        """
         with PerformanceMetrics("preprocessing_cost_of_living_encoder_time"):
             if isinstance(X, pd.DataFrame):
                 X = X.iloc[:, 0]
@@ -138,16 +221,35 @@ class MetroPopulationEncoder:
     """Maps locations to metro area population values using a placeholder heuristic based on proximity zones."""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None) -> None:
-        """Initialize MetroPopulationEncoder. Args: config (Optional[Dict[str, Any]]): Configuration dictionary. Returns: None."""
+        """Initialize MetroPopulationEncoder.
+
+        Args:
+            config (Optional[Dict[str, Any]]): Configuration dictionary.
+        """
         self.mapper = GeoMapper(config=config)
         self.population_map = {1: 5000000, 2: 2000000, 3: 500000, 4: 100000}
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "MetroPopulationEncoder":
-        """Fits the encoder (no-op). Args: X (Any): Input data. y (Optional[Any]): Target data. Returns: MetroPopulationEncoder: self."""
+        """Fits the encoder (no-op).
+
+        Args:
+            X (Any): Input data.
+            y (Optional[Any]): Target data.
+
+        Returns:
+            MetroPopulationEncoder: Self instance.
+        """
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
-        """Transforms location names to approximate population values. Args: X (Union[pd.DataFrame, pd.Series]): Input locations. Returns: pd.Series: Approximate population values."""
+        """Transforms location names to approximate population values.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series]): Input locations.
+
+        Returns:
+            pd.Series: Approximate population values.
+        """
         with PerformanceMetrics("preprocessing_metro_population_encoder_time"):
             if isinstance(X, pd.DataFrame):
                 X = X.iloc[:, 0]
@@ -165,13 +267,25 @@ class DateNormalizer:
     """Normalizes dates to 0-1 range based on min/max dates. Supports two modes: normalize_recent (most recent = 1.0) or least_recent (least recent = 0.0)."""
 
     def __init__(self, mode: str = "normalize_recent") -> None:
-        """Initializes the normalizer. Args: mode (str): Normalization mode ('normalize_recent' or 'least_recent')."""
+        """Initializes the normalizer.
+
+        Args:
+            mode (str): Normalization mode ('normalize_recent' or 'least_recent').
+        """
         self.mode = mode
         self.min_date: Optional[pd.Timestamp] = None
         self.max_date: Optional[pd.Timestamp] = None
 
     def fit(self, X: Any, y: Optional[Any] = None) -> "DateNormalizer":
-        """Fits the normalizer by computing min/max dates. Args: X (Any): Input dates. y (Optional[Any]): Target data (ignored). Returns: DateNormalizer: self."""
+        """Fits the normalizer by computing min/max dates.
+
+        Args:
+            X (Any): Input dates.
+            y (Optional[Any]): Target data (ignored).
+
+        Returns:
+            DateNormalizer: Self instance.
+        """
         if isinstance(X, pd.DataFrame):
             X = X.iloc[:, 0]
 
@@ -188,7 +302,17 @@ class DateNormalizer:
         return self
 
     def transform(self, X: Union[pd.DataFrame, pd.Series]) -> pd.Series:
-        """Normalizes dates to 0-1 range. Args: X (Union[pd.DataFrame, pd.Series]): Input dates. Returns: pd.Series: Normalized dates (0.0 to 1.0)."""
+        """Normalizes dates to 0-1 range.
+
+        Args:
+            X (Union[pd.DataFrame, pd.Series]): Input dates.
+
+        Returns:
+            pd.Series: Normalized dates (0.0 to 1.0).
+
+        Raises:
+            ValueError: If normalizer has not been fitted.
+        """
         if self.min_date is None or self.max_date is None:
             raise ValueError("DateNormalizer must be fitted before transform")
 

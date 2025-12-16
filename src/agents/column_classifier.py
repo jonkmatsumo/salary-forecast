@@ -27,7 +27,11 @@ logger = get_logger(__name__)
 
 
 def get_column_classifier_tools() -> List["BaseTool"]:
-    """Return tools available to the column classifier agent. Returns: List[BaseTool]: List of tool functions."""
+    """Return tools available to the column classifier agent.
+
+    Returns:
+        List[BaseTool]: List of tool functions.
+    """
     return [
         compute_correlation_matrix,
         get_column_statistics,
@@ -36,13 +40,29 @@ def get_column_classifier_tools() -> List["BaseTool"]:
 
 
 def create_column_classifier_agent(llm: BaseChatModel) -> Any:
-    """Create a column classifier agent with tool-calling capabilities. Args: llm (BaseChatModel): LangChain chat model with tool calling. Returns: Any: Runnable with bound tools (exact type depends on LLM implementation)."""
+    """Create a column classifier agent with tool-calling capabilities.
+
+    Args:
+        llm (BaseChatModel): LangChain chat model with tool calling.
+
+    Returns:
+        Any: Runnable with bound tools (exact type depends on LLM implementation).
+    """
     tools = get_column_classifier_tools()
     return llm.bind_tools(tools)
 
 
 def build_classification_prompt(df_json: str, columns: List[str], dtypes: Dict[str, str]) -> str:
-    """Build the user prompt for column classification. Args: df_json (str): JSON representation of DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column name to dtype mapping. Returns: str: Formatted prompt."""
+    """Build the user prompt for column classification.
+
+    Args:
+        df_json (str): JSON representation of DataFrame sample.
+        columns (List[str]): Column names.
+        dtypes (Dict[str, str]): Column name to dtype mapping.
+
+    Returns:
+        str: Formatted prompt.
+    """
     column_info = "\n".join([f"- {col}: {dtypes.get(col, 'unknown')}" for col in columns])
 
     return f"""Please analyze this dataset and classify each column.
@@ -66,7 +86,14 @@ After your analysis, provide your final classification as JSON with keys: target
 
 
 def parse_classification_response(response_content: str) -> Dict[str, Any]:
-    """Parse the agent's response to extract classification. Args: response_content (str): Raw response text. Returns: Dict[str, Any]: Parsed classification dictionary."""
+    """Parse the agent's response to extract classification.
+
+    Args:
+        response_content (str): Raw response text.
+
+    Returns:
+        Dict[str, Any]: Parsed classification dictionary.
+    """
     logger.debug(
         f"Parsing classification response (length: {len(response_content) if response_content else 0})"
     )
@@ -90,7 +117,6 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
         if not json_str:
             raise ValueError("Empty JSON string extracted from response")
 
-        # Try to find JSON object boundaries if not already clean
         if json_str.startswith("{") and json_str.endswith("}"):
             pass
         elif "{" in json_str and "}" in json_str:
@@ -127,7 +153,6 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
         if "reasoning" not in result:
             result["reasoning"] = "No reasoning provided"
 
-        # Validate that lists contain strings and normalize them
         if result["targets"] and not all(isinstance(t, str) for t in result["targets"]):
             logger.warning(f"Targets contains non-string values: {result['targets']}")
             result["targets"] = [str(t).strip() for t in result["targets"]]
@@ -146,7 +171,6 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
         else:
             result["ignore"] = [str(i).strip() for i in result["ignore"]]
 
-        # Remove empty strings
         result["targets"] = [t for t in result["targets"] if t]
         result["features"] = [f for f in result["features"] if f]
         result["ignore"] = [i for i in result["ignore"] if i]
@@ -169,19 +193,13 @@ def parse_classification_response(response_content: str) -> Dict[str, Any]:
         logger.debug(f"JSON parse error details: {str(e)}")
         logger.debug(f"Attempted to parse: {json_str[:500] if json_str else 'None'}")
 
-        # Try to extract classification from the reasoning text as a fallback
-        # Look for patterns like "targets: [col1, col2]" or "Target: col1, col2"
         extracted_targets = []
         extracted_features = []
         extracted_ignore = []
-
-        # Try to find JSON-like structures in the text
-        # Look for targets/features/ignore lists in various formats
         targets_pattern = r"(?:targets?|target\s*:)\s*\[([^\]]+)\]|(?:targets?|target\s*:)\s*([A-Za-z0-9\s,/\-]+?)(?:\n|$)"
         features_pattern = r"(?:features?|feature\s*:)\s*\[([^\]]+)\]|(?:features?|feature\s*:)\s*([A-Za-z0-9\s,/\-]+?)(?:\n|$)"
         ignore_pattern = r"(?:ignore|ignored)\s*\[([^\]]+)\]|(?:ignore|ignored)\s*:\s*([A-Za-z0-9\s,/\-]+?)(?:\n|$)"
 
-        # Extract from the full response content
         targets_match = re.search(targets_pattern, response_content, re.IGNORECASE)
         if targets_match:
             targets_str = targets_match.group(1) or targets_match.group(2) or ""
@@ -257,7 +275,18 @@ async def run_column_classifier(
     dtypes: Dict[str, str],
     max_iterations: int = 10,
 ) -> Dict[str, Any]:
-    """Run the column classification agent with tool-calling loop. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max iterations. Returns: Dict[str, Any]: Classification result."""
+    """Run the column classification agent with tool-calling loop.
+
+    Args:
+        llm (BaseChatModel): LangChain chat model.
+        df_json (str): JSON DataFrame sample.
+        columns (List[str]): Column names.
+        dtypes (Dict[str, str]): Column to dtype mapping.
+        max_iterations (int): Max iterations.
+
+    Returns:
+        Dict[str, Any]: Classification result.
+    """
     system_prompt = load_prompt("agents/column_classifier_system")
     user_prompt = build_classification_prompt(df_json, columns, dtypes)
 
@@ -336,7 +365,19 @@ def run_column_classifier_sync(
     max_iterations: int = 10,
     preset: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Synchronous column classifier. Args: llm (BaseChatModel): LangChain chat model. df_json (str): JSON DataFrame sample. columns (List[str]): Column names. dtypes (Dict[str, str]): Column to dtype mapping. max_iterations (int): Max tool-calling iterations. preset (Optional[str]): Optional preset prompt name. Returns: Dict[str, Any]: Classification result."""
+    """Synchronous column classifier.
+
+    Args:
+        llm (BaseChatModel): LangChain chat model.
+        df_json (str): JSON DataFrame sample.
+        columns (List[str]): Column names.
+        dtypes (Dict[str, str]): Column to dtype mapping.
+        max_iterations (int): Max tool-calling iterations.
+        preset (Optional[str]): Optional preset prompt name.
+
+    Returns:
+        Dict[str, Any]: Classification result.
+    """
     system_prompt = load_prompt("agents/column_classifier_system")
 
     if preset and preset.lower() != "none":

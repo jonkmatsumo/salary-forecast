@@ -14,7 +14,13 @@ from src.services.model_registry import ModelRegistry
 def render_model_information_api(
     model_details: Any, run_id: str, runs: List[Dict[str, Any]]
 ) -> None:
-    """Display model metadata and feature information from API. Args: model_details (Any): Model details response. run_id (str): MLflow run ID. runs (List[Dict[str, Any]]): List of all runs. Returns: None."""
+    """Display model metadata and feature information from API.
+
+    Args:
+        model_details (Any): Model details response.
+        run_id (str): MLflow run ID.
+        runs (List[Dict[str, Any]]): List of all runs.
+    """
     st.markdown("---")
     st.subheader("Model Information")
 
@@ -76,7 +82,14 @@ def render_model_information_api(
 def render_model_information(
     model: Any, schema: Any, run_id: str, runs: List[Dict[str, Any]]
 ) -> None:
-    """Display model metadata and feature information. Args: model (Any): Loaded forecaster model. schema (Any): Model schema from InferenceService. run_id (str): MLflow run ID. runs (List[Dict[str, Any]]): List of all runs from registry. Returns: None."""
+    """Display model metadata and feature information.
+
+    Args:
+        model (Any): Loaded forecaster model.
+        schema (Any): Model schema from InferenceService.
+        run_id (str): MLflow run ID.
+        runs (List[Dict[str, Any]]): List of all runs from registry.
+    """
     st.markdown("---")
     st.subheader("Model Information")
 
@@ -145,6 +158,7 @@ def render_inference_ui() -> None:
     use_api = api_client is not None
 
     if use_api:
+        assert api_client is not None
         try:
             models = api_client.list_models()
             runs = [
@@ -201,9 +215,14 @@ def render_inference_ui() -> None:
     if not selected_label:
         return
 
-    run_id = run_options[selected_label]
+    run_id_raw = run_options[selected_label]
+    if not isinstance(run_id_raw, str):
+        st.error("Invalid run_id type")
+        return
+    run_id: str = run_id_raw
 
     if use_api:
+        assert api_client is not None
         if (
             "model_details" not in st.session_state
             or st.session_state.get("current_run_id") != run_id
@@ -270,6 +289,7 @@ def render_inference_ui() -> None:
 
                             with st.spinner("Loading feature importance..."):
                                 try:
+                                    assert api_client is not None
                                     importance_response = api_client.get_feature_importance(
                                         run_id, selected_target, selected_q_val
                                     )
@@ -407,6 +427,7 @@ def render_inference_ui() -> None:
         if submitted:
             with st.spinner("Predicting..."):
                 try:
+                    assert api_client is not None
                     response = api_client.predict(run_id, input_data)
                     results = response.data.predictions if response.data else {}
                 except APIError as e:

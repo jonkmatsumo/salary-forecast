@@ -8,7 +8,11 @@ from src.model.config_schema_model import Config
 
 
 def create_test_config() -> Dict[str, Any]:
-    """Create a minimal valid test configuration. Args: None. Returns: Dict[str, Any]: Test config."""
+    """Create a minimal valid test configuration.
+
+    Returns:
+        Dict[str, Any]: Test config.
+    """
     return {
         "mappings": {
             "levels": {"E3": 0, "E4": 1, "E5": 2},
@@ -29,17 +33,29 @@ def create_test_config() -> Dict[str, Any]:
 
 
 def create_validated_test_config() -> Config:
-    """Create a validated Pydantic Config object. Args: None. Returns: Config: Validated config."""
+    """Create a validated Pydantic Config object.
+
+    Returns:
+        Config: Validated config.
+    """
     return Config.model_validate(create_test_config())
 
 
 @pytest.fixture
 def test_config() -> Dict[str, Any]:
-    """Pytest fixture providing a test configuration. Args: None. Returns: Dict[str, Any]: Test config."""
+    """Pytest fixture providing a test configuration.
+
+    Returns:
+        Dict[str, Any]: Test config.
+    """
     return create_test_config()
 
 
 @pytest.fixture
 def validated_test_config() -> Config:
-    """Pytest fixture providing a validated Config object. Args: None. Returns: Config: Validated config."""
+    """Pytest fixture providing a validated Config object.
+
+    Returns:
+        Config: Validated config.
+    """
     return create_validated_test_config()

@@ -2,11 +2,11 @@
 
 import json
 import warnings
-from typing import Any, Dict
+from typing import Any, Dict, Optional, cast
 
 import pandas as pd
 
-from src.llm.client import get_llm_client
+from src.llm.client import LLMClient, get_llm_client
 from src.model.config_schema_model import Config
 from src.utils.logger import get_logger
 from src.utils.prompt_loader import load_prompt
@@ -16,6 +16,11 @@ class LLMService:
     """Legacy LLM service for single-prompt configuration generation. DEPRECATED: Use WorkflowService for the new multi-step agentic workflow. This class is kept for backward compatibility only."""
 
     def __init__(self, provider: str = "openai") -> None:
+        """Initialize LLM service (deprecated).
+
+        Args:
+            provider (str): LLM provider name.
+        """
         warnings.warn(
             "LLMService is deprecated. Use WorkflowService from "
             "src.services.workflow_service for AI-powered configuration generation.",
@@ -24,14 +29,26 @@ class LLMService:
         )
 
         self.logger = get_logger(__name__)
+        self.client: Optional[LLMClient] = None
         try:
             self.client = get_llm_client(provider)
         except Exception as e:
             self.logger.warning(f"Failed to initialize LLM client for provider '{provider}': {e}")
-            self.client = None
 
     def generate_config(self, df: pd.DataFrame, preset: str = "none") -> Dict[str, Any]:
-        """Generates configuration from dataframe using LLM (DEPRECATED). Args: df (pd.DataFrame): Input dataframe. preset (str): Preset name. Returns: Dict[str, Any]: Validated configuration dictionary."""
+        """Generates configuration from dataframe using LLM (DEPRECATED).
+
+        Args:
+            df (pd.DataFrame): Input dataframe.
+            preset (str): Preset name.
+
+        Returns:
+            Dict[str, Any]: Validated configuration dictionary.
+
+        Raises:
+            RuntimeError: If LLM client is not initialized.
+            ValueError: If LLM response is invalid or validation fails.
+        """
         if not self.client:
             raise RuntimeError("LLM Client not initialized. Check API keys.")
 
@@ -62,7 +79,7 @@ class LLMService:
 
             validated_config = Config.model_validate(config_dict)
             self.logger.info("Successfully generated and validated config from LLM.")
-            return validated_config.model_dump()
+            return cast(Dict[str, Any], validated_config.model_dump())
 
         except json.JSONDecodeError as e:
             self.logger.error(f"Failed to parse LLM response JSON: {response_text}")
